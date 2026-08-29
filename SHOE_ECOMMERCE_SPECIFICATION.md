@@ -1,7 +1,9 @@
 # Đặc tả hệ thống SOLE — E-commerce giày dép
 
-> **Phiên bản tài liệu:** cập nhật sau giai đoạn triển khai P0–P6 và rà soát gap audit (2026).  
-> **Trạng thái hệ thống:** MVP+ (~85%) — luồng mua hàng end-to-end hoạt động; còn một số hạng mục spec cố ý hoãn hoặc chưa polish.
+> **Phiên bản tài liệu:** cập nhật sau giai đoạn Release R0–R4, nâng cấp AI RAG và bộ test mở rộng (08/2026).  
+> **Trạng thái hệ thống:** MVP+ (~92%) — luồng mua hàng end-to-end, guest cart, coupon/VAT, AI grounded; còn polish vận hành và E2E production.
+
+**Commit tham chiếu:** `3269aa9` (main) — test coverage + `d9800de` — AI RAG.
 
 ---
 
@@ -54,9 +56,20 @@
 - Giảm oversell nhờ **reserve tồn kho** trước khi tạo đơn.
 - Webhook thanh toán **an toàn, idempotent**.
 - Cổng admin/staff vận hành catalog — inventory — order — return.
-- Nền tảng mở rộng được cho promotion, vận chuyển, AI assistant (một phần đã có).
+- Nền tảng mở rộng: promotion/coupon, VAT cấu hình, guest cart, AI assistant RAG (embedding + context theo route).
 
-### 1.3. Ngoài phạm vi MVP hiện tại
+### 1.3. Phạm vi đã bổ sung (Release R0–R4)
+
+| Giai đoạn | Nội dung chính |
+|-----------|----------------|
+| **R0** | Bật `permission.enforcement`, trang payment error/cancel poll BE, integration test payment/inventory, checklist staging |
+| **R1** | Admin order detail, return/address/checkout polish, mở rộng `@perm.has`, runbook refund |
+| **R2** | Guest cart BE (`guestSessionId` + merge khi login), route `/cart` public, FloatingChatbot |
+| **R3** | Correlation ID, ES re-index hook (review/inventory), Playwright smoke E2E, inventory paging |
+| **R4** | Module `promotions/` (coupon + checkout), `VatCalculator`, FE coupon checkout + admin promotions |
+| **AI** | RAG embedding, context catalog/policy/order, multi-turn, `suggestedProducts` trên FE |
+
+### 1.4. Ngoài phạm vi MVP hiện tại
 
 - Marketplace nhiều nhà bán.
 - Đa tiền tệ.
@@ -72,7 +85,7 @@
 
 | Vai trò | Mô tả | Quyền chính |
 |--------|-------|-------------|
-| **GUEST** | Chưa đăng nhập | Xem sản phẩm, tìm kiếm/lọc, xem đánh giá công khai |
+| **GUEST** | Chưa đăng nhập | Xem SP, tìm kiếm/lọc, **giỏ guest** (`guestSessionId` cookie), AI chat widget, xem review công khai |
 | **CUSTOMER** | Khách hàng | Giỏ hàng, checkout, đơn hàng, địa chỉ, đánh giá, wishlist, yêu cầu trả hàng |
 | **STAFF** | Nhân viên | Xử lý đơn, hỗ trợ KH, tạo/sửa sản phẩm draft, xác nhận/trả hàng bước đầu |
 | **SHOP_MANAGER** | Quản lý shop | Duyệt sản phẩm, quản lý tồn kho, duyệt hoàn tiền/trả hàng, xem báo cáo |
@@ -84,7 +97,7 @@
 | Chức năng | Guest | Customer | Staff | Shop Manager | Admin |
 |-----------|:-----:|:--------:|:-----:|:------------:|:-----:|
 | Duyệt & lọc sản phẩm | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Thêm giỏ hàng | ❌* | ✅ | ✅ | ✅ | ✅ |
+| Thêm giỏ hàng | ✅** | ✅ | ✅ | ✅ | ✅ |
 | Checkout SePay | ❌ | ✅ | ✅ | ✅ | ✅ |
 | Xem đơn/review/return của mình | ❌ | ✅ | ✅ | ✅ | ✅ |
 | Duyệt sản phẩm | — | — | ❌ | ✅ | ✅ |
@@ -92,7 +105,9 @@
 | Ma trận RBAC UI | — | — | — | — | SUPER_ADMIN |
 | Báo cáo doanh thu | — | — | Hạn chế FE | ✅ | ✅ |
 
-\* *Guest:* giỏ hàng và checkout **bắt buộc đăng nhập**. Header hiển thị link giỏ hàng kèm gợi ý «(đăng nhập)» và chuyển tới `/login?redirect=/cart`.
+| AI chat (widget + `/ai-chat`) | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+\**Guest:* thêm/sửa giỏ qua `/cart/**` không cần login; cookie `guestSessionId` gắn giỏ guest. **Checkout vẫn yêu cầu đăng nhập** — sau login giỏ guest merge vào giỏ user (`GuestCartMergeService`).
 
 ### 2.3. RBAC động (Dynamic RBAC) — ✅
 
@@ -261,10 +276,11 @@ expiresAt, timestamps
 
 ### 5.5. Cart & Cart Item
 
-Giỏ theo `userId` (một user một giỏ ACTIVE).
+Giỏ theo `userId` **hoặc** `guestSessionId` (một giỏ ACTIVE mỗi identity).
 
 ```text
-cartItemId, variantId, quantity, priceSnapshot
+Cart: cartId, userId?, guestSessionId?, status (ACTIVE), items[]
+CartItem: cartItemId, variantId, quantity, priceSnapshot
 ```
 
 ### 5.6. Order & Order Item
@@ -293,8 +309,25 @@ refundAmount, manualRefundRequired, staffNote, managerNote, rejectedReason
 
 - **Review:** gắn `orderId` + `orderItemId`; verified purchase; vote dedupe phía BE.
 - **Wishlist:** `userId` + `productId` unique.
-- **Address:** sổ địa chỉ giao hàng; một địa chỉ `isDefault`.
+- **Address:** sổ địa chỉ giao hàng; một địa chỉ `isDefault`; ward/district trên FE.
 - **Notification:** in-app + SSE; `targetUrl` deep link.
+
+### 5.10. Coupon (Promotions)
+
+```text
+Coupon: code, type, value, minOrderAmount, maxDiscount
+        usageLimit, perUserLimit, brandIds[], categoryIds[]
+        startsAt, endsAt, active, usedCount
+CouponUsage: couponId, userId, orderId, discountApplied
+```
+
+### 5.11. AI (Conversation & Embeddings)
+
+```text
+AiConversation: conversationId, userId, title, messages[], timestamps
+AiMessage: role, content, routeType, timestamp
+AiEmbedding: id, entityType (PRODUCT|POLICY), entityId, text, embedding[], updatedAt
+```
 
 ---
 
@@ -342,33 +375,45 @@ Phần này mô tả **cách từng chức năng hoạt động thực tế** tr
 | Restock khi trả hàng | Return `RECEIVED` → `InventoryService.restock()` — giảm `sold`, tăng `onHand`/`available` |
 | Scheduler | Job expire reservation + expire payment pending |
 
-### 6.4. Giỏ hàng (Cart) — ✅ / ⚠️
+### 6.4. Giỏ hàng (Cart) — ✅
 
 | Chức năng | Trạng thái | Cách hoạt động |
 |-----------|:----------:|----------------|
-| CRUD giỏ | ✅ | Theo `userId`; merge quantity cùng variant |
-| Validate | ✅ | `POST /cart/validate` — kiểm stock, giá, variant active |
-| Re-validate sau đổi qty | ⚠️ | Cần user refresh/tải lại; chưa auto re-run ngay sau mỗi lần đổi số lượng |
-| Guest cart | ❌ | Bắt buộc login |
+| CRUD giỏ user | ✅ | Theo `userId`; merge quantity cùng `variantId` |
+| **Guest cart** | ✅ | Cookie/header `guestSessionId`; cart document `guestSessionId` + `status=ACTIVE`; API `/cart/**` **permitAll** |
+| Merge khi login | ✅ | `AuthServiceImpl` gọi `GuestCartMergeService.mergeGuestCartIntoUser` sau login/register/Google/refresh có guest cookie |
+| Validate | ✅ | `POST /cart/validate` — stock, giá, variant active; trả `issues[]` từng dòng |
+| Re-validate FE | ✅ | Cart page debounce gọi validate sau đổi số lượng |
+| FE public route | ✅ | `/cart` không bọc `ProtectedRoute`; Header link giỏ không bắt login |
+
+**Luồng guest → customer:**
+
+```text
+Guest thêm SP → Cart(guestSessionId=guest-xxx)
+→ Login → merge items vào Cart(userId) → xóa/ deactivate guest cart
+→ Checkout (yêu cầu auth)
+```
 
 ### 6.5. Checkout — ✅ / ⚠️
 
-**Luồng `/checkout`:**
+**Luồng `POST /checkout`:**
 
-1. Load giỏ từ DB, validate từng item.
-2. Snapshot địa chỉ từ `addressId`.
-3. Tính phí ship (`ShippingFeeCalculator`: 30.000đ; **miễn phí từ 2.000.000đ**).
-4. **Reserve tồn kho** cho toàn bộ dòng hàng.
-5. Tạo order `PENDING_PAYMENT` + payment `PENDING` (hết hạn ~15 phút).
-6. Trả `PaymentCheckoutResponse` — FE auto-submit form SePay.
+1. Load giỏ user, validate từng item.
+2. Snapshot địa chỉ từ `addressId` (ownership check).
+3. **Validate coupon** (nếu có `couponCode`) qua `CouponValidator` — fail thì release reservation.
+4. Tính: `subtotal` → `discountTotal` → `VatCalculator` (`vat.rate` env) → `ShippingFeeCalculator` → `grandTotal`.
+5. **Reserve tồn kho** toàn bộ dòng (`StockReservation` TTL 15 phút).
+6. Tạo order `PENDING_PAYMENT` + payment `PENDING`; ghi `CouponUsage` nếu áp mã.
+7. Trả `PaymentCheckoutResponse` — FE auto-submit form SePay.
 
-| Hạng mục | Trạng thái |
-|----------|:----------:|
-| Preview (`POST /checkout/preview`) | ✅ |
-| addressId snapshot | ✅ |
-| customerNote | ⚠️ API hỗ trợ; FE checkout có thể chưa có input |
-| Phương thức thanh toán | ⚠️ Hard-code `SEPAY` |
-| VAT (`taxTotal`) | ❌ Luôn 0 |
+| Hạng mục | Trạng thái | Chi tiết |
+|----------|:----------:|----------|
+| Preview | ✅ | `POST /checkout/preview?couponCode=` — subtotal, discount, tax, shipping, grandTotal |
+| Coupon | ✅ | `PERCENTAGE`, `FIXED_AMOUNT`, `FREE_SHIPPING`; min order, usage limit, per-user limit |
+| VAT | ✅ | `vat.rate` (mặc định 0); `taxTotal = (subtotal - discount) × rate` |
+| customerNote | ✅ | Ghi vào order; FE checkout có input |
+| Phương thức thanh toán | ⚠️ | Hard-code `SEPAY` |
+| Invalid coupon rollback | ✅ | Release reservation nếu validate coupon fail sau reserve |
 
 ### 6.6. Thanh toán SePay — ✅
 
@@ -392,7 +437,7 @@ Phần này mô tả **cách từng chức năng hoạt động thực tế** tr
 | Lịch sử / chi tiết KH | ✅ | `GET /orders/my-orders`, `/orders/{id}` — ownership check |
 | Hủy đơn | ✅ | Trước khi ship; release reservation nếu cần |
 | Admin list + đổi trạng thái | ✅ | Advance status; ship kèm `trackingCode` |
-| Admin order detail page | ⚠️ | Chỉ list + modal/prompt, chưa có trang chi tiết riêng |
+| **Admin order detail** | ✅ | `/admin/orders/:orderId`, `/staff/orders/:orderId` — snapshot items, payment, return panel |
 | Email vận chuyển | ✅ | Shipped, delivered templates |
 
 ### 6.8. Đổi / trả / hoàn tiền (Returns) — ✅ / ⚠️
@@ -414,7 +459,7 @@ PENDING
 | Admin workflow từng bước | ✅ |
 | Hoàn tiền SePay API | ❌ `manualRefundRequired=true` |
 | Restock | ✅ Khi `RECEIVED` |
-| FE customer MyReturns | ⚠️ Hiển thị orderId thô |
+| FE customer MyReturns | ✅ | Hiển thị `orderCode` thay orderId thô |
 
 ### 6.9. Đánh giá (Reviews) — ✅ / ⚠️
 
@@ -422,10 +467,13 @@ PENDING
 - Admin: reply, ẩn/hiện review.
 - ⚠️ FE chưa vote «helpful»; My Reviews read-only.
 
-### 6.10. Wishlist & Địa chỉ — ✅ / ⚠️
+### 6.10. Wishlist & Địa chỉ — ✅
 
-- Wishlist: add/remove/list — ⚠️ empty state / N+1 fetch product chưa tối ưu.
-- Address: CRUD BE đủ — ⚠️ FE address book chủ yếu create; thiếu ward/district đầy đủ trên form.
+| Chức năng | Trạng thái | Chi tiết |
+|-----------|:----------:|----------|
+| Wishlist CRUD | ✅ | add/remove/list theo user |
+| Address book | ✅ | CRUD đầy đủ; form có ward/district; set default |
+| Checkout chọn địa chỉ | ✅ | Dropdown từ address book |
 
 ### 6.11. Thông báo — ✅
 
@@ -439,18 +487,37 @@ PENDING
 - FE Dashboard Admin gọi API này (không còn filter client-side trên 500 đơn cho stats chính).
 - Charts vẫn dùng subset orders cho biểu đồ.
 
-### 6.13. Tìm kiếm — ✅ / ⚠️
+### 6.13. Tìm kiếm — ✅
 
-- Mặc định `SEARCH_ENGINE=mongo` — regex/text filter đầy đủ.
-- Elasticsearch (tùy chọn): nested filter size/color/price/inStock; timeout → fallback Mongo.
-- Re-index khi publish/unpublish/adjust/restock; ⚠️ review rating chưa trigger re-index.
-- Admin re-index: API `POST /admin/search/reindex` — chưa có UI.
+| Thành phần | Mô tả |
+|------------|-------|
+| Engine mặc định | `SEARCH_ENGINE=mongo` — regex/filter đầy đủ |
+| Elasticsearch | Nested filter size/color/price/inStock; timeout → fallback Mongo (`ProductSearchRouter`) |
+| Re-index trigger | Publish/unpublish, inventory adjust/restock, **review mới** (`ProductReviewService` → `SearchIndexService`) |
+| Admin re-index | `POST /admin/search/reindex`; widget low-stock trên dashboard |
 
-### 6.14. Trợ lý AI — ✅ / ⚠️
+### 6.14. Khuyến mãi / Coupon (Promotions) — ✅
 
-- BE: `POST /ai/chat` — router keyword, OpenAI adapter, lưu conversation MongoDB.
-- FE: `/ai-chat` — widget chat; guest được gọi API nhưng FE yêu cầu login.
-- ⚠️ Route `ORDER_STATUS` chưa tra order thật; semantic search/embedding chưa dùng.
+| Chức năng | Cách hoạt động |
+|-----------|----------------|
+| Model `Coupon` | `code`, `type` (PERCENTAGE/FIXED_AMOUNT/FREE_SHIPPING), `value`, `minOrderAmount`, `maxDiscount`, limits, brand/category scope (field có, validator brand/category ⚠️ chưa enforce) |
+| Validate | `POST /promotions/validate` — auth; trả message tiếng Việt |
+| Checkout | `couponCode` trên request; `CouponValidator` + `PromotionService.recordUsage` |
+| Admin CRUD | `/admin/promotions/**` — FE `PromotionManagementPage` |
+| Preview checkout | FE nhập mã → gọi preview API cập nhật discount/shipping |
+
+### 6.15. Trợ lý AI — ✅
+
+Tóm tắt; chi tiết đầy đủ tại [mục 15](#15-trợ-lý-ai-mua-sắm).
+
+| Thành phần | Mô tả |
+|------------|-------|
+| Entry | `POST /ai/chat` (permitAll, CSRF exempt); FloatingChatbot + `/ai-chat` |
+| RAG | `OpenAiEmbeddingAdapter` + collection `ai_embeddings`; cosine retrieval top-k |
+| Context | Catalog (giá/stock/variant), policy YAML, order/return thật khi login |
+| Multi-turn | 8 turn gần nhất gửi OpenAI Responses API |
+| Response | `answer`, `routeType`, `suggestedProducts[]`, `warnings[]` |
+| Index | Re-index product khi publish; startup index nếu collection trống |
 
 ---
 
@@ -550,11 +617,20 @@ POST /admin/inventory/import
 ### 7.5. Cart & Checkout
 
 ```text
-GET/DELETE /cart
+GET/DELETE /cart                         # user hoặc guest (guestSessionId)
 POST/PUT/DELETE /cart/items/...
 POST       /cart/validate
-POST       /checkout/preview
-POST       /checkout
+POST       /checkout/preview             # ?couponCode=
+POST       /checkout                     # body: addressId, couponCode?, customerNote?
+```
+
+**Guest cart:** Header/cookie `guestSessionId` do `GuestCartSupport` resolve; không cần JWT.
+
+### 7.5b. Promotions
+
+```text
+POST /promotions/validate                # auth — body: code, subtotal
+GET/POST/PUT/DELETE /admin/promotions/...
 ```
 
 ### 7.6. Orders
@@ -602,11 +678,29 @@ POST /admin/returns/{id}/refund
 
 ```text
 GET/PUT  /notifications/...
-GET      /notifications/stream      # SSE
+GET      /notifications/stream           # SSE — client disconnect handled gracefully
 GET      /admin/reports/dashboard
-POST     /ai/chat
-GET      /ai/conversations/...
+POST     /ai/chat                        # permitAll; response: answer, routeType, suggestedProducts, warnings
+GET      /ai/conversations/...           # auth — lịch sử hội thoại
 POST     /admin/search/reindex
+```
+
+**`POST /ai/chat` request:**
+
+```json
+{ "conversationId": "optional", "message": "câu hỏi" }
+```
+
+**Response `data`:**
+
+```json
+{
+  "conversationId": "...",
+  "routeType": "PRODUCT_INFO",
+  "answer": "...",
+  "suggestedProducts": [{ "productId", "name", "slug", "minPrice", "imageUrl" }],
+  "warnings": ["Đăng nhập để xem trạng thái đơn hàng..."]
+}
 ```
 
 ---
@@ -621,25 +715,27 @@ User → Trang listing (/products)
      → Sync query params URL (share link)
      → Backend: Mongo hoặc ES (nested variants)
      → PDP: chọn size/màu → hiển thị stock variant
-     → Add to cart / Buy now (yêu cầu login)
+     → Add to cart (guest/user) / Buy now (login → checkout)
 ```
 
 ### 8.2. Thêm giỏ hàng
 
 ```text
-Customer chọn variant + quantity
-→ POST /cart/items
-→ BE kiểm variant ACTIVE, available > 0
+Guest/User chọn variant + quantity
+→ POST /cart/items { variantId, quantity }
+→ BE: resolveCart(userId | guestSessionId từ cookie)
+→ Kiểm variant ACTIVE, available > 0
 → Merge hoặc thêm dòng mới
-→ Trả cart summary
+→ POST /cart/validate (FE debounce sau đổi qty)
+→ Guest muốn checkout → /login?redirect=/checkout → merge giỏ guest
 ```
 
 ### 8.3. Checkout
 
 ```text
-Customer mở /checkout
-→ Chọn địa chỉ (addressId)
-→ POST /checkout/preview (optional — xem phí ship)
+Customer mở /checkout (login required)
+→ Chọn địa chỉ (addressId), nhập coupon (optional), customerNote
+→ POST /checkout/preview?couponCode= — xem discount, VAT, shipping, grandTotal
 → POST /checkout
 → BE validate giỏ + stock
 → Reserve tồn kho (TTL)
@@ -693,11 +789,17 @@ Customer (đơn DELIVERED, trong 7 ngày)
 
 ## 9. Quy tắc giá, vận chuyển, tồn kho
 
-### 9.1. Giá
+### 9.1. Giá, coupon và VAT
 
-- Giá hiển thị lấy từ **variant**; order item snapshot `unitPrice`, `lineTotal`.
-- **Không tin** số tiền từ client khi checkout.
-- Voucher / khuyến mãi: ❌ chưa có module `promotions/`.
+| Thành phần | Quy tắc |
+|------------|---------|
+| Giá bán | Lấy từ **variant** tại thời điểm checkout; snapshot `unitPrice`, `lineTotal` trên order item |
+| Client amount | **Không tin** số tiền từ FE — BE tính lại toàn bộ |
+| Coupon PERCENTAGE | `discount = subtotal × value%`, cap bởi `maxDiscount` |
+| Coupon FIXED_AMOUNT | Trừ cố định, không vượt subtotal |
+| Coupon FREE_SHIPPING | `shippingFee = 0` |
+| VAT | `VatCalculator`: `taxTotal = max(0, subtotal - discount) × vat.rate`; mặc định `vat.rate=0` |
+| Module | `be/modules/promotions/` — `Coupon`, `CouponValidator`, `PromotionService` |
 
 ### 9.2. Phí vận chuyển — ✅
 
@@ -752,8 +854,9 @@ Cập nhật atomic qua MongoTemplate (`updateFirst` với điều kiện `avail
 
 ### 10.2. CSRF — ✅
 
-- Cookie auth → POST/PUT/PATCH/DELETE yêu cầu CSRF token.
-- `SpaCsrfTokenRequestHandler` cho SPA; SePay IPN exempt.
+- Cookie auth → POST/PUT/PATCH/DELETE yêu cầu CSRF token (`X-XSRF-TOKEN`).
+- `SpaCsrfTokenRequestHandler` cho SPA; exempt: auth register/login/refresh, SePay IPN, **`POST /ai/chat`** (guest chat).
+- `publicAxios` FE gửi CSRF khi cookie có sẵn.
 
 ### 10.3. Rate limiting — ✅
 
@@ -783,13 +886,15 @@ Cập nhật atomic qua MongoTemplate (`updateFirst` với điều kiện `avail
 | `/categories/:slug` | Sản phẩm theo danh mục |
 | `/products/:idOrSlug` | PDP — gallery, variant, stock, buy now, related, reviews |
 | `/login`, `/register`, `/forgot-password` | Auth |
+| `/cart` | Giỏ — **guest hoặc user**; validate debounce |
+| *(global)* | **FloatingChatbot** — AI widget (ẩn trên `/ai-chat`, admin, auth pages) |
 
-### 11.2. Trang khách hàng (cần login) — ✅
+### 11.2. Trang khách hàng — ✅
 
 | Route | Mô tả |
 |-------|-------|
-| `/cart` | Giỏ — validate, phí ship từ API |
-| `/checkout` | Chọn địa chỉ, preview, submit SePay |
+| `/cart` | Giỏ — guest/user |
+| `/checkout` | Địa chỉ, **coupon**, preview, customerNote, submit SePay |
 | `/payment/success\|error\|cancel` | Kết quả thanh toán — success poll BE |
 | `/orders`, `/orders/:id` | Lịch sử, chi tiết, hủy, review, return |
 | `/returns` | Yêu cầu trả của tôi |
@@ -798,19 +903,21 @@ Cập nhật atomic qua MongoTemplate (`updateFirst` với điều kiện `avail
 | `/addresses` | Sổ địa chỉ |
 | `/profile` | Hồ sơ + panel phiên đăng nhập |
 | `/notifications` | Thông báo đầy đủ |
-| `/ai-chat` | Trợ lý AI |
+| `/ai-chat` | Trợ lý AI — login; hiển thị **suggestedProducts**, warnings |
 
 ### 11.3. Admin / Staff — ✅
 
 | Route | Mô tả |
 |-------|-------|
-| `/admin` | Dashboard — stats từ reports API, charts, export Excel |
-| `/admin/products` | CRUD, approve, publish |
+| `/admin` | Dashboard — stats từ reports API, charts, export Excel, low-stock widget |
+| `/admin/products` | CRUD, approve, publish/unpublish |
+| `/admin/orders` | List + **OrderDetailAdminPage** (`/admin/orders/:orderId`) |
+| `/admin/promotions` | Quản lý coupon — `PromotionManagementPage` |
 | `/admin/inventory` | Tồn kho, adjust, import CSV |
-| `/admin/orders` | Quản lý đơn, ship + tracking |
 | `/admin/returns` | Workflow return từng bước |
 | `/admin/reviews` | Kiểm duyệt |
 | `/admin/role-permissions` | Ma trận RBAC (SUPER_ADMIN) |
+| `/staff/orders/:orderId` | Chi tiết đơn cho staff |
 | `/staff` | Dashboard hàng đợi staff |
 
 **Phân quyền FE:** `useRoleAccess` + `roleAccess.ts` — kết hợp role và `permissions[]`.
@@ -890,58 +997,111 @@ Filter: keyword, brandId, categoryId, gender, min/max price, size, color, inStoc
 - Timeout → fallback Mongo tự động (`ProductSearchRouter`).
 - Re-index: publish/unpublish, adjust, restock; API admin reindex.
 
-### 14.3. Semantic / vector search — ❌
+### 14.3. AI RAG (embedding retrieval) — ✅
 
-- `OPENAI_EMBEDDING_MODEL` có placeholder env; chưa tích hợp luồng search.
+**Phạm vi:** Hỗ trợ trợ lý AI — **không** thay thế search sản phẩm storefront.
+
+| Thành phần | Mô tả |
+|------------|-------|
+| Collection | `ai_embeddings` — `entityType` (PRODUCT/POLICY), `entityId`, `text`, `embedding[]` |
+| Index | `AiIndexService` — embed product/policy; hook publish/unpublish; startup nếu rỗng |
+| Retrieval | `AiRetrievalService` — embed câu hỏi → cosine top-k → hydrate catalog |
+| Cache | Redis `ai:emb:{sha256}` TTL 7 ngày |
+| Fallback | Không có API key / embed fail → keyword search qua `CatalogContextProvider` |
 
 ---
 
 ## 15. Trợ lý AI mua sắm
 
-### 15.1. Kiến trúc — ✅
+### 15.1. Kiến trúc tổng thể — ✅
 
 ```text
-FE /ai-chat
-  → POST /api/ai/chat (OpenAI key chỉ ở BE)
-  → AiRouterService phân loại intent (keyword)
-  → ProductContextService lấy context catalog (nếu cần)
-  → OpenAiChatAdapter gọi OpenAI
-  → Lưu AiConversation / messages MongoDB
-  → Trả answer + conversationId
+FE FloatingChatbot / AiChatPage
+  → POST /api/ai/chat { conversationId?, message }
+  → AiChatService
+       ├─ AiRouterService.route(message)           → routeType (keyword)
+       ├─ AiContextBuilder.build(userId, route, …)
+       │    ├─ AiRetrievalService (RAG embedding)
+       │    ├─ PolicyContextProvider (policies.yml + ship/VAT động)
+       │    ├─ OrderContextProvider (order thật nếu login)
+       │    └─ ReturnContextProvider (return thật nếu login)
+       ├─ OpenAiChatAdapter.answer(route, context, history, message)
+       │    → OpenAI POST /v1/responses (instructions + multi-turn input)
+       └─ Lưu AiConversation / AiMessage MongoDB
+  → Response: answer, routeType, suggestedProducts[], warnings[]
 ```
 
-### 15.2. Intent routes
+### 15.2. Intent routes (`AiRouteType`)
+
+| Route | Kích hoạt (keyword) | Context bổ sung |
+|-------|---------------------|-----------------|
+| `PRODUCT_INFO` | Mặc định | RAG product + coupon policy |
+| `SIZE_ADVICE` | size, cỡ, co giay | Variants còn hàng trong catalog context |
+| `ORDER_STATUS` | đơn, order, giao | Policy order + **3 đơn gần nhất** hoặc match `SO-*` (login) |
+| `RETURN_POLICY` | hoàn, đổi, trả | Policy return 7 ngày + returns của user |
+| `PAYMENT_REFUND_POLICY` | thanh toán, payment | SePay 15 phút, refund manual |
+| `CHITCHAT` | chào, hello, hi | Policy nhẹ + RAG tối thiểu |
+
+`WEBSEARCH` — ❌ chưa triển khai (chỉ có trong spec cũ).
+
+### 15.3. Grounding & giới hạn
+
+- Prompt tiếng Việt (`AiPromptTemplates`): **chỉ** trả lời dựa trên block CONTEXT.
+- Không mutate order/payment/refund — hướng user tới `/orders`, `/returns`, `/checkout`.
+- **Guest:** `userId = "guest"`; order/return thật không inject; `warnings` nhắc đăng nhập khi hỏi đơn hàng.
+- **Logged-in:** `OrderService.mine`, `ReturnService.mine`, parse `orderCode` regex `SO-...`.
+- Fallback: thiếu `OPENAI_API_KEY` → message cấu hình; API lỗi → message tiếng Việt.
+
+### 15.4. Dữ liệu lưu trữ
+
+| Collection | Trường chính |
+|------------|--------------|
+| `ai_conversations` | conversationId, userId, title, messages[], createdAt, updatedAt |
+| `ai_messages` (embedded) | role, content, routeType, timestamp |
+| `ai_embeddings` | id=`TYPE:id`, entityType, entityId, text, embedding, updatedAt |
+
+### 15.5. Giao diện FE
+
+| Thành phần | Hành vi |
+|------------|---------|
+| `FloatingChatbot` | Global widget; `publicAxios`; hiển thị suggestedProducts cards |
+| `AiChatPage` | `/ai-chat` — yêu cầu login; ẩn floating widget trên route này |
+| `AiSuggestedProducts` | Link `/products/{slug}`, giá, ảnh thumbnail |
+
+### 15.6. Cấu hình
 
 ```text
-PRODUCT_INFO | SIZE_ADVICE | ORDER_STATUS | PAYMENT_REFUND_POLICY
-RETURN_POLICY | CHITCHAT | WEBSEARCH
+OPENAI_API_KEY, OPENAI_MODEL, OPENAI_EMBEDDING_MODEL, OPENAI_TIMEOUT_MS
+AI_RETRIEVAL_PRODUCT_TOP_K=5
+AI_RETRIEVAL_POLICY_TOP_K=2
+AI_CONVERSATION_HISTORY_TURNS=8
+AI_REINDEX_ON_STARTUP=false
 ```
-
-⚠️ `ORDER_STATUS` chưa truy vấn order thật của user.
-
-### 15.3. Giới hạn prompt
-
-- Chỉ tư vấn trong phạm vi giày dép / e-commerce SOLE.
-- Không tự xác nhận thanh toán hay hoàn tiền — hướng user tới UI/API.
-- Guest: BE gán `userId = "guest"`; FE khuyến khích login.
 
 ---
 
 ## 16. Chiến lược kiểm thử
 
-### 16.1. Đã có — ⚠️
+### 16.1. Đã có — ✅
 
-| Layer | Tests |
-|-------|-------|
-| BE | `EcommercePaymentServiceTest` (IPN idempotent, amount mismatch, expire + mail) |
-| BE | `OrderMailNotifierTest` |
-| FE | `commerce.test.ts` — 10 tests (roleAccess, shipping, payment state, CSV parse) |
+| Layer | Tests | Mô tả |
+|-------|-------|-------|
+| BE payment | `EcommercePaymentServiceTest` | IPN idempotent, amount mismatch, expire + mail |
+| BE mail | `OrderMailNotifierTest` | Template order lifecycle |
+| BE checkout | `CheckoutServiceTest`, `CheckoutCalculatorTest` | Reserve, invalid coupon rollback |
+| BE cart | `CartServiceTest`, `GuestCartMergeServiceTest` | Guest merge, ownership |
+| BE promotions | `CouponValidatorTest`, `PromotionServiceTest` | Validate rules, usage |
+| BE RBAC | `RbacServiceTest`, `SolePermissionEvaluatorTest` | Permission matrix |
+| BE inventory | `InventoryServiceTest` | Expire reservations |
+| BE AI | `AiRouterServiceTest`, `AiRetrievalServiceTest`, `AiChatServiceTest`, `OrderContextProviderTest`, `VectorUtilsTest` | Router, RAG, context |
+| FE | `commerce.test.ts`, `releaseFeatures.test.ts`, `aiChat.test.ts` | roleAccess, shipping, payment verify, AI types |
+| E2E | `fe/e2e/smoke.spec.ts` | Playwright smoke (cần `@playwright/test`) |
 
-### 16.2. Cần bổ sung — ❌
+### 16.2. Cần bổ sung — ⚠️
 
-- Integration: checkout concurrent, webhook duplicate, reservation expiry E2E.
-- Security: CSRF, rate limit, ownership IDOR regression.
-- FE: cart validate flow, checkout, protected routes (RTL/Vitest hoặc Playwright).
+- Integration: checkout concurrent, webhook duplicate full E2E.
+- Security regression suite: CSRF, rate limit, IDOR automated.
+- FE E2E: cart guest → login merge → checkout coupon flow.
 
 ---
 
@@ -962,9 +1122,12 @@ FRONTEND_BASE_URL
 SEARCH_ENGINE=mongo|elasticsearch
 ELASTICSEARCH_URI, SEARCH_INDEX_NAME, SEARCH_TIMEOUT_MS
 OPENAI_API_KEY, OPENAI_MODEL, OPENAI_EMBEDDING_MODEL, OPENAI_TIMEOUT_MS
+AI_RETRIEVAL_PRODUCT_TOP_K, AI_RETRIEVAL_POLICY_TOP_K
+AI_CONVERSATION_HISTORY_TURNS, AI_REINDEX_ON_STARTUP
 permission.enforcement=true
-FREE_SHIPPING_THRESHOLD=2000000
-SHIPPING_FEE=30000
+VAT_RATE=0
+shipping.flat-fee=30000, shipping.free-threshold=2000000
+PERMISSION_ENFORCEMENT=true
 ```
 
 ### 17.2. Frontend
@@ -982,19 +1145,20 @@ VITE_CLOUDINARY_UPLOAD_PRESET
 
 | Hạng mục | Ghi chú |
 |----------|---------|
-| Guest cart / guest checkout | Cố ý login-required; có CTA login |
-| Voucher / coupon / promotion | Không có module |
+| Guest checkout | Guest chỉ giỏ; thanh toán vẫn login-required |
 | COD / VNPAY / MoMo | Chỉ SePay |
-| VAT (`taxTotal`) | Luôn 0 |
-| Hoàn tiền SePay tự động | Manual + flag `manualRefundRequired` |
+| Hoàn tiền SePay tự động | Manual + `manualRefundRequired` |
 | Partial refund | Enum có, chưa flow |
 | Abandoned cart recovery | Enum `ABANDONED` chưa dùng |
 | Hóa đơn PDF | Chưa có |
 | Tích hợp đơn vị vận chuyển | Chỉ `trackingCode` text |
 | Multi-warehouse | Một kho `default` |
-| Vector semantic search | Placeholder |
-| E2E tests | Hầu như chưa có |
-| OpenAPI Swagger UI | Dependency có, chưa verify expose |
+| ES kNN cho catalog lớn | AI RAG dùng Mongo cosine; scale >200 SP cần ES dense_vector |
+| AI WEBSEARCH route | Chưa có |
+| Conversation history UI | API có; FE sidebar resume chưa có |
+| Coupon brand/category scope | Field có; validator chưa enforce |
+| E2E coverage đầy đủ | Smoke test có; flow dài chưa |
+| OpenAPI Swagger UI prod | Tắt trên profile prod |
 
 ---
 
@@ -1013,25 +1177,28 @@ VITE_CLOUDINARY_UPLOAD_PRESET
 - [x] Return workflow tối thiểu + restock
 - [x] Không hard-code secrets (dùng env)
 
-### 19.2. MVP+ (sau gap audit) — ✅ Phần lớn
+### 19.2. MVP+ (Release R0–R4 + AI) — ✅ Đã đạt
 
-- [x] Payment ownership / IDOR fix
-- [x] Payment success FE xác minh BE
-- [x] RBAC runtime FE + `@perm.has` BE
-- [x] Reports dashboard API trên FE admin
-- [x] Inventory import UI
-- [x] ES nested filters (optional)
-- [x] AI chat UI + notifications page
-- [x] Session cookie `refresh_token` fix
+- [x] Payment ownership / IDOR fix + FE poll success
+- [x] RBAC runtime FE + `@perm.has` BE (`permission.enforcement`)
+- [x] Reports dashboard API + admin polish
+- [x] Guest cart + merge on login
+- [x] Coupon module + checkout integration + admin UI
+- [x] VAT configurable (`vat.rate`)
+- [x] Admin order detail page + staff route
+- [x] Address book CRUD + ward/district
+- [x] AI RAG + suggested products + order context (login)
+- [x] ES re-index on review; correlation ID
+- [x] Unit test suite mở rộng (BE ~64+, FE ~22+)
 
 ### 19.3. Production-ready — ⚠️ Còn lại
 
-- [ ] E2E + integration test coverage đầy đủ
-- [ ] Voucher / multi-pay / auto refund SePay
-- [ ] Guest cart (nếu product yêu cầu)
-- [ ] Admin polish (brand/category edit, order detail page)
-- [ ] Review re-index ES khi có rating mới
+- [ ] E2E đầy đủ (guest cart → checkout → payment)
+- [ ] Auto refund SePay / multi-payment gateway
+- [ ] Admin brand/category edit UI
+- [ ] AI conversation sidebar + WEBSEARCH
+- [ ] Load test inventory concurrent checkout
 
 ---
 
-*Tài liệu này phản ánh codebase SOLE tại nhánh `main` sau commit gap audit. Khi thêm tính năng mới, cập nhật mục 6 (trạng thái triển khai) và mục 18 (phạm vi hoãn) tương ứng.*
+*Tài liệu này phản ánh codebase SOLE tại nhánh `main` (commit `3269aa9`, 08/2026). Khi thêm tính năng mới, cập nhật mục 6 (trạng thái triển khai), mục 15 (AI), và mục 18 (phạm vi hoãn).*
