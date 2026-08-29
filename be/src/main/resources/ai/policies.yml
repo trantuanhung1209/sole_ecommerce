@@ -1,0 +1,37 @@
+policies:
+  return:
+    key: return
+    title: "Chính sách đổi trả"
+    body: |
+      Khách hàng có thể yêu cầu đổi/trả trong vòng 7 ngày kể từ khi giao hàng thành công.
+      Chỉ áp dụng cho đơn ở trạng thái DELIVERED hoặc COMPLETED.
+      Mỗi sản phẩm trong đơn chỉ được yêu cầu đổi/trả một lần.
+      Quy trình: PENDING → STAFF_CONFIRMED → APPROVED → RECEIVED → REFUNDED (hoặc REJECTED/CLOSED).
+      Hoàn tiền có thể cần xử lý thủ công qua SePay sau khi hàng được nhận lại.
+  payment:
+    key: payment
+    title: "Chính sách thanh toán"
+    body: |
+      Thanh toán qua cổng SePay. Phiên thanh toán hết hạn sau 15 phút nếu chưa hoàn tất.
+      Nếu thanh toán thất bại hoặc hết hạn, đơn hàng sẽ bị hủy và giữ hàng được giải phóng.
+      AI không thể xác nhận thanh toán thay khách — hướng khách tới trang thanh toán hoặc lịch sử đơn.
+  order:
+    key: order
+    title: "Vòng đời đơn hàng"
+    body: |
+      Luồng trạng thái: PENDING_PAYMENT → PAID/CONFIRMED → PROCESSING → SHIPPED → DELIVERED → COMPLETED.
+      Khách có thể hủy đơn trước khi hàng được giao (trước SHIPPED).
+      Đơn DELIVERED tự hoàn tất sau 7 ngày nếu không có yêu cầu đổi/trả đang mở.
+  shipping:
+    key: shipping
+    title: "Phí vận chuyển"
+    body: |
+      Phí ship cố định cho đơn dưới ngưỡng miễn phí. Miễn phí vận chuyển khi đạt ngưỡng đơn hàng.
+      Thời gian giao hàng dự kiến 2-4 ngày (thông tin marketing, không cam kết cứng trong hệ thống).
+  coupon:
+    key: coupon
+    title: "Mã giảm giá"
+    body: |
+      Mã giảm giá có thể là phần trăm, số tiền cố định, hoặc miễn phí ship.
+      Mã phải còn hiệu lực, chưa hết lượt, và đơn hàng đạt giá trị tối thiểu (nếu có).
+      Khách nhập mã tại trang checkout để áp dụng.

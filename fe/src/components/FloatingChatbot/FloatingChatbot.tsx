@@ -2,29 +2,19 @@ import { useState } from "react";
 import { MessageCircle, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import AiSuggestedProducts from "@/components/AiSuggestedProducts/AiSuggestedProducts";
 import publicAxios from "@/utils/publicAxios";
 import type { ApiResponse } from "@/types/api.type";
-
-interface ChatMessage {
-  role: "USER" | "ASSISTANT";
-  content: string;
-}
-
-interface AiChatResponse {
-  conversationId: string;
-  answer: string;
-  route: string;
-  ctaLinks: string[];
-}
+import type { AiChatMessage, AiChatResponse } from "@/types/ai.type";
 
 export default function FloatingChatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
+  const [messages, setMessages] = useState<AiChatMessage[]>([
     {
-      role: "ASSISTANT",
+      role: "assistant",
       content:
         "Chào bạn, mình là trợ lý SOLE. Mình có thể gợi ý sản phẩm, tư vấn size, kiểm tra chính sách đổi trả và hướng dẫn checkout.",
     },
@@ -34,23 +24,29 @@ export default function FloatingChatbot() {
     const content = message.trim();
     if (!content || loading) return;
     setMessage("");
-    setMessages((current) => [...current, { role: "USER", content }]);
+    setMessages((current) => [...current, { role: "user", content }]);
     setLoading(true);
     try {
       const response = await publicAxios.post<ApiResponse<AiChatResponse>>("/ai/chat", {
         conversationId,
         message: content,
       });
-      setConversationId(response.data.data.conversationId);
+      const data = response.data.data;
+      setConversationId(data.conversationId);
       setMessages((current) => [
         ...current,
-        { role: "ASSISTANT", content: response.data.data.answer },
+        {
+          role: "assistant",
+          content: data.answer,
+          suggestedProducts: data.suggestedProducts,
+          warnings: data.warnings,
+        },
       ]);
     } catch {
       setMessages((current) => [
         ...current,
         {
-          role: "ASSISTANT",
+          role: "assistant",
           content: "Mình chưa kết nối được AI lúc này. Bạn có thể thử lại sau vài giây.",
         },
       ]);
@@ -66,7 +62,7 @@ export default function FloatingChatbot() {
           <header className="flex h-14 items-center justify-between border-b border-[#E5E7EB] px-4">
             <div>
               <h2 className="text-sm font-black text-[#111111]">SOLE AI</h2>
-              <p className="text-xs text-[#6B7280]">OpenAI qua backend adapter</p>
+              <p className="text-xs text-[#6B7280]">Tư vấn sản phẩm & chính sách</p>
             </div>
             <Button variant="outline" size="icon" onClick={() => setIsOpen(false)} aria-label="Close chat">
               <X className="h-4 w-4" />
@@ -78,12 +74,20 @@ export default function FloatingChatbot() {
               <div
                 key={`${item.role}-${index}`}
                 className={`rounded-lg px-3 py-2 text-sm ${
-                  item.role === "USER"
+                  item.role === "user"
                     ? "ml-8 bg-[#111111] text-white"
                     : "mr-8 border border-[#E5E7EB] bg-white text-[#111111]"
                 }`}
               >
                 {item.content}
+                {item.warnings?.map((warning) => (
+                  <p key={warning} className="mt-2 text-xs text-amber-700">
+                    {warning}
+                  </p>
+                ))}
+                {item.suggestedProducts ? (
+                  <AiSuggestedProducts products={item.suggestedProducts} />
+                ) : null}
               </div>
             ))}
             {loading && (

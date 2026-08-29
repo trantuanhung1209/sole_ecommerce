@@ -7,7 +7,11 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
+import www.modules.ai.model.AiMessage;
+import www.modules.common.EcommerceEnums.AiRouteType;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,25 +25,27 @@ public class OpenAiChatAdapter {
     private String apiKey;
     @Value("${openai.model:gpt-4o-mini}")
     private String model;
+    @Value("${ai.conversation.history-turns:8}")
+    private int historyTurns;
 
     @SuppressWarnings("unchecked")
-    public String answer(String userMessage, String context) {
+    public String answer(
+            AiRouteType routeType,
+            String contextText,
+            List<AiMessage> history,
+            String userMessage) {
         if (apiKey == null || apiKey.isBlank()) {
-            return "AI assistant is not configured yet. Please set OPENAI_API_KEY on the backend.";
+            return "Trợ lý AI chưa được cấu hình. Vui lòng đặt OPENAI_API_KEY trên backend.";
         }
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(apiKey);
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        Map<String, Object> body = Map.of(
-                "model", model,
-                "input", List.of(Map.of(
-                        "role", "user",
-                        "content", "You are a shoe e-commerce shopping assistant. Do not mutate orders, payments, or refunds. Context:\n"
-                                + context + "\n\nCustomer question:\n" + userMessage
-                ))
-        );
+        Map<String, Object> body = new HashMap<>();
+        body.put("model", model);
+        body.put("instructions", AiPromptTemplates.instructions(routeType, contextText));
+        body.put("input", buildInput(history, userMessage));
 
         try {
             ResponseEntity<Map> response = restTemplate.exchange(
@@ -58,7 +64,23 @@ public class OpenAiChatAdapter {
         } catch (Exception ex) {
             log.error("OpenAI request failed", ex);
         }
-        return "I could not generate an answer right now.";
+        return "Mình chưa tạo được câu trả lời lúc này. Bạn thử lại sau vài giây nhé.";
+    }
+
+    private List<Map<String, String>> buildInput(List<AiMessage> history, String userMessage) {
+        List<Map<String, String>> input = new ArrayList<>();
+        if (history != null && !history.isEmpty()) {
+            int start = Math.max(0, history.size() - historyTurns);
+            for (AiMessage message : history.subList(start, history.size())) {
+                if (message.getContent() == null || message.getContent().isBlank()) {
+                    continue;
+                }
+                String role = "assistant".equalsIgnoreCase(message.getRole()) ? "assistant" : "user";
+                input.add(Map.of("role", role, "content", message.getContent()));
+            }
+        }
+        input.add(Map.of("role", "user", "content", userMessage));
+        return input;
     }
 
     @SuppressWarnings("unchecked")

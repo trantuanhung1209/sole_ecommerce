@@ -368,7 +368,7 @@ export const paymentApi = {
 export const aiApi = {
   chat: async (message: string, conversationId?: string) => {
     const res = await authorizedAxios.post<
-      ApiResponse<{ answer: string; conversationId: string; routeType?: string }>
+      ApiResponse<import("@/types/ai.type").AiChatResponse>
     >("/ai/chat", {
       message,
       conversationId,

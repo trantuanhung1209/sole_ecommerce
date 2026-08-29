@@ -4,7 +4,7 @@ import { FloatingChatbot } from "@/components/FloatingChatbot";
 export default function RootLayout() {
   const location = useLocation();
 
-  const hideOnPaths = ["/login", "/register", "/forgot-password", "/admin", "/staff"];
+  const hideOnPaths = ["/login", "/register", "/forgot-password", "/admin", "/staff", "/ai-chat"];
   const shouldHideChatbot = hideOnPaths.some((path) =>
     location.pathname.startsWith(path)
   );

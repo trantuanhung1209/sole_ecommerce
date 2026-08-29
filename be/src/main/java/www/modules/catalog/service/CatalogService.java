@@ -21,6 +21,7 @@ import www.modules.inventory.service.InventoryService;
 import www.modules.reviews.repository.ProductReviewRepository;
 import www.modules.search.port.ProductSearchPort;
 import www.modules.search.service.SearchIndexService;
+import www.modules.ai.service.AiIndexService;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -37,6 +38,7 @@ public class CatalogService {
     private final ProductReviewRepository reviewRepository;
     private final ProductSearchPort productSearchPort;
     private final SearchIndexService searchIndexService;
+    private final AiIndexService aiIndexService;
 
     public Page<ProductSummary> getPublishedProductSummaries(String search, Pageable pageable) {
         ProductFilter filter = new ProductFilter();
@@ -175,6 +177,7 @@ public class CatalogService {
         product.setUpdatedAt(LocalDateTime.now());
         Product saved = productRepository.save(product);
         searchIndexService.indexProductAsync(productId);
+        aiIndexService.indexProductAsync(productId);
         return saved;
     }
 
@@ -185,6 +188,7 @@ public class CatalogService {
         product.setUpdatedAt(LocalDateTime.now());
         Product saved = productRepository.save(product);
         searchIndexService.indexProductAsync(productId);
+        aiIndexService.indexProductAsync(productId);
         return saved;
     }
 
@@ -195,6 +199,7 @@ public class CatalogService {
         product.setUpdatedAt(LocalDateTime.now());
         productRepository.save(product);
         searchIndexService.indexProductAsync(productId);
+        aiIndexService.indexProductAsync(productId);
     }
 
     public Product restore(String productId) {

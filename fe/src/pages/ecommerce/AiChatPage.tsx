@@ -3,18 +3,15 @@ import { Send, Bot, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import AiSuggestedProducts from "@/components/AiSuggestedProducts/AiSuggestedProducts";
 import { aiApi } from "@/services/ecommerceServices";
 import { useAppSelector } from "@/hooks/useRedux";
+import type { AiChatMessage } from "@/types/ai.type";
 import { Link } from "react-router-dom";
-
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
 
 export default function AiChatPage() {
   const isLoggedIn = useAppSelector((state) => state.auth.isLoggedIn);
-  const [messages, setMessages] = useState<ChatMessage[]>([
+  const [messages, setMessages] = useState<AiChatMessage[]>([
     {
       role: "assistant",
       content: "Xin chào! Tôi là trợ lý SOLE. Hỏi tôi về sản phẩm, đơn hàng hoặc chính sách đổi trả.",
@@ -33,7 +30,15 @@ export default function AiChatPage() {
     try {
       const res = await aiApi.chat(text, conversationId);
       setConversationId(res.conversationId);
-      setMessages((prev) => [...prev, { role: "assistant", content: res.answer }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: res.answer,
+          suggestedProducts: res.suggestedProducts,
+          warnings: res.warnings,
+        },
+      ]);
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -49,7 +54,9 @@ export default function AiChatPage() {
       <div className="container mx-auto max-w-lg px-4 py-16 text-center space-y-4">
         <Bot className="w-12 h-12 mx-auto text-primary" />
         <h1 className="text-2xl font-bold">Trợ lý AI SOLE</h1>
-        <p className="text-muted-foreground">Đăng nhập để chat với trợ lý mua sắm thông minh.</p>
+        <p className="text-muted-foreground">
+          Đăng nhập để chat với trợ lý và xem trạng thái đơn hàng của bạn.
+        </p>
         <Button asChild>
           <Link to="/login?redirect=/ai-chat">Đăng nhập</Link>
         </Button>
@@ -79,6 +86,14 @@ export default function AiChatPage() {
                 }`}
               >
                 {msg.content}
+                {msg.warnings?.map((warning) => (
+                  <p key={warning} className="mt-2 text-xs text-amber-700">
+                    {warning}
+                  </p>
+                ))}
+                {msg.suggestedProducts ? (
+                  <AiSuggestedProducts products={msg.suggestedProducts} />
+                ) : null}
               </div>
             ))}
             {loading && (

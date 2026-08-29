@@ -3,6 +3,7 @@ package www.modules.ai.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import www.exception.NotFoundException;
+import www.modules.ai.dto.AiContextResult;
 import www.modules.ai.dto.AiDtos.AiChatRequest;
 import www.modules.ai.dto.AiDtos.AiChatResponse;
 import www.modules.ai.model.AiConversation;
@@ -11,6 +12,7 @@ import www.modules.ai.repository.AiConversationRepository;
 import www.modules.common.EcommerceEnums.AiRouteType;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -18,14 +20,21 @@ import java.util.List;
 public class AiChatService {
     private final AiConversationRepository conversationRepository;
     private final AiRouterService routerService;
-    private final ProductContextService contextService;
+    private final AiContextBuilder contextBuilder;
     private final OpenAiChatAdapter openAiChatAdapter;
 
     public AiChatResponse chat(String userId, AiChatRequest request) {
         AiConversation conversation = getOrCreate(userId, request.getConversationId(), request.getMessage());
         AiRouteType route = routerService.route(request.getMessage());
-        String context = contextService.buildContext(request.getMessage());
-        String answer = openAiChatAdapter.answer(request.getMessage(), context);
+        AiContextResult context = contextBuilder.build(userId, route, request.getMessage(), conversation);
+
+        List<AiMessage> priorMessages = new ArrayList<>(conversation.getMessages());
+        String answer = openAiChatAdapter.answer(
+                route,
+                context.getContextText(),
+                priorMessages,
+                request.getMessage()
+        );
 
         conversation.getMessages().add(AiMessage.builder()
                 .role("user")
@@ -46,6 +55,8 @@ public class AiChatService {
                 .conversationId(conversation.getConversationId())
                 .routeType(route)
                 .answer(answer)
+                .suggestedProducts(context.getSuggestedProducts())
+                .warnings(context.getWarnings())
                 .build();
     }
 
