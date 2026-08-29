@@ -45,6 +45,8 @@ public class SearchIndexService {
                 .mappings(m -> m
                         .properties("name", p -> p.text(t -> t.analyzer("vi_analyzer")))
                         .properties("slug", p -> p.keyword(k -> k))
+                        .properties("shortDescription", p -> p.text(t -> t))
+                        .properties("imageUrls", p -> p.keyword(k -> k))
                         .properties("brandId", p -> p.keyword(k -> k))
                         .properties("brandName", p -> p.text(t -> t.analyzer("vi_analyzer")))
                         .properties("categoryIds", p -> p.keyword(k -> k))

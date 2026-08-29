@@ -106,9 +106,11 @@ public class CartService {
         if (variant.getImageUrls() != null && !variant.getImageUrls().isEmpty()) {
             view.setImageUrl(variant.getImageUrls().get(0));
         }
-        productRepository.findById(variant.getProductId())
-                .map(Product::getName)
-                .ifPresent(view::setProductName);
+        productRepository.findById(variant.getProductId()).ifPresent(product -> {
+            view.setProductName(product.getName());
+            view.setProductId(product.getProductId());
+            view.setProductSlug(product.getSlug());
+        });
     }
 
     public Cart addItem(String userId, String guestSessionId, String variantId, int quantity) {

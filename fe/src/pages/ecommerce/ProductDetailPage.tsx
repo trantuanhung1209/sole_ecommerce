@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Heart, Minus, Plus, ShoppingCart } from "lucide-react";
 import { toast } from "react-toastify";
@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ProductReviewsSection } from "@/components/ecommerce/ProductReviewsSection";
 import { StarRating } from "@/components/ecommerce/StarRating";
+import { useCart } from "@/contexts/CartContext";
 import {
   brandApi,
-  cartApi,
   categoryApi,
   money,
   productApi,
@@ -30,6 +30,8 @@ const GENDER_LABELS: Record<string, string> = {
 export default function ProductDetailPage() {
   const { idOrSlug = "" } = useParams();
   const navigate = useNavigate();
+  const { addItem } = useCart();
+  const mainImageRef = useRef<HTMLImageElement>(null);
   const [product, setProduct] = useState<Product | null>(null);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -150,7 +152,10 @@ export default function ProductDetailPage() {
       toast.error("Size này đã hết hàng");
       return;
     }
-    await cartApi.add(selected.variantId, qty);
+    await addItem(selected.variantId, qty, {
+      imageUrl: galleryImages[activeImage] || fallback,
+      sourceElement: mainImageRef.current,
+    });
     toast.success("Đã thêm vào giỏ hàng");
   };
 
@@ -159,7 +164,10 @@ export default function ProductDetailPage() {
       toast.error("Vui lòng chọn size còn hàng");
       return;
     }
-    await cartApi.add(selected.variantId, quantity);
+    await addItem(selected.variantId, quantity, {
+      imageUrl: galleryImages[activeImage] || fallback,
+      sourceElement: mainImageRef.current,
+    });
     navigate("/checkout");
   };
 
@@ -185,6 +193,7 @@ export default function ProductDetailPage() {
         <div className="space-y-4">
           <div className="aspect-square overflow-hidden rounded-2xl bg-[#F1F1EF]">
             <img
+              ref={mainImageRef}
               src={galleryImages[activeImage] || fallback}
               alt={product.name}
               className="h-full w-full object-contain p-8"

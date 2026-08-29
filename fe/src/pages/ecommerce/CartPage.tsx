@@ -2,14 +2,17 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useCart } from "@/contexts/CartContext";
 import { cartApi, checkoutApi, money } from "@/services/ecommerceServices";
 import { formatCartItemLabel } from "@/utils/displayLabels";
+import { CartItemLink } from "@/components/cart/CartItemLink";
 import { useDebounce } from "@/hooks/useDebounce";
 import type { Cart } from "@/types/ecommerce.type";
 
 type CartIssue = { cartItemId?: string; variantId?: string; message: string };
 
 export default function CartPage() {
+  const { refresh: refreshGlobalCart } = useCart();
   const [cart, setCart] = useState<Cart | null>(null);
   const [issues, setIssues] = useState<CartIssue[]>([]);
   const [valid, setValid] = useState(true);
@@ -27,7 +30,8 @@ export default function CartPage() {
     setIssues(validation.issues);
     setValid(validation.valid);
     setPreview({ shippingFee: previewData.shippingFee, grandTotal: previewData.grandTotal });
-  }, []);
+    await refreshGlobalCart();
+  }, [refreshGlobalCart]);
 
   useEffect(() => {
     refresh().catch(console.error);
@@ -79,20 +83,29 @@ export default function CartPage() {
                 </div>
               )}
               {cart.items.map((item) => (
-                <div key={item.cartItemId} className="flex gap-4 rounded-2xl border border-[#E5E7EB] bg-white p-4">
-                  <div className="h-24 w-24 overflow-hidden rounded-xl bg-[#F1F1EF]">
+                <div
+                  key={item.cartItemId}
+                  className="relative flex cursor-pointer gap-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 transition hover:bg-[#FAFAF9]"
+                >
+                  <CartItemLink item={item} className="absolute inset-0 z-[1] rounded-2xl">
+                    <span className="sr-only">Xem chi tiết {formatCartItemLabel(item)}</span>
+                  </CartItemLink>
+
+                  <div className="pointer-events-none h-24 w-24 overflow-hidden rounded-xl bg-[#F1F1EF]">
                     {item.imageUrl ? (
                       <img src={item.imageUrl} alt="" className="h-full w-full object-contain p-2" />
                     ) : null}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold">{formatCartItemLabel(item)}</p>
-                    {item.sku ? <p className="text-xs text-[#6B7280]">SKU {item.sku}</p> : null}
-                    <p className="mt-1 text-sm text-[#6B7280]">{money(item.priceSnapshot)}</p>
-                    {issueForItem(item.cartItemId) ? (
-                      <p className="mt-2 text-sm text-red-600">{issueForItem(item.cartItemId)}</p>
-                    ) : null}
-                    <div className="mt-4 flex items-center gap-2">
+                    <div className="pointer-events-none">
+                      <p className="font-bold">{formatCartItemLabel(item)}</p>
+                      {item.sku ? <p className="text-xs text-[#6B7280]">SKU {item.sku}</p> : null}
+                      <p className="mt-1 text-sm text-[#6B7280]">{money(item.priceSnapshot)}</p>
+                      {issueForItem(item.cartItemId) ? (
+                        <p className="mt-2 text-sm text-red-600">{issueForItem(item.cartItemId)}</p>
+                      ) : null}
+                    </div>
+                    <div className="relative z-10 mt-4 flex items-center gap-2">
                       <Button variant="outline" size="icon" onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}>
                         <Minus className="h-4 w-4" />
                       </Button>
@@ -102,7 +115,13 @@ export default function CartPage() {
                       </Button>
                     </div>
                   </div>
-                  <Button variant="outline" size="icon" onClick={() => remove(item.cartItemId)} aria-label="Xóa sản phẩm">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="relative z-10 shrink-0"
+                    onClick={() => remove(item.cartItemId)}
+                    aria-label="Xóa sản phẩm"
+                  >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>

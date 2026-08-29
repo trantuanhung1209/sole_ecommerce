@@ -89,10 +89,12 @@ public class ElasticsearchProductSearch {
                         .productId(doc.getProductId())
                         .name(doc.getName())
                         .slug(doc.getSlug())
+                        .shortDescription(doc.getShortDescription())
                         .brandId(doc.getBrandId())
                         .brandName(doc.getBrandName())
                         .categoryIds(doc.getCategoryIds())
                         .genderTarget(doc.getGender())
+                        .imageUrls(doc.getImageUrls())
                         .minPrice(doc.getMinPrice())
                         .compareAtPrice(doc.getCompareAtPrice())
                         .build());

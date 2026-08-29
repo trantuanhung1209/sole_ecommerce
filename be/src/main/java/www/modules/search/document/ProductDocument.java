@@ -13,6 +13,7 @@ public class ProductDocument {
     private String productId;
     private String name;
     private String slug;
+    private String shortDescription;
     private String brandId;
     private String brandName;
     private List<String> categoryIds;
@@ -21,6 +22,8 @@ public class ProductDocument {
     private Double compareAtPrice;
     private Double rating;
     private LocalDateTime publishedAt;
+    @Builder.Default
+    private List<String> imageUrls = new ArrayList<>();
     @Builder.Default
     private List<VariantDoc> variants = new ArrayList<>();
 

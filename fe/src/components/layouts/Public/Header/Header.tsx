@@ -1,8 +1,9 @@
 import { SoleLogo } from "@/components/brand/SoleLogo";
+import { CartDropdown } from "@/components/cart/CartDropdown";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppSelector } from "@/hooks/useRedux";
-import { Home, Menu, MessageCircle, ShoppingBag, ShoppingCart, User, X } from "lucide-react";
+import { Home, Menu, MessageCircle, ShoppingBag, User, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import UserProfile from "./components/UserProfile";
@@ -17,11 +18,6 @@ const Header = () => {
   const navigation = [
     { name: "Trang chủ", href: "/", icon: Home },
     { name: "Sản phẩm", href: "/products", icon: ShoppingBag },
-    {
-      name: "Giỏ hàng",
-      href: "/cart",
-      icon: ShoppingCart,
-    },
     { name: "Trợ lý AI", href: "/ai-chat", icon: MessageCircle },
   ];
 
@@ -51,69 +47,62 @@ const Header = () => {
                 >
                   <IconComponent className="h-4 w-4" />
                   <span>{item.name}</span>
-                  {"guestHint" in item && item.guestHint && (
-                    <span className="text-[10px] text-muted-foreground">(đăng nhập)</span>
-                  )}
                 </Link>
               );
             })}
           </nav>
 
-          {/* Auth & Actions - Desktop */}
-          <div className="hidden md:flex items-center space-x-3">
-            {loading ? (
-              <div className="flex items-center space-x-2">
-                <Skeleton className="h-9 w-9 rounded-full" />
-                <Skeleton className="h-4 w-20 rounded" />
-              </div>
-            ) : isLoggedIn && user ? (
-              <div className="flex items-center gap-2">
-                <NotificationBell />
-                <UserProfile
-                key={user.updatedAt || user.id}
-                user={{
-                  name: user.fullName,
-                  email: user.email,
-                  // Priority: avatar > googleAuth.picture > empty
-                  avatar: user.avatar || user.googleAuth?.picture || "",
-                  role: user.role,
-                  lastLogin: user.lastLoginAt
-                    ? new Date(user.lastLoginAt).toLocaleString()
-                    : "N/A",
-                  updatedAt: user.updatedAt,
-                }}
-              />
-              </div>
-            ) : (
-              <div className="flex items-center space-x-2">
-                <Link to="/login">
-                  <Button variant="outline" size="default">
-                    Đăng nhập
-                  </Button>
-                </Link>
-                <Link to="/register">
-                  <Button size="default">
-                    <User className="h-4 w-4 mr-1" />
-                    Đăng ký
-                  </Button>
-                </Link>
-              </div>
-            )}
+          {/* Actions */}
+          <div className="flex items-center gap-2 md:gap-3">
+            <CartDropdown />
+            <div className="hidden md:flex items-center space-x-3">
+              {loading ? (
+                <div className="flex items-center space-x-2">
+                  <Skeleton className="h-9 w-9 rounded-full" />
+                  <Skeleton className="h-4 w-20 rounded" />
+                </div>
+              ) : isLoggedIn && user ? (
+                <div className="flex items-center gap-2">
+                  <NotificationBell />
+                  <UserProfile
+                    key={user.updatedAt || user.id}
+                    user={{
+                      name: user.fullName,
+                      email: user.email,
+                      avatar: user.avatar || user.googleAuth?.picture || "",
+                      role: user.role,
+                      lastLogin: user.lastLoginAt
+                        ? new Date(user.lastLoginAt).toLocaleString()
+                        : "N/A",
+                      updatedAt: user.updatedAt,
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <Link to="/login">
+                    <Button variant="outline" size="default">
+                      Đăng nhập
+                    </Button>
+                  </Link>
+                  <Link to="/register">
+                    <Button size="default">
+                      <User className="h-4 w-4 mr-1" />
+                      Đăng ký
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+            <Button
+              variant="default"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
           </div>
-
-          {/* Mobile menu toggle */}
-          <Button
-            variant="default"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-          >
-            {isMenuOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
-          </Button>
         </div>
       </div>
 
@@ -141,6 +130,19 @@ const Header = () => {
                 );
               })}
             </nav>
+
+            {!loading && !isLoggedIn ? (
+              <div className="mt-4 flex gap-2 border-t pt-4">
+                <Link to="/login" className="flex-1" onClick={() => setIsMenuOpen(false)}>
+                  <Button variant="outline" className="w-full">
+                    Đăng nhập
+                  </Button>
+                </Link>
+                <Link to="/register" className="flex-1" onClick={() => setIsMenuOpen(false)}>
+                  <Button className="w-full">Đăng ký</Button>
+                </Link>
+              </div>
+            ) : null}
           </div>
         </div>
       )}

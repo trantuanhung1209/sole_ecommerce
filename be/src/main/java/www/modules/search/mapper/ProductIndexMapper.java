@@ -67,6 +67,7 @@ public class ProductIndexMapper {
                 .productId(product.getProductId())
                 .name(product.getName())
                 .slug(product.getSlug())
+                .shortDescription(product.getShortDescription())
                 .brandId(product.getBrandId())
                 .brandName(brandName)
                 .categoryIds(product.getCategoryIds())
@@ -75,6 +76,7 @@ public class ProductIndexMapper {
                 .compareAtPrice(compareAt)
                 .rating(rating)
                 .publishedAt(product.getUpdatedAt())
+                .imageUrls(product.getImageUrls() != null ? product.getImageUrls() : List.of())
                 .variants(variantDocs)
                 .build();
     }

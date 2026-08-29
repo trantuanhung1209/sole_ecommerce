@@ -54,6 +54,8 @@ public final class CartDtos {
         private String size;
         private String colorName;
         private String imageUrl;
+        private String productId;
+        private String productSlug;
     }
 
     @Data

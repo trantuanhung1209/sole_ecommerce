@@ -20,6 +20,7 @@ public class Category {
     @Indexed(unique = true)
     private String slug;
     private String description;
+    private String imageUrl;
     private String parentId;
     @Builder.Default
     private Boolean active = true;

@@ -23,21 +23,6 @@ const heroImage =
 const promoImage =
   "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?auto=format&fit=crop&w=1200&q=80";
 
-const categoryImages: Record<string, string> = {
-  running:
-    "https://images.unsplash.com/photo-1579338559199-fd52370f5f0b?auto=format&fit=crop&w=800&q=80",
-  lifestyle:
-    "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?auto=format&fit=crop&w=800&q=80",
-  basketball:
-    "https://images.unsplash.com/photo-1556906781-219acccafc3d?auto=format&fit=crop&w=800&q=80",
-  skate:
-    "https://images.unsplash.com/photo-152596326053-0.2f0a00af3ef1?auto=format&fit=crop&w=800&q=80",
-  trail:
-    "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=800&q=80",
-  kids:
-    "https://images.unsplash.com/photo-1514986888352-a0d648402806?auto=format&fit=crop&w=800&q=80",
-};
-
 const stats = [
   { value: "12+", label: "Mẫu sneaker hot" },
   { value: "8", label: "Thương hiệu" },
@@ -172,7 +157,7 @@ export default function Home() {
                 className="group relative aspect-[4/5] overflow-hidden rounded-2xl bg-[#F1F1EF]"
               >
                 <img
-                  src={categoryImages[category.slug] || heroImage}
+                  src={category.imageUrl || heroImage}
                   alt={category.name}
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                 />

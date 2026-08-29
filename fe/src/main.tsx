@@ -6,11 +6,16 @@ import "./index.css";
 import App from "./App.tsx";
 import { StrictMode } from "react";
 import { googleClientId, isGoogleAuthEnabled } from "./config/env";
+import { CartProvider } from "./contexts/CartContext";
+import { FlyToCartLayer } from "./components/cart/FlyToCartLayer";
 
 const app = (
   <StrictMode>
     <Provider store={store}>
-      <App />
+      <CartProvider>
+        <App />
+        <FlyToCartLayer />
+      </CartProvider>
     </Provider>
   </StrictMode>
 );

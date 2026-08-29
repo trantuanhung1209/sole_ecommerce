@@ -77,6 +77,7 @@ export interface Category {
   name: string;
   slug: string;
   description?: string;
+  imageUrl?: string;
   parentId?: string;
 }
 
@@ -106,6 +107,8 @@ export interface CartItem {
   size?: string;
   colorName?: string;
   imageUrl?: string;
+  productId?: string;
+  productSlug?: string;
 }
 
 export interface Cart {
