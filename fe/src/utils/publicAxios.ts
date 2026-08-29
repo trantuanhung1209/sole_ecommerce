@@ -12,6 +12,22 @@ const publicAxios = axios.create({
   },
 });
 
+function getCsrfToken(): string | null {
+  const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+publicAxios.interceptors.request.use((config) => {
+  const method = config.method?.toUpperCase();
+  if (method && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+    const csrf = getCsrfToken();
+    if (csrf) {
+      config.headers.set("X-XSRF-TOKEN", csrf);
+    }
+  }
+  return config;
+});
+
 // Response interceptor - Selective error handling
 publicAxios.interceptors.response.use(
   (response) => response,

@@ -64,7 +64,8 @@ public class SecurityConfig {
                 .ignoringRequestMatchers(
                     "/payments/sepay/callback",
                     "/auth/register", "/auth/verify-otp", "/auth/login", "/auth/refresh",
-                    "/auth/forgot-password", "/auth/reset-password", "/auth/google"))
+                    "/auth/forgot-password", "/auth/reset-password", "/auth/google",
+                    "/ai/chat"))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint(jwtAuthenticationEntryPoint)

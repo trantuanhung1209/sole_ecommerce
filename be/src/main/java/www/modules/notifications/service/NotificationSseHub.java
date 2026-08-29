@@ -24,7 +24,8 @@ public class NotificationSseHub {
 
         try {
             emitter.send(SseEmitter.event().name("connected").data("ok"));
-        } catch (IOException e) {
+        } catch (Exception e) {
+            log.debug("SSE client disconnected during subscribe for user {}: {}", userId, e.getMessage());
             detach(userId, emitter);
         }
         return emitter;

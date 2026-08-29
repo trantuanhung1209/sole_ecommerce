@@ -1,14 +1,17 @@
 package www.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.catalina.connector.ClientAbortException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotWritableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import www.exception.AuthException;
 import www.exception.BadRequestException;
 import www.exception.ForbiddenException;
@@ -122,8 +125,30 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.badRequest("Invalid request: " + ex.getMessage()));
     }
 
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleAsyncDisconnect(AsyncRequestNotUsableException ex) {
+        if (isClientDisconnect(ex)) {
+            log.debug("Client disconnected during async response: {}", ex.getMessage());
+            return;
+        }
+        log.warn("Async request failed: {}", ex.getMessage());
+    }
+
+    @ExceptionHandler(HttpMessageNotWritableException.class)
+    public void handleNotWritable(HttpMessageNotWritableException ex) {
+        if (isClientDisconnect(ex) || isSseResponse(ex)) {
+            log.debug("Skipped writing response after client disconnect: {}", ex.getMessage());
+            return;
+        }
+        log.warn("Response not writable: {}", ex.getMessage());
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<Object>> handleRuntimeException(RuntimeException ex) {
+        if (isClientDisconnect(ex)) {
+            log.debug("Client disconnected: {}", ex.getMessage());
+            return null;
+        }
         log.error("Runtime exception: ", ex);
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -132,9 +157,33 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleGenericException(Exception ex) {
+        if (isClientDisconnect(ex)) {
+            log.debug("Client disconnected: {}", ex.getMessage());
+            return null;
+        }
         log.error("Unexpected error: ", ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(500, "An unexpected error occurred"));
+    }
+
+    private static boolean isClientDisconnect(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            if (current instanceof ClientAbortException
+                    || current instanceof AsyncRequestNotUsableException) {
+                return true;
+            }
+            if (current instanceof java.io.IOException io && "Broken pipe".equals(io.getMessage())) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private static boolean isSseResponse(HttpMessageNotWritableException ex) {
+        String message = ex.getMessage();
+        return message != null && message.contains("text/event-stream");
     }
 }
