@@ -1,645 +1,464 @@
-# Shoe E-commerce Specification
+# Đặc tả hệ thống SOLE — E-commerce giày dép
 
-Tai lieu nay la dac ta day du cho website e-commerce ban giay dep, duoc thiet ke dua tren cac ky thuat tot co the tai su dung tu project Booking Tour cu, nhung domain va workflow duoc xay moi dung ban chat e-commerce.
+> **Phiên bản tài liệu:** cập nhật sau giai đoạn triển khai P0–P6 và rà soát gap audit (2026).  
+> **Trạng thái hệ thống:** MVP+ (~85%) — luồng mua hàng end-to-end hoạt động; còn một số hạng mục spec cố ý hoãn hoặc chưa polish.
 
-## 1. Product Overview
+---
 
-Website Shoe E-commerce cho phep khach hang xem, tim kiem, loc, mua giay/dep theo product variant nhu size, mau, SKU; quan ly gio hang, checkout, thanh toan, theo doi don hang, danh gia san pham va yeu cau doi/tra/hoan tien.
+## Mục lục
 
-He thong co khu admin/staff de quan ly catalog, ton kho, don hang, thanh toan, khach hang, danh gia, voucher, return/refund va bao cao doanh thu.
+1. [Tổng quan sản phẩm](#1-tổng-quan-sản-phẩm)
+2. [Vai trò và phân quyền](#2-vai-trò-và-phân-quyền)
+3. [Công nghệ sử dụng](#3-công-nghệ-sử-dụng)
+4. [Kiến trúc hệ thống](#4-kiến-trúc-hệ-thống)
+5. [Mô hình dữ liệu cốt lõi](#5-mô-hình-dữ-liệu-cốt-lõi)
+6. [Trạng thái triển khai theo module](#6-trạng-thái-triển-khai-theo-module)
+7. [Đặc tả API](#7-đặc-tả-api)
+8. [Luồng nghiệp vụ chính](#8-luồng-nghiệp-vụ-chính)
+9. [Quy tắc giá, vận chuyển, tồn kho](#9-quy-tắc-giá-vận-chuyển-tồn-kho)
+10. [Yêu cầu bảo mật](#10-yêu-cầu-bảo-mật)
+11. [Giao diện người dùng (Frontend)](#11-giao-diện-người-dùng-frontend)
+12. [Quản trị Admin / Staff](#12-quản-trị-admin--staff)
+13. [Thông báo và email](#13-thông-báo-và-email)
+14. [Tìm kiếm và lọc sản phẩm](#14-tìm-kiếm-và-lọc-sản-phẩm)
+15. [Trợ lý AI mua sắm](#15-trợ-lý-ai-mua-sắm)
+16. [Chiến lược kiểm thử](#16-chiến-lược-kiểm-thử)
+17. [Biến môi trường](#17-biến-môi-trường)
+18. [Phạm vi chưa triển khai / hoãn](#18-phạm-vi-chưa-triển-khai--hoãn)
+19. [Tiêu chí hoàn thành (Definition of Done)](#19-tiêu-chí-hoàn-thành-definition-of-done)
 
-### Muc tieu
+**Chú thích trạng thái trong tài liệu:**
 
-- Khach hang mua giay nhanh, ro size/mau/con hang.
-- Giam loi oversell bang stock reservation.
-- Payment webhook an toan, idempotent.
-- Admin quan ly product/inventory/order de dang.
-- Co nen tang mo rong cho promotion, shipping, recommendation, AI shopping assistant.
+| Ký hiệu | Ý nghĩa |
+|--------|---------|
+| ✅ | Đã triển khai, dùng được trong MVP |
+| ⚠️ | Đã triển khai một phần / cần polish |
+| ❌ | Chưa triển khai hoặc cố ý hoãn |
 
-### Ngoai pham vi MVP
+---
 
-- Marketplace nhieu nha ban.
-- Multi-currency.
-- Loyalty point phuc tap.
-- Recommendation AI nang cao.
-- ERP/WMS integration that.
+## 1. Tổng quan sản phẩm
 
-## 2. Roles & Permissions
+### 1.1. Mô tả
 
-| Role | Mo ta | Quyen chinh |
-| --- | --- | --- |
-| GUEST | Chua dang nhap | Xem product, search/filter, xem review public |
-| CUSTOMER | Khach hang | Cart, checkout, order history, address, review, wishlist, return request |
-| STAFF | Nhan vien | Xu ly order, support customer, tao product draft, xu ly return buoc dau |
-| SHOP_MANAGER | Quan ly shop | Duyet product, quan ly inventory, duyet refund/return, xem report |
-| ADMIN | Quan tri | Quan ly user, role, system config, full admin |
-| SUPER_ADMIN | Chu he thong | Tat ca quyen, sua permission cua cac role tren UI, audit/security settings |
+**SOLE** là website e-commerce bán giày dép, cho phép:
 
-### Permission matrix MVP
+- Khách xem, tìm kiếm, lọc sản phẩm theo thương hiệu, danh mục, size, màu, giá, giới tính, tình trạng còn hàng.
+- Chọn biến thể (variant) theo size/màu/SKU, thêm giỏ hàng, thanh toán qua **SePay**, theo dõi đơn hàng.
+- Đánh giá sản phẩm (verified purchase), yêu cầu đổi/trả/hoàn tiền trong cửa sổ 7 ngày sau giao hàng.
+- Admin/Staff quản lý catalog, duyệt sản phẩm, tồn kho, đơn hàng, đổi/trả, đánh giá, báo cáo và ma trận phân quyền.
 
-| Feature | Guest | Customer | Staff | Shop Manager | Admin |
-| --- | --- | --- | --- | --- | --- |
-| Browse products | Yes | Yes | Yes | Yes | Yes |
-| Add to cart | No/guest cart optional | Yes | Yes | Yes | Yes |
-| Checkout | No | Yes | Yes | Yes | Yes |
-| View own orders | No | Yes | Yes | Yes | Yes |
-| Manage all orders | No | No | Limited | Yes | Yes |
-| Manage products | No | No | Draft/Edit | Approve/Edit | Yes |
-| Manage inventory | No | No | View | Yes | Yes |
-| Process return | No | Own request | Confirm/Reject | Approve/Reject | Yes |
-| Manage users | No | Own profile | No | No | Yes |
-| Manage role permissions | No | No | No | No | SUPER_ADMIN only |
-| Reports | No | No | Limited | Yes | Yes |
+### 1.2. Mục tiêu
 
-### Dynamic RBAC Management
+- Khách mua giày nhanh, rõ size/màu/còn hàng.
+- Giảm oversell nhờ **reserve tồn kho** trước khi tạo đơn.
+- Webhook thanh toán **an toàn, idempotent**.
+- Cổng admin/staff vận hành catalog — inventory — order — return.
+- Nền tảng mở rộng được cho promotion, vận chuyển, AI assistant (một phần đã có).
 
-`SUPER_ADMIN` co quyen quan ly permission cua cac role tren UI admin. He thong khong chi hard-code role trong code, ma can co bang/collection role-permission de UI co the bat/tat quyen.
+### 1.3. Ngoài phạm vi MVP hiện tại
 
-Core rules:
+- Marketplace nhiều nhà bán.
+- Đa tiền tệ.
+- Loyalty point phức tạp.
+- Tích hợp ERP/WMS.
+- Hoàn tiền SePay tự động qua API gateway.
 
-- Chi `SUPER_ADMIN` duoc xem va cap nhat permission matrix.
-- `SUPER_ADMIN` khong duoc tu remove quyen `MANAGE_ROLE_PERMISSIONS` cua role `SUPER_ADMIN`.
-- Khong duoc xoa role system mac dinh: `CUSTOMER`, `STAFF`, `SHOP_MANAGER`, `ADMIN`, `SUPER_ADMIN`.
-- Moi thay doi permission phai ghi audit log: ai sua, role nao, permission nao, gia tri cu/moi, thoi gian.
-- Permission cache trong Redis neu co phai invalidate sau khi update.
-- User dang dang nhap nen duoc ap dung permission moi o request tiep theo hoac sau khi refresh token/profile.
+---
 
-Suggested permission groups:
+## 2. Vai trò và phân quyền
+
+### 2.1. Bảng vai trò
+
+| Vai trò | Mô tả | Quyền chính |
+|--------|-------|-------------|
+| **GUEST** | Chưa đăng nhập | Xem sản phẩm, tìm kiếm/lọc, xem đánh giá công khai |
+| **CUSTOMER** | Khách hàng | Giỏ hàng, checkout, đơn hàng, địa chỉ, đánh giá, wishlist, yêu cầu trả hàng |
+| **STAFF** | Nhân viên | Xử lý đơn, hỗ trợ KH, tạo/sửa sản phẩm draft, xác nhận/trả hàng bước đầu |
+| **SHOP_MANAGER** | Quản lý shop | Duyệt sản phẩm, quản lý tồn kho, duyệt hoàn tiền/trả hàng, xem báo cáo |
+| **ADMIN** | Quản trị | Quản lý user, cấu hình, toàn quyền admin (trừ RBAC matrix) |
+| **SUPER_ADMIN** | Chủ hệ thống | Mọi quyền + sửa ma trận phân quyền trên UI |
+
+### 2.2. Ma trận quyền thực tế (MVP+)
+
+| Chức năng | Guest | Customer | Staff | Shop Manager | Admin |
+|-----------|:-----:|:--------:|:-----:|:------------:|:-----:|
+| Duyệt & lọc sản phẩm | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Thêm giỏ hàng | ❌* | ✅ | ✅ | ✅ | ✅ |
+| Checkout SePay | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Xem đơn/review/return của mình | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Duyệt sản phẩm | — | — | ❌ | ✅ | ✅ |
+| Xử lý return/refund | — | Yêu cầu | Xác nhận | Duyệt/hoàn | ✅ |
+| Ma trận RBAC UI | — | — | — | — | SUPER_ADMIN |
+| Báo cáo doanh thu | — | — | Hạn chế FE | ✅ | ✅ |
+
+\* *Guest:* giỏ hàng và checkout **bắt buộc đăng nhập**. Header hiển thị link giỏ hàng kèm gợi ý «(đăng nhập)» và chuyển tới `/login?redirect=/cart`.
+
+### 2.3. RBAC động (Dynamic RBAC) — ✅
+
+**Cách hoạt động:**
+
+1. Backend seed danh sách permission (`CATALOG_CREATE`, `INVENTORY_UPDATE`, …) và gán mặc định theo role trong `RbacService`.
+2. `SUPER_ADMIN` chỉnh ma trận trên **Admin → Vai trò & quyền hạn** (`RolePermissionsPage`).
+3. Mỗi lần lưu bắt buộc **lý do**; backend ghi **audit log**; cache Redis được invalidate.
+4. API `/auth/me` trả về `permissions[]` — frontend `useRoleAccess` đọc mảng này để gate menu/nút.
+5. Backend dùng `@perm.has(authentication, 'PERMISSION_CODE')` trên các API nhạy cảm (catalog create/update, inventory adjust, return approve/refund, reports).
+
+**Quy tắc an toàn:**
+
+- Chỉ `SUPER_ADMIN` được cập nhật ma trận.
+- Không được tắt `MANAGE_ROLE_PERMISSIONS` của `SUPER_ADMIN`.
+- Không xóa role hệ thống: `CUSTOMER`, `STAFF`, `SHOP_MANAGER`, `ADMIN`, `SUPER_ADMIN`.
+- `permission.enforcement=false` (env) tắt toàn bộ evaluator — chỉ dùng khi dev.
+
+**Danh sách permission:**
 
 ```text
-CATALOG_READ
-CATALOG_CREATE
-CATALOG_UPDATE
-CATALOG_DELETE
-CATALOG_APPROVE
-INVENTORY_READ
-INVENTORY_UPDATE
-ORDER_READ
-ORDER_UPDATE
-ORDER_CANCEL
-PAYMENT_READ
-PAYMENT_REFUND
-RETURN_READ
-RETURN_PROCESS
+CATALOG_READ, CATALOG_CREATE, CATALOG_UPDATE, CATALOG_DELETE, CATALOG_APPROVE
+INVENTORY_READ, INVENTORY_UPDATE
+ORDER_READ, ORDER_UPDATE, ORDER_CANCEL
+PAYMENT_READ, PAYMENT_REFUND
+RETURN_READ, RETURN_PROCESS
 REVIEW_MODERATE
-USER_READ
-USER_UPDATE
-USER_DISABLE
-REPORT_READ
-SYSTEM_SETTINGS
-MANAGE_ROLE_PERMISSIONS
-AUDIT_LOG_READ
+USER_READ, USER_UPDATE, USER_DISABLE
+REPORT_READ, SYSTEM_SETTINGS
+MANAGE_ROLE_PERMISSIONS, AUDIT_LOG_READ
 ```
 
-## 3. Technology Recommendation
+---
 
-Nen tiep tuc dung stack hien tai neu muon migration nhanh:
+## 3. Công nghệ sử dụng
 
-### Backend
+### 3.1. Backend — ✅
 
-- Java 17.
-- Spring Boot.
-- Spring Web.
-- Spring Security.
-- Spring Data MongoDB.
-- Redis.
-- Gradle.
-- Cloudinary or compatible object storage.
-- SePay adapter hoac payment gateway tuong duong.
-- Thymeleaf email templates.
+| Thành phần | Công nghệ |
+|-----------|-----------|
+| Runtime | Java 17 |
+| Framework | Spring Boot, Spring Web, Spring Security |
+| Database | MongoDB (Spring Data MongoDB) |
+| Cache / Session | Redis |
+| Build | Gradle |
+| Media | Cloudinary |
+| Thanh toán | SePay (sandbox/production qua env) |
+| Email | Thymeleaf templates |
+| Tìm kiếm (tùy chọn) | Elasticsearch 8.x (fallback Mongo) |
+| AI | OpenAI API (server-side) |
 
-### Frontend
+### 3.2. Frontend — ✅
 
-- React + TypeScript.
-- Vite.
-- React Router.
-- Redux Toolkit cho auth/global state.
-- Axios with credentials.
-- React Hook Form + Zod.
-- Tailwind CSS + Radix/shadcn-style components.
-- React Toastify.
+| Thành phần | Công nghệ |
+|-----------|-----------|
+| UI | React 18 + TypeScript |
+| Build | Vite |
+| Routing | React Router v6 |
+| State | Redux Toolkit (auth) |
+| HTTP | Axios (credentials + CSRF) |
+| Form | React Hook Form + Zod |
+| UI kit | Tailwind CSS + shadcn/Radix |
+| Toast | React Toastify |
+| Test | Vitest |
 
-### Can bo sung
+### 3.3. Cần bổ sung / cải thiện — ⚠️
 
-- API docs: OpenAPI/Swagger.
-- Testing: JUnit/Mockito/Testcontainers backend, Vitest/React Testing Library frontend.
-- Logging correlation ID.
-- Secret management qua env.
-- Rate limiting.
-- OpenAI API integration server-side cho AI shopping assistant.
+- OpenAPI/Swagger UI expose và verify.
+- Testcontainers / E2E integration tests.
+- Correlation ID logging toàn cục.
 
-## 4. Architecture
+---
 
-Backend nen theo feature-based layered modular monolith.
+## 4. Kiến trúc hệ thống
+
+### 4.1. Backend — modular monolith
 
 ```text
 be/src/main/java/www/
-  common/
-    exception/
-    pagination/
-    response/
-    validation/
-    audit/
-  config/
-  security/
-  infrastructure/
-    redis/
-    mail/
-    storage/
-    payment/
-    ai/
-    scheduler/
+  config/           # Security, CORS, Redis, Mongo
+  security/         # JWT filter, CSRF, rate limit, SolePermissionEvaluator
+  controller/       # AuthController
   modules/
-    auth/
-    users/
-    catalog/
-    inventory/
+    catalog/        # Sản phẩm, brand, category, variant
+    inventory/      # Tồn kho, reservation
     cart/
     checkout/
     orders/
-    payments/
+    payments/       # SePay, IPN verify
     reviews/
-    wishlist/
     returns/
-    notifications/
-    admin/
+    wishlist/
+    addresses/
+    notifications/  # In-app + SSE stream
+    rbac/
+    reports/
+    search/         # ES + Mongo router
     ai/
+  service/          # Mail, shared services
 ```
 
-Moi module nen co:
+Mỗi module: `controller/`, `service/`, `repository/`, `dto/`, `model/`.
 
-```text
-controller/
-service/
-repository/
-dto/
-mapper/
-model/
-```
-
-Frontend nen theo feature-based:
+### 4.2. Frontend — feature-based
 
 ```text
 fe/src/
-  app/
-    routes/
-    store/
-    providers/
-  shared/
-    ui/
-    api/
-    hooks/
-    schemas/
-    types/
-    utils/
-  features/
+  pages/
+    Public/Home/
+    ecommerce/      # Listing, PDP, cart, checkout, orders, returns, AI chat, notifications
+    admin/          # Dashboard, products, inventory, orders, returns, RBAC
+    staff/          # Dashboard queues
     auth/
-    catalog/
-    cart/
-    checkout/
-    orders/
-    account/
-    admin/
-    reviews/
-    wishlist/
-    returns/
+    payment/        # Success / error / cancel
+  services/         # ecommerceServices, notificationServices, userServices
+  config/roleAccess.ts
+  hooks/useRoleAccess.ts
+  routes/           # ProtectedRoute, AuthRoute, RoleGate
 ```
 
-## 5. Core Domain Model
+---
 
-### Product
+## 5. Mô hình dữ liệu cốt lõi
 
-San pham cha, vi du "Nike Air Force 1".
+### 5.1. Product (sản phẩm cha)
 
-Fields:
+Ví dụ: «Nike Air Force 1».
 
 ```text
-productId
-name
-slug
-description
-shortDescription
-brandId
-categoryIds
-genderTarget: MEN/WOMEN/UNISEX/KIDS
-material
-careInstruction
-status: DRAFT/PENDING_APPROVAL/APPROVED/REJECTED/PUBLISHED/UNPUBLISHED
-publicStatus: DRAFT/PUBLISHED/HIDDEN
-createdBy
-approvedBy
-approvedAt
-rejectionReason
-deleted
-createdAt
-updatedAt
+productId, name, slug, description, brandId, categoryIds[]
+genderTarget: MEN | WOMEN | UNISEX | KIDS
+status: DRAFT | PENDING_APPROVAL | APPROVED | REJECTED | PUBLISHED | UNPUBLISHED
+publicStatus: DRAFT | PUBLISHED | HIDDEN
+createdBy, approvedBy, approvedAt, rejectionReason, deleted, timestamps
 ```
 
-### Product Variant
+**Workflow duyệt:** Staff tạo `DRAFT` → gửi duyệt → Shop Manager/Admin `approve` → `publish` → hiển thị storefront.
 
-Bien the san pham theo size/mau/SKU.
+### 5.2. Product Variant (biến thể)
 
 ```text
-variantId
-productId
-sku
-size
-colorName
-colorHex
-price
-compareAtPrice
-costPrice optional
-weight
-status: ACTIVE/INACTIVE
-imageUrls optional
-createdAt
-updatedAt
+variantId, productId, sku, size, colorName, colorHex
+price, compareAtPrice, weight, status: ACTIVE | INACTIVE, imageUrls[]
 ```
 
-Example:
+### 5.3. Inventory (tồn kho)
+
+Một kho mặc định `warehouseId = "default"`.
 
 ```text
-Product: Nike Air Force 1
-Variants:
-- NAF1-WHT-40 | White | Size 40 | 2,500,000 VND
-- NAF1-WHT-41 | White | Size 41 | 2,500,000 VND
-- NAF1-BLK-40 | Black | Size 40 | 2,550,000 VND
-- NAF1-BLK-41 | Black | Size 41 | 2,550,000 VND
+inventoryId, variantId, warehouseId
+onHand, reserved, sold, available, updatedAt
+
+Quy tắc: available = onHand - reserved - sold
 ```
 
-### Inventory
+### 5.4. Stock Reservation
 
-Ton kho theo variant va warehouse.
+Giữ hàng tạm khi checkout (TTL ~15 phút).
 
 ```text
-inventoryId
-variantId
-warehouseId
-onHand
-reserved
-sold
-available
-version
-updatedAt
+reservationId, orderId, variantId, quantity
+status: ACTIVE | CONFIRMED | RELEASED | EXPIRED
+expiresAt, timestamps
 ```
 
-Rule:
+### 5.5. Cart & Cart Item
+
+Giỏ theo `userId` (một user một giỏ ACTIVE).
 
 ```text
-available = onHand - reserved - sold
+cartItemId, variantId, quantity, priceSnapshot
 ```
 
-### Stock Reservation
+### 5.6. Order & Order Item
 
-Giu hang tam thoi trong checkout/payment.
+Order snapshot địa chỉ và từng dòng hàng tại thời điểm mua.
+
+**Trạng thái đơn:** `PENDING_PAYMENT` → `PAID`/`CONFIRMED` → `PROCESSING` → `SHIPPED` → `DELIVERED` → `COMPLETED`  
+**Hủy / trả:** `CANCELLED`, `RETURN_REQUESTED`, `REFUNDED`
+
+**Trạng thái thanh toán:** `PENDING`, `COMPLETED`, `FAILED`, `EXPIRED`, `REFUNDED`
+
+### 5.7. Payment & Payment Event
+
+- Mỗi checkout tạo `EcommercePayment` với `orderInvoiceNumber` unique.
+- `PaymentEvent` lưu raw IPN; unique `(gateway, transactionId)` đảm bảo idempotent.
+
+### 5.8. Return Request (RMA)
 
 ```text
-reservationId
-orderId
-variantId
-quantity
-status: ACTIVE/CONFIRMED/RELEASED/EXPIRED
-expiresAt
-createdAt
-updatedAt
+returnRequestId, orderId, orderItemId, userId, reason, customerNote, imageUrls[]
+status: PENDING | STAFF_CONFIRMED | APPROVED | REJECTED | RECEIVED | REFUNDED | CLOSED
+refundAmount, manualRefundRequired, staffNote, managerNote, rejectedReason
 ```
 
-### Cart
+### 5.9. Review, Wishlist, Address, Notification
+
+- **Review:** gắn `orderId` + `orderItemId`; verified purchase; vote dedupe phía BE.
+- **Wishlist:** `userId` + `productId` unique.
+- **Address:** sổ địa chỉ giao hàng; một địa chỉ `isDefault`.
+- **Notification:** in-app + SSE; `targetUrl` deep link.
+
+---
+
+## 6. Trạng thái triển khai theo module
+
+Phần này mô tả **cách từng chức năng hoạt động thực tế** trong codebase hiện tại.
+
+### 6.1. Xác thực & phiên (Auth) — ✅
+
+| Chức năng | Cách hoạt động |
+|-----------|----------------|
+| Đăng ký + OTP email | `POST /auth/register` → gửi OTP → `POST /auth/verify-otp` kích hoạt tài khoản |
+| Đăng nhập | JWT access + refresh trong **HttpOnly cookie**; access ngắn hạn, refresh dài hạn |
+| Refresh / Logout | `POST /auth/refresh`, `POST /auth/logout`; logout blacklist token |
+| Google OAuth | `POST /auth/google` — liên kết hoặc tạo user |
+| Quên / đổi mật khẩu | OTP qua email; `forgot-password`, `reset-password`, `change-password` |
+| Profile | `GET/PUT /auth/me`, `/auth/profile` — `/auth/me` trả `permissions[]` |
+| Quản lý phiên | Redis lưu session; `GET /auth/sessions`, revoke từng/thu hồi tất cả |
+| Cookie refresh | Tên cookie: `refresh_token`; backend nhận cả legacy `refreshToken` khi đánh dấu phiên «hiện tại» |
+
+**Frontend:** `ProtectedRoute` chặn route cần login; `AuthRoute` chuyển user đã login về trang chủ.
+
+### 6.2. Catalog (Danh mục sản phẩm) — ✅ / ⚠️
+
+| Chức năng | Trạng thái | Cách hoạt động |
+|-----------|:----------:|----------------|
+| Listing + filter | ✅ | `GET /products` — brand, category, gender, price, size, color, inStock, sort; URL sync trên FE |
+| Chi tiết sản phẩm | ✅ | Slug hoặc ID; variants công khai kèm `available` |
+| Buy now | ✅ | PDP → checkout trực tiếp |
+| Sản phẩm liên quan | ✅ | `GET /products/{id}/related` |
+| Category theo slug | ✅ | `/categories/:slug` |
+| Admin CRUD product/variant | ✅ | Workflow approve/publish/unpublish |
+| Brand/Category admin | ⚠️ | BE đủ CRUD; FE admin **chỉ create**, chưa update/delete UI |
+| Soft delete / restore | ⚠️ | BE có; FE admin chưa expose |
+
+### 6.3. Tồn kho (Inventory) — ✅
+
+| Chức năng | Cách hoạt động |
+|-----------|----------------|
+| Reserve khi checkout | Atomic Mongo update: `available -= qty`, `reserved += qty`; tạo `StockReservation` ACTIVE, TTL 15 phút |
+| Xác nhận khi thanh toán | IPN success → `confirmOrderReservations`: `reserved → sold` |
+| Hủy / hết hạn | Release reservation → trả `available` |
+| Điều chỉnh thủ công | Admin `PUT /admin/inventory/{variantId}/adjust` — re-index ES product |
+| Import CSV | Admin `POST /admin/inventory/import` — FE có textarea `variantId,quantity` |
+| Restock khi trả hàng | Return `RECEIVED` → `InventoryService.restock()` — giảm `sold`, tăng `onHand`/`available` |
+| Scheduler | Job expire reservation + expire payment pending |
+
+### 6.4. Giỏ hàng (Cart) — ✅ / ⚠️
+
+| Chức năng | Trạng thái | Cách hoạt động |
+|-----------|:----------:|----------------|
+| CRUD giỏ | ✅ | Theo `userId`; merge quantity cùng variant |
+| Validate | ✅ | `POST /cart/validate` — kiểm stock, giá, variant active |
+| Re-validate sau đổi qty | ⚠️ | Cần user refresh/tải lại; chưa auto re-run ngay sau mỗi lần đổi số lượng |
+| Guest cart | ❌ | Bắt buộc login |
+
+### 6.5. Checkout — ✅ / ⚠️
+
+**Luồng `/checkout`:**
+
+1. Load giỏ từ DB, validate từng item.
+2. Snapshot địa chỉ từ `addressId`.
+3. Tính phí ship (`ShippingFeeCalculator`: 30.000đ; **miễn phí từ 2.000.000đ**).
+4. **Reserve tồn kho** cho toàn bộ dòng hàng.
+5. Tạo order `PENDING_PAYMENT` + payment `PENDING` (hết hạn ~15 phút).
+6. Trả `PaymentCheckoutResponse` — FE auto-submit form SePay.
+
+| Hạng mục | Trạng thái |
+|----------|:----------:|
+| Preview (`POST /checkout/preview`) | ✅ |
+| addressId snapshot | ✅ |
+| customerNote | ⚠️ API hỗ trợ; FE checkout có thể chưa có input |
+| Phương thức thanh toán | ⚠️ Hard-code `SEPAY` |
+| VAT (`taxTotal`) | ❌ Luôn 0 |
+
+### 6.6. Thanh toán SePay — ✅
+
+| Chức năng | Cách hoạt động |
+|-----------|----------------|
+| Tạo payment | Form POST tới SePay với `merchant`, `order_invoice_number`, amount, callback URLs |
+| IPN POST | `POST /payments/sepay/callback` — `SePayIpnVerifier` verify chữ ký → `handleCallback` |
+| Idempotent | Duplicate `transactionId` → bỏ qua, trả success |
+| Amount check | So khớp `order_amount` với payment trong DB |
+| Success | Payment `COMPLETED`, order `markPaid`, confirm reservation, email/notification |
+| Failed | Payment `FAILED`, hủy order, release reservation, **email + notification** |
+| Expired (job) | `expirePendingPayments` — hủy order, **email + notification** |
+| Tra cứu payment | `GET /payments/order/{orderId}` — **kiểm tra ownership** (chống IDOR) |
+| Trang success FE | Poll BE tối đa ~12s; không hiển thị «thành công» giả khi IPN chưa về |
+| Generic callback | Chỉ `ADMIN`/`SUPER_ADMIN` — không public |
+
+### 6.7. Đơn hàng (Orders) — ✅ / ⚠️
+
+| Chức năng | Trạng thái | Cách hoạt động |
+|-----------|:----------:|----------------|
+| Lịch sử / chi tiết KH | ✅ | `GET /orders/my-orders`, `/orders/{id}` — ownership check |
+| Hủy đơn | ✅ | Trước khi ship; release reservation nếu cần |
+| Admin list + đổi trạng thái | ✅ | Advance status; ship kèm `trackingCode` |
+| Admin order detail page | ⚠️ | Chỉ list + modal/prompt, chưa có trang chi tiết riêng |
+| Email vận chuyển | ✅ | Shipped, delivered templates |
+
+### 6.8. Đổi / trả / hoàn tiền (Returns) — ✅ / ⚠️
+
+**Workflow thực tế:**
 
 ```text
-cartId
-userId
-status: ACTIVE/CHECKED_OUT/ABANDONED
-items[]
-createdAt
-updatedAt
-```
-
-Cart item:
-
-```text
-cartItemId
-variantId
-quantity
-priceSnapshot
-addedAt
-```
-
-### Order
-
-```text
-orderId
-orderCode
-userId
-status
-paymentStatus
-fulfillmentStatus
-shippingAddressSnapshot
-billingAddressSnapshot
-subtotal
-discountTotal
-shippingFee
-taxTotal
-grandTotal
-customerNote
-cancelReason
-createdAt
-updatedAt
-paidAt
-cancelledAt
-completedAt
-```
-
-Order status:
-
-```text
-PENDING_PAYMENT
-PAID
-CONFIRMED
-PROCESSING
-SHIPPED
-DELIVERED
-COMPLETED
-CANCELLED
-RETURN_REQUESTED
-RETURNED
-REFUNDED
-```
-
-Payment status:
-
-```text
-UNPAID
 PENDING
-COMPLETED
-FAILED
-CANCELLED
-EXPIRED
-REFUNDED
-PARTIALLY_REFUNDED
+  → STAFF_CONFIRMED (Staff xác nhận) hoặc REJECTED
+  → APPROVED (Manager duyệt trả)
+  → RECEIVED (Staff xác nhận đã nhận hàng → restock tồn kho)
+  → REFUNDED (Manager hoàn tiền → manualRefundRequired nếu cần SePay thủ công)
 ```
 
-Fulfillment status:
+| Hạng mục | Trạng thái |
+|----------|:----------:|
+| Cửa sổ 7 ngày sau `deliveredAt` | ✅ |
+| Upload ảnh minh chứng | ✅ |
+| Admin workflow từng bước | ✅ |
+| Hoàn tiền SePay API | ❌ `manualRefundRequired=true` |
+| Restock | ✅ Khi `RECEIVED` |
+| FE customer MyReturns | ⚠️ Hiển thị orderId thô |
 
-```text
-UNFULFILLED
-PROCESSING
-SHIPPED
-DELIVERED
-RETURNED
-```
+### 6.9. Đánh giá (Reviews) — ✅ / ⚠️
 
-### Order Item
+- Chỉ tạo được khi order item thuộc đơn `DELIVERED`/`COMPLETED`, mỗi item một review.
+- Admin: reply, ẩn/hiện review.
+- ⚠️ FE chưa vote «helpful»; My Reviews read-only.
 
-Phai snapshot thong tin san pham tai thoi diem mua.
+### 6.10. Wishlist & Địa chỉ — ✅ / ⚠️
 
-```text
-orderItemId
-orderId
-productId
-variantId
-skuSnapshot
-productNameSnapshot
-brandNameSnapshot
-sizeSnapshot
-colorSnapshot
-imageSnapshot
-unitPrice
-quantity
-discountAmount
-lineTotal
-reviewed
-returnStatus
-```
+- Wishlist: add/remove/list — ⚠️ empty state / N+1 fetch product chưa tối ưu.
+- Address: CRUD BE đủ — ⚠️ FE address book chủ yếu create; thiếu ward/district đầy đủ trên form.
 
-### Payment
+### 6.11. Thông báo — ✅
 
-```text
-paymentId
-orderId
-orderCode
-orderInvoiceNumber
-amount
-currency
-method: SEPAY/COD/VNPAY/MOMO/CARD
-status
-paymentUrl
-successUrl
-errorUrl
-cancelUrl
-transactionId
-gatewayResponse
-paidAt
-failedAt
-cancelledAt
-expiredAt
-createdAt
-updatedAt
-```
+- Bell dropdown (8 mục gần nhất) + SSE stream realtime.
+- Trang đầy đủ `/notifications` — phân trang, đánh dấu đã đọc.
+- Deep link qua `targetUrl`.
 
-### Payment Event
+### 6.12. Báo cáo (Reports) — ✅
 
-Dung de idempotency webhook.
+- `GET /admin/reports/dashboard?from=&to=` — tổng đơn, doanh thu, user, sản phẩm, low stock, return pending.
+- FE Dashboard Admin gọi API này (không còn filter client-side trên 500 đơn cho stats chính).
+- Charts vẫn dùng subset orders cho biểu đồ.
 
-```text
-paymentEventId
-gateway
-orderInvoiceNumber
-transactionId
-eventType
-rawPayload
-signature
-processed
-processedAt
-createdAt
-```
+### 6.13. Tìm kiếm — ✅ / ⚠️
 
-Unique:
+- Mặc định `SEARCH_ENGINE=mongo` — regex/text filter đầy đủ.
+- Elasticsearch (tùy chọn): nested filter size/color/price/inStock; timeout → fallback Mongo.
+- Re-index khi publish/unpublish/adjust/restock; ⚠️ review rating chưa trigger re-index.
+- Admin re-index: API `POST /admin/search/reindex` — chưa có UI.
 
-```text
-gateway + transactionId
-gateway + orderInvoiceNumber + eventType
-```
+### 6.14. Trợ lý AI — ✅ / ⚠️
 
-### Address
+- BE: `POST /ai/chat` — router keyword, OpenAI adapter, lưu conversation MongoDB.
+- FE: `/ai-chat` — widget chat; guest được gọi API nhưng FE yêu cầu login.
+- ⚠️ Route `ORDER_STATUS` chưa tra order thật; semantic search/embedding chưa dùng.
 
-```text
-addressId
-userId
-recipientName
-phone
-province
-district
-ward
-street
-postalCode optional
-isDefault
-createdAt
-updatedAt
-```
+---
 
-### Role
+## 7. Đặc tả API
 
-```text
-roleId
-code: CUSTOMER/STAFF/SHOP_MANAGER/ADMIN/SUPER_ADMIN
-name
-description
-systemRole: true/false
-active
-createdAt
-updatedAt
-```
+**Base URL:** `/api` (hoặc theo `SERVER_PORT` / proxy FE)
 
-### Permission
-
-```text
-permissionId
-code
-name
-description
-group
-createdAt
-updatedAt
-```
-
-### Role Permission
-
-```text
-rolePermissionId
-roleCode
-permissionCode
-enabled
-updatedBy
-updatedAt
-```
-
-Rule:
-
-- Backend authorization nen doc permission tu DB/cache thay vi chi check enum role.
-- `SUPER_ADMIN` luon co tat ca permission.
-- Permission critical nhu `MANAGE_ROLE_PERMISSIONS` khong duoc tat cho `SUPER_ADMIN`.
-
-### Review
-
-```text
-reviewId
-userId
-productId
-orderId
-orderItemId
-rating
-comment
-images
-helpfulCount
-votedUserIds
-replies
-isVisible
-createdAt
-updatedAt
-```
-
-Rule:
-
-- Customer chi review neu order item da DELIVERED/COMPLETED.
-- Moi order item chi review 1 lan.
-
-### Wishlist
-
-```text
-wishlistId
-userId
-productId
-createdAt
-```
-
-### Return Request / RMA
-
-```text
-returnRequestId
-orderId
-orderItemIds
-userId
-reason
-description
-images
-status: PENDING/STAFF_CONFIRMED/REJECTED/APPROVED/RECEIVED/REFUNDED/CLOSED
-refundAmount
-staffNote
-adminNote
-processedBy
-approvedBy
-createdAt
-updatedAt
-```
-
-## 6. Database Collections
-
-MVP collections:
-
-```text
-users
-roles
-permissions
-role_permissions
-products
-product_variants
-categories
-brands
-product_images
-warehouses
-inventory
-stock_reservations
-carts
-orders
-payments
-payment_events
-addresses
-reviews
-wishlists
-notifications
-return_requests
-audit_logs
-```
-
-### Required indexes
-
-```text
-users.email unique
-roles.code unique
-permissions.code unique
-role_permissions.roleCode + permissionCode unique
-products.slug unique
-products.status
-products.publicStatus
-products.brandId
-products.categoryIds
-product_variants.sku unique
-product_variants.productId
-inventory.variantId + warehouseId unique
-stock_reservations.orderId
-stock_reservations.expiresAt
-carts.userId + status
-orders.userId + createdAt
-orders.orderCode unique
-orders.status
-payments.orderInvoiceNumber unique
-payments.transactionId sparse unique
-payment_events.gateway + transactionId unique
-reviews.productId + createdAt
-reviews.orderItemId unique
-wishlists.userId + productId unique
-```
-
-## 7. API Specification
-
-Base URL:
-
-```text
-/api
-```
-
-Response format:
+**Response chuẩn:**
 
 ```json
 {
@@ -649,7 +468,7 @@ Response format:
 }
 ```
 
-Pagination format:
+**Phân trang:**
 
 ```json
 {
@@ -664,935 +483,491 @@ Pagination format:
 }
 ```
 
-### Auth APIs
+### 7.1. Auth
 
 ```text
-POST /auth/register
-POST /auth/verify-otp
-POST /auth/login
-POST /auth/google
-POST /auth/refresh
-POST /auth/logout
-GET  /auth/me
-PUT  /auth/profile
-POST /auth/forgot-password
-POST /auth/reset-password
-POST /auth/change-password
-GET  /auth/sessions
+POST   /auth/register
+POST   /auth/verify-otp
+POST   /auth/login
+POST   /auth/google
+POST   /auth/refresh
+POST   /auth/logout
+GET    /auth/me                    # trả permissions[]
+PUT    /auth/profile
+POST   /auth/forgot-password
+POST   /auth/reset-password
+POST   /auth/change-password
+GET    /auth/sessions
 DELETE /auth/sessions/{sessionId}
 DELETE /auth/sessions
 ```
 
-### Role & Permission APIs
-
-Chi `SUPER_ADMIN` duoc goi cac API update permission.
+### 7.2. RBAC (SUPER_ADMIN)
 
 ```text
-GET /admin/roles
-GET /admin/permissions
-GET /admin/roles/{roleCode}/permissions
-PUT /admin/roles/{roleCode}/permissions
-POST /admin/roles/{roleCode}/permissions/{permissionCode}/enable
-POST /admin/roles/{roleCode}/permissions/{permissionCode}/disable
-GET /admin/role-permissions/matrix
-PUT /admin/role-permissions/matrix
+GET  /admin/roles
+GET  /admin/permissions
+GET  /admin/roles/{roleCode}/permissions
+PUT  /admin/roles/{roleCode}/permissions
+GET  /admin/role-permissions/matrix
+PUT  /admin/role-permissions/matrix
+GET  /admin/audit-logs
 ```
 
-Request update permission cho 1 role:
+### 7.3. Catalog
 
-```json
-{
-  "permissions": [
-    { "code": "CATALOG_CREATE", "enabled": true },
-    { "code": "ORDER_CANCEL", "enabled": false }
-  ],
-  "reason": "Adjust staff access for new workflow"
-}
-```
-
-Response matrix:
-
-```json
-{
-  "roles": ["CUSTOMER", "STAFF", "SHOP_MANAGER", "ADMIN", "SUPER_ADMIN"],
-  "permissions": [
-    {
-      "code": "CATALOG_CREATE",
-      "group": "CATALOG",
-      "enabledByRole": {
-        "CUSTOMER": false,
-        "STAFF": true,
-        "SHOP_MANAGER": true,
-        "ADMIN": true,
-        "SUPER_ADMIN": true
-      }
-    }
-  ]
-}
-```
-
-### Product Catalog APIs
-
-Public:
+**Public:**
 
 ```text
 GET /products
-GET /products/{slugOrId}
-GET /products/{productId}/variants
-GET /categories
-GET /brands
 GET /products/search
-GET /products/{productId}/reviews
+GET /products/{idOrSlug}
+GET /products/{productId}/variants
+GET /products/{productId}/related
+GET /brands
+GET /categories
 ```
 
-Admin/staff:
+**Admin:**
 
 ```text
-POST /admin/products
-PUT /admin/products/{productId}
-DELETE /admin/products/{productId}
-POST /admin/products/{productId}/restore
-POST /admin/products/{productId}/approve
-POST /admin/products/{productId}/reject
-POST /admin/products/{productId}/publish
-POST /admin/products/{productId}/unpublish
-
-POST /admin/products/{productId}/variants
-PUT /admin/products/{productId}/variants/{variantId}
-DELETE /admin/products/{productId}/variants/{variantId}
-
-POST /admin/categories
-PUT /admin/categories/{categoryId}
-DELETE /admin/categories/{categoryId}
-
-POST /admin/brands
-PUT /admin/brands/{brandId}
-DELETE /admin/brands/{brandId}
+GET/POST/PUT/DELETE /admin/products/...
+POST /admin/products/{id}/approve|reject|publish|unpublish
+POST/PUT/DELETE     /admin/products/{id}/variants/...
+POST                /admin/categories, /admin/brands
 ```
 
-### Inventory APIs
-
-Admin/manager:
+### 7.4. Inventory
 
 ```text
-GET /admin/inventory
-GET /admin/inventory/{variantId}
-PUT /admin/inventory/{variantId}/adjust
+GET  /admin/inventory
+GET  /admin/inventory/low-stock
+GET  /admin/inventory/{variantId}
+PUT  /admin/inventory/{variantId}/adjust      # @perm INVENTORY_UPDATE
 POST /admin/inventory/import
-GET /admin/inventory/low-stock
 ```
 
-Internal service:
+### 7.5. Cart & Checkout
 
 ```text
-POST /inventory/reserve
-POST /inventory/confirm-reservation
-POST /inventory/release-reservation
-POST /inventory/expire-reservations
+GET/DELETE /cart
+POST/PUT/DELETE /cart/items/...
+POST       /cart/validate
+POST       /checkout/preview
+POST       /checkout
 ```
 
-### Cart APIs
+### 7.6. Orders
 
 ```text
-GET /cart
-POST /cart/items
-PUT /cart/items/{cartItemId}
-DELETE /cart/items/{cartItemId}
-DELETE /cart
-POST /cart/validate
-```
-
-### Checkout APIs
-
-```text
-POST /checkout/preview
-POST /checkout
-```
-
-`/checkout/preview` tinh tien nhung chua tao order/reserve stock.  
-`/checkout` validate lai, reserve stock, tao order, tao payment.
-
-### Order APIs
-
-Customer:
-
-```text
-GET /orders/my-orders
-GET /orders/{orderId}
+GET  /orders/my-orders
+GET  /orders/{orderId}
 POST /orders/{orderId}/cancel
-```
-
-Admin/staff:
-
-```text
-GET /admin/orders
-GET /admin/orders/{orderId}
-PUT /admin/orders/{orderId}/status
-POST /admin/orders/{orderId}/confirm
+GET  /admin/orders
+PUT  /admin/orders/{orderId}/status
 POST /admin/orders/{orderId}/ship
-POST /admin/orders/{orderId}/deliver
-POST /admin/orders/{orderId}/cancel
 ```
 
-### Payment APIs
+### 7.7. Payments
 
 ```text
-POST /payments/checkout
-GET /payments/{paymentId}
-GET /payments/order/{orderId}
-POST /payments/sepay/callback
-GET /payments/sepay/callback
-POST /payments/reconcile
+GET  /payments/order/{orderId}     # authenticated + ownership
+GET  /payments/{paymentId}         # authenticated + ownership
+POST /payments/sepay/callback      # public IPN
+GET  /payments/sepay/callback      # browser redirect only, no mutate
+POST /payments/reconcile           # ADMIN — expire pending
+POST /payments/callback            # ADMIN — generic test callback
 ```
 
-Callback phai:
-
-- Verify signature neu gateway ho tro.
-- Check idempotency.
-- Khong tin amount/status tu FE.
-- Lay payment/order tu DB de doi chieu.
-
-### Review APIs
+### 7.8. Reviews, Wishlist, Returns, Addresses
 
 ```text
-POST /reviews
-GET /products/{productId}/reviews
-PUT /reviews/{reviewId}
-DELETE /reviews/{reviewId}
-POST /reviews/{reviewId}/vote
-POST /reviews/{reviewId}/reply
-PUT /admin/reviews/{reviewId}/visibility
+GET/POST /reviews/...
+GET/POST/DELETE /wishlist/...
+POST/GET /returns/...
+GET/POST/PUT/DELETE /addresses/...
 ```
 
-### Wishlist APIs
+**Return admin:**
 
 ```text
-GET /wishlist
-POST /wishlist/{productId}
-DELETE /wishlist/{productId}
+POST /admin/returns/{id}/staff-confirm
+POST /admin/returns/{id}/reject
+POST /admin/returns/{id}/approve
+POST /admin/returns/{id}/mark-received
+POST /admin/returns/{id}/refund
 ```
 
-### Return/RMA APIs
-
-Customer:
+### 7.9. Notifications, Reports, AI, Search
 
 ```text
-POST /returns
-GET /returns/my-returns
-GET /returns/{returnRequestId}
+GET/PUT  /notifications/...
+GET      /notifications/stream      # SSE
+GET      /admin/reports/dashboard
+POST     /ai/chat
+GET      /ai/conversations/...
+POST     /admin/search/reindex
 ```
 
-Staff/admin:
+---
+
+## 8. Luồng nghiệp vụ chính
+
+### 8.1. Duyệt và lọc sản phẩm
 
 ```text
-GET /admin/returns
-GET /admin/returns/{returnRequestId}
-POST /admin/returns/{returnRequestId}/staff-confirm
-POST /admin/returns/{returnRequestId}/reject
-POST /admin/returns/{returnRequestId}/approve
-POST /admin/returns/{returnRequestId}/mark-received
-POST /admin/returns/{returnRequestId}/refund
+User → Trang listing (/products)
+     → Filter drawer (brand, category, gender, size, color, giá, còn hàng)
+     → Sync query params URL (share link)
+     → Backend: Mongo hoặc ES (nested variants)
+     → PDP: chọn size/màu → hiển thị stock variant
+     → Add to cart / Buy now (yêu cầu login)
 ```
 
-## 8. Main Business Flows
-
-### Browse and filter products
+### 8.2. Thêm giỏ hàng
 
 ```text
-User
--> Product listing
--> Filter by category, brand, size, color, price, gender, in-stock
--> Sort by newest, price, popularity, rating
--> Open product detail
--> Select size/color
--> See stock status
+Customer chọn variant + quantity
+→ POST /cart/items
+→ BE kiểm variant ACTIVE, available > 0
+→ Merge hoặc thêm dòng mới
+→ Trả cart summary
 ```
 
-### Add to cart
+### 8.3. Checkout
 
 ```text
-Customer selects variant
--> FE validates size/color selected
--> POST /cart/items
--> BE validates variant active
--> BE validates available stock > 0
--> Add or merge quantity
--> Return cart summary
+Customer mở /checkout
+→ Chọn địa chỉ (addressId)
+→ POST /checkout/preview (optional — xem phí ship)
+→ POST /checkout
+→ BE validate giỏ + stock
+→ Reserve tồn kho (TTL)
+→ Tạo order PENDING_PAYMENT + payment PENDING
+→ FE SePayRedirectForm auto POST sang SePay
 ```
 
-### Checkout
+### 8.4. Thanh toán thành công (IPN)
 
 ```text
-Customer opens checkout
--> Select address
--> Choose payment method
--> Preview price
--> Submit checkout
--> BE reloads cart from DB
--> Validate all products/variants
--> Validate stock
--> Calculate final price
--> Create stock reservations with TTL
--> Create order PENDING_PAYMENT
--> Create payment PENDING
--> Return payment checkout data
+SePay POST IPN
+→ Verify signature (SePayIpnVerifier)
+→ Lưu PaymentEvent (unique transactionId)
+→ Duplicate? → return success ngay
+→ Validate amount
+→ Payment COMPLETED, order markPaid
+→ Confirm reservation (sold++)
+→ Email xác nhận + notification
+→ User redirect /payment/success → FE poll BE xác nhận
 ```
 
-### Payment success webhook
+### 8.5. Thanh toán thất bại / hết hạn
 
 ```text
-Gateway callback
--> Verify payload/signature
--> Insert payment event with unique transaction
--> If duplicate: return success immediately
--> Load payment by invoice
--> Validate amount/order
--> Update payment COMPLETED
--> Update order PAID/CONFIRMED
--> Confirm stock reservation
--> Send email/notification
+IPN failed HOẶC scheduler expirePendingPayments
+→ Payment FAILED/EXPIRED
+→ Order CANCELLED
+→ Release reservation
+→ Email failed/expired + notification
 ```
 
-### Payment failed
+### 8.6. Fulfillment (vận hành đơn)
 
 ```text
-Gateway callback failed/cancelled
--> Insert payment event
--> Update payment FAILED/CANCELLED
--> Update order PAYMENT_FAILED or CANCELLED
--> Release reservation
--> Notify customer
+PAID/CONFIRMED → PROCESSING → SHIPPED (trackingCode) → DELIVERED → COMPLETED
+Mỗi bước: admin/staff cập nhật status; email shipped/delivered tương ứng
 ```
 
-### Payment timeout
+### 8.7. Đổi / trả / hoàn tiền
 
 ```text
-Scheduled job every 1-5 minutes
--> Find PENDING payments expired
--> Mark payment EXPIRED
--> Mark order CANCELLED
--> Release reservations
+Customer (đơn DELIVERED, trong 7 ngày)
+→ POST /returns { orderId, orderItemId, reason, images }
+→ Staff: staff-confirm / reject
+→ Manager: approve
+→ Staff: mark-received → restock inventory
+→ Manager: refund → payment REFUNDED local, manualRefundRequired nếu cần hoàn SePay thủ công
 ```
 
-### Fulfillment
+---
+
+## 9. Quy tắc giá, vận chuyển, tồn kho
+
+### 9.1. Giá
+
+- Giá hiển thị lấy từ **variant**; order item snapshot `unitPrice`, `lineTotal`.
+- **Không tin** số tiền từ client khi checkout.
+- Voucher / khuyến mãi: ❌ chưa có module `promotions/`.
+
+### 9.2. Phí vận chuyển — ✅
+
+| Quy tắc | Giá trị |
+|---------|---------|
+| Phí cố định | 30.000 VND |
+| Miễn phí | Subtotal ≥ 2.000.000 VND |
+| Tính toán | `ShippingFeeCalculator` (BE); FE cart hiển thị message tương ứng |
+
+### 9.3. Tồn kho — không oversell — ✅
+
+**Reserve (checkout):**
 
 ```text
-Admin confirms paid order
--> status CONFIRMED
--> Staff packs order
--> status PROCESSING
--> Ship with tracking code
--> status SHIPPED
--> Mark delivered
--> status DELIVERED
--> After return window passes
--> status COMPLETED
+if available >= quantity:
+  reserved += quantity; available -= quantity
+  tạo reservation ACTIVE (expiresAt = now + 15 phút)
+else: reject checkout
 ```
 
-### Return/refund
+**Thanh toán thành công:**
 
 ```text
-Customer selects delivered order item
--> Submit reason/images
--> Staff confirms eligibility
--> Manager/Admin approves
--> Customer returns item
--> Staff marks received
--> Refund processed
--> Order/payment updated
+reservation ACTIVE → CONFIRMED
+reserved -= quantity; sold += quantity
 ```
 
-## 9. Pricing & Promotion Rules
-
-### Base price
-
-- Gia hien thi lay tu product variant.
-- Order item phai snapshot `unitPrice`.
-- Khong tinh tien tu client.
-
-### Discount
-
-MVP co the chua can voucher. Neu co:
+**Thất bại / hết hạn:**
 
 ```text
-Voucher types:
-- PERCENTAGE
-- FIXED_AMOUNT
-- FREE_SHIPPING
+reservation → RELEASED/EXPIRED
+reserved -= quantity; available += quantity
 ```
 
-Validation:
-
-- Time window.
-- Min order amount.
-- Max discount.
-- Usage limit.
-- Per-user usage limit.
-- Product/category applicability.
-
-### Shipping fee
-
-MVP:
-
-- Fixed fee by province or flat fee.
-- Free shipping threshold optional.
-
-Phase 2:
-
-- Shipping provider API.
-- Tracking.
-
-## 10. Inventory Rules
-
-Khong duoc oversell.
-
-Reserve stock khi checkout:
+**Trả hàng đã nhận:**
 
 ```text
-if inventory.available >= quantity:
-  inventory.reserved += quantity
-  inventory.available -= quantity
-  create reservation ACTIVE
-else:
-  reject checkout
+sold -= quantity; onHand += quantity; available recalc
 ```
 
-Payment success:
+Cập nhật atomic qua MongoTemplate (`updateFirst` với điều kiện `available >= qty`).
+
+---
+
+## 10. Yêu cầu bảo mật
+
+### 10.1. Xác thực — ✅
+
+- Access token + refresh token: HttpOnly cookie.
+- Session refresh lưu Redis; hỗ trợ revoke đa thiết bị.
+- Logout blacklist access token.
+
+### 10.2. CSRF — ✅
+
+- Cookie auth → POST/PUT/PATCH/DELETE yêu cầu CSRF token.
+- `SpaCsrfTokenRequestHandler` cho SPA; SePay IPN exempt.
+
+### 10.3. Rate limiting — ✅
+
+- Login, register, OTP, forgot password, checkout — `RateLimitFilter`.
+
+### 10.4. Thanh toán — ✅
+
+- Verify chữ ký SePay IPN.
+- Idempotency qua `PaymentEvent`.
+- Không cập nhật payment từ trang success FE trực tiếp.
+- Tra cứu payment có **ownership check**.
+
+### 10.5. Upload — ✅
+
+- Cloudinary; validate MIME/size; thư mục riêng catalog/review/avatar.
+
+---
+
+## 11. Giao diện người dùng (Frontend)
+
+### 11.1. Trang công khai — ✅
+
+| Route | Mô tả |
+|-------|-------|
+| `/` | Home — banner, danh mục nổi bật |
+| `/products` | Listing + filter drawer + URL sync |
+| `/categories/:slug` | Sản phẩm theo danh mục |
+| `/products/:idOrSlug` | PDP — gallery, variant, stock, buy now, related, reviews |
+| `/login`, `/register`, `/forgot-password` | Auth |
+
+### 11.2. Trang khách hàng (cần login) — ✅
+
+| Route | Mô tả |
+|-------|-------|
+| `/cart` | Giỏ — validate, phí ship từ API |
+| `/checkout` | Chọn địa chỉ, preview, submit SePay |
+| `/payment/success\|error\|cancel` | Kết quả thanh toán — success poll BE |
+| `/orders`, `/orders/:id` | Lịch sử, chi tiết, hủy, review, return |
+| `/returns` | Yêu cầu trả của tôi |
+| `/reviews` | Đánh giá của tôi |
+| `/wishlist` | Danh sách yêu thích |
+| `/addresses` | Sổ địa chỉ |
+| `/profile` | Hồ sơ + panel phiên đăng nhập |
+| `/notifications` | Thông báo đầy đủ |
+| `/ai-chat` | Trợ lý AI |
+
+### 11.3. Admin / Staff — ✅
+
+| Route | Mô tả |
+|-------|-------|
+| `/admin` | Dashboard — stats từ reports API, charts, export Excel |
+| `/admin/products` | CRUD, approve, publish |
+| `/admin/inventory` | Tồn kho, adjust, import CSV |
+| `/admin/orders` | Quản lý đơn, ship + tracking |
+| `/admin/returns` | Workflow return từng bước |
+| `/admin/reviews` | Kiểm duyệt |
+| `/admin/role-permissions` | Ma trận RBAC (SUPER_ADMIN) |
+| `/staff` | Dashboard hàng đợi staff |
+
+**Phân quyền FE:** `useRoleAccess` + `roleAccess.ts` — kết hợp role và `permissions[]`.
+
+---
+
+## 12. Quản trị Admin / Staff
+
+### 12.1. Sản phẩm
 
 ```text
-reservation ACTIVE -> CONFIRMED
-inventory.reserved -= quantity
-inventory.sold += quantity
+DRAFT → PENDING_APPROVAL → APPROVED → PUBLISHED
+Từ chối: REJECTED (kèm lý do)
+Không hard-delete nếu đã có order item (soft delete)
 ```
 
-Payment failed/timeout:
+### 12.2. Tồn kho
+
+- Xem theo variant: onHand / reserved / available / sold.
+- Lọc LOW / OUT of stock.
+- Import CSV: `variantId,quantity` mỗi dòng.
+
+### 12.3. Return admin
+
+UI nút theo trạng thái:
+
+- `PENDING`: Xác nhận / Từ chối
+- `STAFF_CONFIRMED`: Duyệt trả hàng
+- `APPROVED`: Đã nhận hàng
+- `RECEIVED`: Hoàn tiền
+
+### 12.4. RBAC UI — ✅
+
+- Lọc theo nhóm permission.
+- Bắt buộc lý do khi lưu.
+- Nút Hoàn tác (reset draft).
+- Xem audit log 100 bản ghi gần nhất.
+
+---
+
+## 13. Thông báo và email
+
+### 13.1. Email templates — ✅
+
+| Template | Kích hoạt |
+|----------|-----------|
+| OTP xác thực | Register |
+| Reset password | Forgot password |
+| Xác nhận đơn | Order paid |
+| Thanh toán thất bại | IPN failed |
+| Thanh toán hết hạn | Scheduler expire |
+| Đã giao / Đã nhận | Admin ship / deliver |
+| Return approved/rejected | Return workflow |
+| Refund completed | Return REFUNDED |
+
+### 13.2. In-app notification — ✅
 
 ```text
-reservation ACTIVE -> RELEASED/EXPIRED
-inventory.reserved -= quantity
-inventory.available += quantity
+notificationId, userId, type, title, message, targetUrl, read, createdAt
 ```
 
-Can dung atomic update hoac optimistic locking:
+SSE `/notifications/stream` push realtime tới bell icon.
+
+---
+
+## 14. Tìm kiếm và lọc sản phẩm
+
+### 14.1. Mongo (mặc định) — ✅
+
+Filter: keyword, brandId, categoryId, gender, min/max price, size, color, inStock, sort (newest, price, rating).
+
+### 14.2. Elasticsearch (tùy chọn) — ✅ / ⚠️
+
+- Bật: `SEARCH_ENGINE=elasticsearch` + Docker ES.
+- Index `ProductDocument` với nested `variants[]` (size, color, price, available).
+- Filter phức tạp dùng nested query.
+- Timeout → fallback Mongo tự động (`ProductSearchRouter`).
+- Re-index: publish/unpublish, adjust, restock; API admin reindex.
+
+### 14.3. Semantic / vector search — ❌
+
+- `OPENAI_EMBEDDING_MODEL` có placeholder env; chưa tích hợp luồng search.
+
+---
+
+## 15. Trợ lý AI mua sắm
+
+### 15.1. Kiến trúc — ✅
 
 ```text
-where variantId = ?
-and available >= requestedQty
-and version = ?
+FE /ai-chat
+  → POST /api/ai/chat (OpenAI key chỉ ở BE)
+  → AiRouterService phân loại intent (keyword)
+  → ProductContextService lấy context catalog (nếu cần)
+  → OpenAiChatAdapter gọi OpenAI
+  → Lưu AiConversation / messages MongoDB
+  → Trả answer + conversationId
 ```
 
-## 11. Security Requirements
-
-### Authentication
-
-- Access token in HttpOnly cookie.
-- Refresh token in HttpOnly cookie.
-- Refresh session stored in Redis.
-- Refresh token rotation recommended.
-- Logout blacklists access token.
-- Logout all devices deletes all user sessions.
-
-### Cookie policy
-
-Development:
+### 15.2. Intent routes
 
 ```text
-Secure=false
-SameSite=Lax
+PRODUCT_INFO | SIZE_ADVICE | ORDER_STATUS | PAYMENT_REFUND_POLICY
+RETURN_POLICY | CHITCHAT | WEBSEARCH
 ```
 
-Production:
+⚠️ `ORDER_STATUS` chưa truy vấn order thật của user.
 
-```text
-Secure=true
-HttpOnly=true
-SameSite=Lax or Strict
-Domain configured by env
-```
+### 15.3. Giới hạn prompt
 
-### CSRF
+- Chỉ tư vấn trong phạm vi giày dép / e-commerce SOLE.
+- Không tự xác nhận thanh toán hay hoàn tiền — hướng user tới UI/API.
+- Guest: BE gán `userId = "guest"`; FE khuyến khích login.
 
-Vi dung cookie auth, state-changing APIs can CSRF protection:
+---
 
-```text
-POST/PUT/PATCH/DELETE require CSRF token
-GET safe and no mutation
-```
+## 16. Chiến lược kiểm thử
 
-### Rate limiting
+### 16.1. Đã có — ⚠️
 
-Can rate limit:
+| Layer | Tests |
+|-------|-------|
+| BE | `EcommercePaymentServiceTest` (IPN idempotent, amount mismatch, expire + mail) |
+| BE | `OrderMailNotifierTest` |
+| FE | `commerce.test.ts` — 10 tests (roleAccess, shipping, payment state, CSV parse) |
 
-- Login.
-- Register.
-- OTP verify/resend.
-- Forgot password.
-- Checkout.
-- Payment callback basic abuse protection.
+### 16.2. Cần bổ sung — ❌
 
-### Upload security
+- Integration: checkout concurrent, webhook duplicate, reservation expiry E2E.
+- Security: CSRF, rate limit, ownership IDOR regression.
+- FE: cart validate flow, checkout, protected routes (RTL/Vitest hoặc Playwright).
 
-- Validate MIME.
-- Validate file size.
-- Validate image dimensions.
-- Strip dangerous metadata if possible.
-- Separate folders: `products`, `variants`, `reviews`, `avatars`.
+---
 
-### Payment security
+## 17. Biến môi trường
 
-- Verify gateway signature.
-- Idempotency event table.
-- Validate amount/currency/order status.
-- Never update payment from frontend success page directly.
-- Callback endpoint logs raw payload safely.
-
-## 12. Frontend UX Specification
-
-### Public pages
-
-- Home.
-- Product listing.
-- Product detail.
-- Category page.
-- Search results.
-- Login/register/forgot password.
-
-### Customer pages
-
-- Profile.
-- Address book.
-- Cart.
-- Checkout.
-- Payment result.
-- My orders.
-- Order detail.
-- Wishlist.
-- My reviews.
-- Return requests.
-
-### Admin/staff pages
-
-- Dashboard.
-- Product management.
-- Product approval.
-- Variant management.
-- Inventory management.
-- Order management.
-- Return/refund management.
-- Review moderation.
-- Customer management.
-- Report/revenue.
-
-### Product detail requirements
-
-- Image gallery.
-- Brand/category.
-- Price and compare price.
-- Size selector.
-- Color selector.
-- Stock status per selected variant.
-- Quantity stepper.
-- Add to cart.
-- Buy now.
-- Reviews.
-- Related products.
-
-### Cart requirements
-
-- Update quantity.
-- Remove item.
-- Show invalid/out-of-stock item.
-- Price summary.
-- Checkout button disabled if cart invalid.
-
-### Checkout requirements
-
-- Address selector.
-- Shipping method.
-- Payment method.
-- Order summary.
-- Voucher input optional.
-- Clear validation errors.
-
-## 13. Admin Specification
-
-### Product admin
-
-Staff creates product draft:
-
-```text
-DRAFT -> PENDING_APPROVAL
-```
-
-Manager/admin approves:
-
-```text
-PENDING_APPROVAL -> APPROVED -> PUBLISHED
-```
-
-Reject:
-
-```text
-PENDING_APPROVAL -> REJECTED with reason
-```
-
-Product cannot be hard-deleted if it has order items.
-
-### Inventory admin
-
-Actions:
-
-- View stock by variant.
-- Adjust stock in/out.
-- Set low-stock threshold.
-- View reservation list.
-- View inventory audit log.
-
-### Order admin
-
-Actions:
-
-- Filter by status/payment/date/customer.
-- Confirm order.
-- Update fulfillment.
-- Cancel order with reason.
-- Export order report.
-
-### Return/refund admin
-
-Workflow:
-
-```text
-PENDING
--> STAFF_CONFIRMED or REJECTED
--> APPROVED or REJECTED
--> RECEIVED
--> REFUNDED
--> CLOSED
-```
-
-### Role permission admin
-
-Chi `SUPER_ADMIN` thay menu nay.
-
-UI requirements:
-
-- Man hinh permission matrix: hang la permission, cot la role.
-- Co filter theo group: Catalog, Inventory, Order, Payment, Return, User, Report, System.
-- Toggle permission truc tiep bang switch/checkbox.
-- Co nut Save changes, Reset changes.
-- Hien diff truoc khi save.
-- Bat buoc nhap reason khi thay doi permission critical.
-- Disable toggle `SUPER_ADMIN -> MANAGE_ROLE_PERMISSIONS`.
-- Hien audit history cua moi role.
-
-Flow:
-
-```text
-SUPER_ADMIN
--> Admin / Roles & Permissions
--> Load role-permission matrix
--> Toggle permissions
--> Save with reason
--> Backend validates safety rules
--> Persist role_permissions
--> Invalidate permission cache
--> Write audit log
--> UI reloads matrix
-```
-
-## 14. Notification & Mail
-
-Email templates MVP:
-
-- OTP verification.
-- Reset password.
-- Order confirmation.
-- Payment success.
-- Payment failed/expired.
-- Order shipped.
-- Order delivered.
-- Return request received.
-- Return approved/rejected.
-- Refund completed.
-
-Notification entity:
-
-```text
-notificationId
-userId
-type
-title
-message
-targetUrl
-read
-createdAt
-```
-
-## 15. Search & Filter
-
-MVP search with Mongo regex/text index:
-
-- keyword name/description/brand.
-- category.
-- brand.
-- size.
-- color.
-- price range.
-- in stock.
-- gender.
-- sort.
-
-Phase 2:
-
-- Elasticsearch/OpenSearch/Meilisearch.
-- Synonym: sneaker, running, sandal, boots.
-- Vietnamese full-text normalization.
-
-## 16. AI Shopping Assistant With OpenAI API
-
-Phan AI cua Shoe E-commerce se dung OpenAI API lam provider chinh. Khong goi OpenAI truc tiep tu frontend. Frontend chi goi backend API cua he thong; backend giu `OPENAI_API_KEY`, build context, goi OpenAI va tra ket qua ve UI.
-
-Theo official OpenAI documentation, API key la secret va phai duoc load an toan tu environment variable hoac key management service o server-side, khong expose trong browser/mobile client.
-
-### Use cases
-
-- Tu van size giay theo thong tin chan/brand/form giay.
-- Goi y san pham theo nhu cau: running, sneaker, sandal, office, school.
-- Tra loi cau hoi ve san pham, chat lieu, bao quan.
-- Kiem tra trang thai don hang cua customer da dang nhap.
-- Giai thich chinh sach thanh toan, doi tra, hoan tien.
-- Ho tro search tu nhien: "giay chay bo nam size 42 duoi 2 trieu".
-
-### AI routes
-
-Routes:
-
-```text
-PRODUCT_INFO
-SIZE_ADVICE
-ORDER_STATUS
-PAYMENT_REFUND_POLICY
-RETURN_POLICY
-CHITCHAT
-WEBSEARCH
-```
-
-### Data source
-
-- Products.
-- Variants.
-- Size guide.
-- Policies.
-- User orders if authenticated.
-
-Khong nen reuse prompt travel cu. Viet prompt moi theo e-commerce.
-
-### Backend module
-
-```text
-modules/ai/
-  controller/AiChatController.java
-  service/AiChatService.java
-  service/AiRouterService.java
-  service/ProductContextService.java
-  dto/AiChatRequest.java
-  dto/AiChatResponse.java
-  model/AiConversation.java
-  model/AiMessage.java
-
-infrastructure/ai/
-  OpenAiClientConfig.java
-  OpenAiChatAdapter.java
-  OpenAiEmbeddingAdapter.java optional
-```
-
-### API endpoints
-
-```text
-POST /ai/chat
-GET /ai/conversations
-GET /ai/conversations/{conversationId}
-DELETE /ai/conversations/{conversationId}
-POST /ai/conversations/{conversationId}/messages
-```
-
-Request:
-
-```json
-{
-  "conversationId": "optional",
-  "message": "Toi di giay Nike size 42, Adidas nen chon size nao?",
-  "context": {
-    "productId": "optional",
-    "variantId": "optional"
-  }
-}
-```
-
-Response:
-
-```json
-{
-  "conversationId": "conv_123",
-  "routeType": "SIZE_ADVICE",
-  "answer": "Voi Adidas, ban co the bat dau tu size 42 2/3...",
-  "suggestedProducts": [],
-  "warnings": []
-}
-```
-
-### OpenAI request strategy
-
-Nen dung Responses API cho project moi. Backend adapter chiu trach nhiem:
-
-- Gan model qua env `OPENAI_MODEL`.
-- Truyen system/developer instruction ve gioi han domain shoe e-commerce.
-- Dua context san pham/order/policy da duoc filter vao prompt.
-- Khong dua password, token, payment secret, raw PII khong can thiet vao OpenAI.
-- Timeout va retry co gioi han.
-- Log metadata, khong log full prompt neu co PII.
-
-Pseudo flow:
-
-```text
-FE Chat Widget
--> POST /api/ai/chat
--> Jwt optional authentication
--> AiRouterService classify intent
--> ProductContextService fetch relevant product/order/policy data
--> OpenAiChatAdapter call OpenAI API
--> Save conversation/message
--> Return answer + suggested products
-```
-
-### Prompt boundaries
-
-AI assistant phai:
-
-- Chi tu van trong pham vi shoe e-commerce.
-- Khong tu y xac nhan don hang/thanh toan/hoan tien.
-- Khi can hanh dong that, tra ve CTA/link de user/admin thuc hien qua API/UI.
-- Khong dua loi khuyen y te chan nghiem trong; neu dau chan/chan thuong, khuyen hoi chuyen gia y te.
-- Neu khong ro size, hoi them thong tin: chieu dai ban chan, brand dang mang, form mong muon.
-
-### Privacy and retention
-
-- Conversation co the luu trong MongoDB de hien lich su chat.
-- Cho phep customer xoa conversation.
-- Khong gui access token, refresh token, password, payment secret sang OpenAI.
-- Neu cau hoi ve order, backend chi lay order cua user dang nhap va rut gon fields can thiet.
-
-### Optional semantic search
-
-Neu can semantic search:
-
-- Dung OpenAI embeddings cho product name, description, tags, brand, category, material.
-- Luu vector vao vector store rieng.
-- Re-index khi product published/updated/unpublished.
-- Search flow: natural query -> embedding -> top products -> filter in-stock/public -> return.
-
-## 17. Testing Strategy
-
-Backend tests:
-
-- Auth login/refresh/logout.
-- OTP expiry.
-- Product CRUD/approval.
-- Variant SKU unique.
-- Add to cart validation.
-- Checkout stock reservation.
-- Payment webhook idempotency.
-- Payment timeout release stock.
-- Order status transitions.
-- Review only after delivered order item.
-- Return/refund workflow.
-
-Frontend tests:
-
-- Login/register form validation.
-- Product filter.
-- Variant selection.
-- Cart quantity.
-- Checkout validation.
-- Protected routes.
-- Admin status update dialogs.
-
-Critical integration tests:
-
-```text
-Checkout success reserves stock exactly once.
-Duplicate payment webhook does not double deduct stock.
-Payment timeout releases stock.
-Two concurrent checkout requests cannot oversell.
-```
-
-## 18. Non-functional Requirements
-
-### Performance
-
-- Product list paginated.
-- Product images optimized/CDN.
-- Cache hot products/categories in Redis.
-- Avoid N+1 enrichment in admin lists.
-- Debounce search input.
-
-### Reliability
-
-- Idempotent payment webhook.
-- Scheduled reconciliation job.
-- Reservation expiry job.
-- Audit logs for inventory/payment/order changes.
-
-### Observability
-
-- Request correlation ID.
-- Structured logs.
-- Payment callback logs.
-- Error logs with stack trace server-side only.
-- Admin audit trail.
-
-### Maintainability
-
-- Service per use case where flow is complex.
-- No service over 400-500 lines unless justified.
-- DTO per boundary.
-- Mapper isolated.
-- Business rule in domain/service, not controller.
-
-## 19. Environment Variables
-
-Backend:
+### 17.1. Backend
 
 ```text
 SERVER_PORT
 MONGODB_URI
-REDIS_HOST
-REDIS_PORT
-JWT_SECRET
-JWT_ACCESS_EXPIRATION
-JWT_REFRESH_EXPIRATION
-COOKIE_DOMAIN
-COOKIE_SECURE
-COOKIE_SAME_SITE
-MAIL_HOST
-MAIL_PORT
-MAIL_USERNAME
-MAIL_PASSWORD
-CLOUDINARY_CLOUD_NAME
-CLOUDINARY_API_KEY
-CLOUDINARY_API_SECRET
-SEPAY_API_URL
-SEPAY_MERCHANT_ID
-SEPAY_SECRET_KEY
+REDIS_HOST, REDIS_PORT
+JWT_SECRET, JWT_ACCESS_EXPIRATION, JWT_REFRESH_EXPIRATION
+COOKIE_DOMAIN, COOKIE_SECURE, COOKIE_SAME_SITE
+MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD
+CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+SEPAY_API_URL, SEPAY_MERCHANT_ID, SEPAY_SECRET_KEY
 FRONTEND_BASE_URL
-OPENAI_API_KEY
-OPENAI_MODEL
-OPENAI_EMBEDDING_MODEL
-OPENAI_TIMEOUT_MS
+SEARCH_ENGINE=mongo|elasticsearch
+ELASTICSEARCH_URI, SEARCH_INDEX_NAME, SEARCH_TIMEOUT_MS
+OPENAI_API_KEY, OPENAI_MODEL, OPENAI_EMBEDDING_MODEL, OPENAI_TIMEOUT_MS
+permission.enforcement=true
+FREE_SHIPPING_THRESHOLD=2000000
+SHIPPING_FEE=30000
 ```
 
-Frontend:
+### 17.2. Frontend
 
 ```text
 VITE_API_URL
@@ -1601,35 +976,62 @@ VITE_CLOUDINARY_CLOUD_NAME
 VITE_CLOUDINARY_UPLOAD_PRESET
 ```
 
-## 20. MVP Implementation Order
+---
 
-1. Common backend: response, exception, pagination, config, security.
-2. Auth/User/Role.
-3. Catalog: category, brand, product, variant, image.
-4. Inventory with atomic reservation.
-5. Cart.
-6. Checkout preview and checkout.
-7. Order.
-8. Payment adapter and webhook idempotency.
-9. Address.
-10. Review verified purchase.
-11. Wishlist.
-12. Admin dashboards/tables.
-13. Return/refund.
-14. Tests and hardening.
+## 18. Phạm vi chưa triển khai / hoãn
 
-## 21. Definition of Done
+| Hạng mục | Ghi chú |
+|----------|---------|
+| Guest cart / guest checkout | Cố ý login-required; có CTA login |
+| Voucher / coupon / promotion | Không có module |
+| COD / VNPAY / MoMo | Chỉ SePay |
+| VAT (`taxTotal`) | Luôn 0 |
+| Hoàn tiền SePay tự động | Manual + flag `manualRefundRequired` |
+| Partial refund | Enum có, chưa flow |
+| Abandoned cart recovery | Enum `ABANDONED` chưa dùng |
+| Hóa đơn PDF | Chưa có |
+| Tích hợp đơn vị vận chuyển | Chỉ `trackingCode` text |
+| Multi-warehouse | Một kho `default` |
+| Vector semantic search | Placeholder |
+| E2E tests | Hầu như chưa có |
+| OpenAPI Swagger UI | Dependency có, chưa verify expose |
 
-MVP duoc xem la hoan thanh khi:
+---
 
-- Customer co the dang ky, login, refresh session, logout.
-- Customer xem product, chon size/mau, add cart.
-- Checkout tao order va reserve stock.
-- Payment success cap nhat order/payment va deduct stock dung 1 lan.
-- Payment failed/timeout release stock.
-- Customer xem order history/detail.
-- Admin quan ly product/variant/inventory/order.
-- Review chi tao duoc sau khi don delivered/completed.
-- Return/refund co workflow toi thieu.
-- Khong con secrets hard-code.
-- Co test cho checkout, payment webhook, inventory concurrency.
+## 19. Tiêu chí hoàn thành (Definition of Done)
+
+### 19.1. MVP — ✅ Đã đạt
+
+- [x] Đăng ký, login, refresh, logout, quản lý phiên
+- [x] Xem sản phẩm, chọn size/màu, thêm giỏ (user đăng nhập)
+- [x] Checkout reserve stock, tạo order + payment
+- [x] IPN SePay idempotent, cập nhật order/payment đúng một lần
+- [x] Payment failed/timeout release stock + email
+- [x] Lịch sử đơn, chi tiết, hủy
+- [x] Admin: product, variant, inventory, order
+- [x] Review verified purchase
+- [x] Return workflow tối thiểu + restock
+- [x] Không hard-code secrets (dùng env)
+
+### 19.2. MVP+ (sau gap audit) — ✅ Phần lớn
+
+- [x] Payment ownership / IDOR fix
+- [x] Payment success FE xác minh BE
+- [x] RBAC runtime FE + `@perm.has` BE
+- [x] Reports dashboard API trên FE admin
+- [x] Inventory import UI
+- [x] ES nested filters (optional)
+- [x] AI chat UI + notifications page
+- [x] Session cookie `refresh_token` fix
+
+### 19.3. Production-ready — ⚠️ Còn lại
+
+- [ ] E2E + integration test coverage đầy đủ
+- [ ] Voucher / multi-pay / auto refund SePay
+- [ ] Guest cart (nếu product yêu cầu)
+- [ ] Admin polish (brand/category edit, order detail page)
+- [ ] Review re-index ES khi có rating mới
+
+---
+
+*Tài liệu này phản ánh codebase SOLE tại nhánh `main` sau commit gap audit. Khi thêm tính năng mới, cập nhật mục 6 (trạng thái triển khai) và mục 18 (phạm vi hoãn) tương ứng.*
