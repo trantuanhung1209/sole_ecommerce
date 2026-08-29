@@ -4,6 +4,7 @@ import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -36,6 +37,7 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
     private final CorsConfigurationSource corsConfigurationSource;
+    private final Environment environment;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -53,6 +55,7 @@ public class SecurityConfig {
         csrfTokenRepository.setCookiePath("/");
         CsrfTokenRequestAttributeHandler requestHandler = new SpaCsrfTokenRequestHandler();
         requestHandler.setCsrfRequestAttributeName("_csrf");
+        boolean swaggerPublic = !java.util.Arrays.asList(environment.getActiveProfiles()).contains("prod");
 
         http.cors(cors -> cors.configurationSource(corsConfigurationSource))
             .csrf(csrf -> csrf
@@ -67,49 +70,37 @@ public class SecurityConfig {
                 .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 .accessDeniedHandler(jwtAccessDeniedHandler)
             )
-            .authorizeHttpRequests(authz -> authz
-                .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
-                // Public auth
-                .requestMatchers(HttpMethod.POST,
+            .authorizeHttpRequests(authz -> {
+                authz.dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll();
+                authz.requestMatchers(HttpMethod.POST,
                     "/auth/register", "/auth/verify-otp", "/auth/login", "/auth/refresh",
-                    "/auth/forgot-password", "/auth/reset-password", "/auth/google").permitAll()
-                .requestMatchers(HttpMethod.GET, "/actuator/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-
-                // Public catalog & reviews
-                .requestMatchers(HttpMethod.GET, "/products/**", "/brands/**", "/categories/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/reviews/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/ai/chat").permitAll()
-
-                // Payment callbacks
-                .requestMatchers(HttpMethod.GET, "/payments/sepay/callback").permitAll()
-                .requestMatchers(HttpMethod.POST, "/payments/sepay/callback").permitAll()
-
-                // Customer authenticated
-                .requestMatchers("/cart/**", "/checkout/**", "/orders/**", "/payments/order/**",
+                    "/auth/forgot-password", "/auth/reset-password", "/auth/google").permitAll();
+                authz.requestMatchers(HttpMethod.GET, "/actuator/**").permitAll();
+                if (swaggerPublic) {
+                    authz.requestMatchers(HttpMethod.GET, "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
+                }
+                authz.requestMatchers(HttpMethod.GET, "/products/**", "/brands/**", "/categories/**").permitAll();
+                authz.requestMatchers(HttpMethod.GET, "/reviews/**").permitAll();
+                authz.requestMatchers(HttpMethod.POST, "/ai/chat").permitAll();
+                authz.requestMatchers("/cart/**").permitAll();
+                authz.requestMatchers(HttpMethod.GET, "/payments/sepay/callback").permitAll();
+                authz.requestMatchers(HttpMethod.POST, "/payments/sepay/callback").permitAll();
+                authz.requestMatchers("/checkout/**", "/orders/**", "/payments/order/**",
                     "/payments/*", "/ai/conversations/**", "/wishlist/**", "/returns/**", "/addresses/**",
-                    "/auth/sessions/**", "/notifications/**").authenticated()
-                .requestMatchers(HttpMethod.POST, "/reviews/products").authenticated()
-                .requestMatchers(HttpMethod.PUT, "/reviews/**").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/reviews/**").authenticated()
-
-                // RBAC admin — SUPER_ADMIN only
-                .requestMatchers("/admin/role-permissions/**", "/admin/roles/**",
-                    "/admin/permissions/**", "/admin/audit-logs").hasRole("SUPER_ADMIN")
-
-                // Reports
-                .requestMatchers("/admin/reports/**").hasAnyRole("SHOP_MANAGER", "ADMIN", "SUPER_ADMIN")
-
-                // E-commerce admin/staff
-                .requestMatchers("/admin/products/**", "/admin/brands/**", "/admin/categories/**",
-                    "/admin/catalog/**", "/admin/inventory/**", "/admin/orders/**", "/admin/reviews/**", "/admin/returns/**")
-                    .hasAnyRole("ADMIN", "STAFF", "SHOP_MANAGER", "SUPER_ADMIN")
-
-                // User admin
-                .requestMatchers("/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
-
-                .anyRequest().authenticated()
-            )
+                    "/auth/sessions/**", "/notifications/**", "/promotions/validate").authenticated();
+                authz.requestMatchers(HttpMethod.POST, "/reviews/products").authenticated();
+                authz.requestMatchers(HttpMethod.PUT, "/reviews/**").authenticated();
+                authz.requestMatchers(HttpMethod.DELETE, "/reviews/**").authenticated();
+                authz.requestMatchers("/admin/role-permissions/**", "/admin/roles/**",
+                    "/admin/permissions/**", "/admin/audit-logs").hasRole("SUPER_ADMIN");
+                authz.requestMatchers("/admin/reports/**").hasAnyRole("SHOP_MANAGER", "ADMIN", "SUPER_ADMIN");
+                authz.requestMatchers("/admin/products/**", "/admin/brands/**", "/admin/categories/**",
+                    "/admin/catalog/**", "/admin/inventory/**", "/admin/orders/**", "/admin/reviews/**",
+                    "/admin/returns/**", "/admin/promotions/**")
+                    .hasAnyRole("ADMIN", "STAFF", "SHOP_MANAGER", "SUPER_ADMIN");
+                authz.requestMatchers("/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN");
+                authz.anyRequest().authenticated();
+            })
             .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

@@ -345,7 +345,7 @@ export default function Home() {
               <Link to="/products">Xem toàn bộ sản phẩm</Link>
             </Button>
             <Button asChild variant="outline" className="h-12 border-white/30 bg-transparent px-8 text-white hover:bg-white/10">
-              <Link to="/register">Tạo tài khoản</Link>
+              <Link to="/ai-chat">Hỏi trợ lý AI</Link>
             </Button>
           </div>
         </div>

@@ -1,14 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { returnApi } from "@/services/ecommerceServices";
-import type { ReturnRequest } from "@/types/ecommerce.type";
+import { orderApi, returnApi } from "@/services/ecommerceServices";
+import type { Order, ReturnRequest } from "@/types/ecommerce.type";
 
 export default function MyReturnsPage() {
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
+  const [ordersById, setOrdersById] = useState<Record<string, Order>>({});
 
   useEffect(() => {
-    returnApi.mine().then(setReturns).catch(console.error);
+    Promise.all([returnApi.mine(), orderApi.mine(0, 100)])
+      .then(([returnList, orderPage]) => {
+        setReturns(returnList);
+        setOrdersById(Object.fromEntries(orderPage.content.map((o) => [o.orderId, o])));
+      })
+      .catch(console.error);
   }, []);
 
   return (
@@ -23,7 +29,7 @@ export default function MyReturnsPage() {
         returns.map((item) => (
           <div key={item.returnId} className="rounded-xl border border-[#E5E7EB] bg-white p-4 flex items-center justify-between">
             <div>
-              <p className="font-semibold">Đơn {item.orderId}</p>
+              <p className="font-semibold">Đơn {ordersById[item.orderId]?.orderCode ?? item.orderId}</p>
               <p className="text-sm text-[#6B7280]">{item.reason}</p>
               <p className="text-xs text-[#9CA3AF]">{new Date(item.createdAt).toLocaleString("vi-VN")}</p>
             </div>

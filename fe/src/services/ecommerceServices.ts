@@ -1,5 +1,6 @@
 import authorizedAxios from "@/utils/authorizedAxios";
 import publicAxios from "@/utils/publicAxios";
+import cartAxios from "@/utils/cartAxios";
 import type { ApiResponse, PageResponse } from "@/types/api.type";
 import type {
   Address,
@@ -170,38 +171,48 @@ export const categoryApi = {
 
 export const cartApi = {
   get: async () => {
-    const res = await authorizedAxios.get<ApiResponse<Cart>>("/cart");
+    const res = await cartAxios.get<ApiResponse<Cart>>("/cart");
     return res.data.data;
   },
   validate: async () => {
-    const res = await authorizedAxios.post<
+    const res = await cartAxios.post<
       ApiResponse<{ valid: boolean; issues: { cartItemId?: string; variantId?: string; message: string }[] }>
     >("/cart/validate");
     return res.data.data;
   },
   add: async (variantId: string, quantity: number) => {
-    const res = await authorizedAxios.post<ApiResponse<Cart>>("/cart/items", { variantId, quantity });
+    const res = await cartAxios.post<ApiResponse<Cart>>("/cart/items", { variantId, quantity });
     return res.data.data;
   },
   update: async (cartItemId: string, quantity: number) => {
-    const res = await authorizedAxios.put<ApiResponse<Cart>>(`/cart/items/${cartItemId}`, { quantity });
+    const res = await cartAxios.put<ApiResponse<Cart>>(`/cart/items/${cartItemId}`, { quantity });
     return res.data.data;
   },
   remove: async (cartItemId: string) => {
-    const res = await authorizedAxios.delete<ApiResponse<Cart>>(`/cart/items/${cartItemId}`);
+    const res = await cartAxios.delete<ApiResponse<Cart>>(`/cart/items/${cartItemId}`);
     return res.data.data;
   },
 };
 
 export const checkoutApi = {
-  preview: async () => {
-    const res = await authorizedAxios.post<ApiResponse<{ itemCount: number; subtotal: number; shippingFee: number; grandTotal: number }>>("/checkout/preview");
+  preview: async (couponCode?: string) => {
+    const res = await authorizedAxios.post<ApiResponse<{
+      itemCount: number;
+      subtotal: number;
+      discountTotal: number;
+      shippingFee: number;
+      taxTotal: number;
+      grandTotal: number;
+      couponValid?: boolean;
+      couponMessage?: string;
+    }>>("/checkout/preview", null, { params: { couponCode } });
     return res.data.data;
   },
-  checkout: async (addressId: string, customerNote?: string) => {
+  checkout: async (addressId: string, customerNote?: string, couponCode?: string) => {
     const res = await authorizedAxios.post<ApiResponse<PaymentCheckoutResponse>>("/checkout", {
       addressId,
       customerNote,
+      couponCode,
       paymentMethod: "SEPAY",
     });
     return res.data.data;
@@ -229,6 +240,10 @@ export const orderApi = {
     const res = await authorizedAxios.get<ApiResponse<PageResponse<Order>>>("/admin/orders", {
       params: { status, page, size, search },
     });
+    return res.data.data;
+  },
+  adminDetail: async (orderId: string) => {
+    const res = await authorizedAxios.get<ApiResponse<Order>>(`/admin/orders/${orderId}`);
     return res.data.data;
   },
   updateStatus: async (orderId: string, status: OrderStatus, trackingCode?: string) => {
@@ -267,6 +282,47 @@ export const inventoryApi = {
     const res = await authorizedAxios.get<ApiResponse<Inventory[]>>("/admin/inventory/low-stock", {
       params: { threshold },
     });
+    return res.data.data;
+  },
+};
+
+export const searchApi = {
+  reindex: async () => {
+    const res = await authorizedAxios.post<ApiResponse<number>>("/admin/search/reindex");
+    return res.data.data;
+  },
+};
+
+export interface Coupon {
+  couponId: string;
+  code: string;
+  type: "PERCENTAGE" | "FIXED_AMOUNT" | "FREE_SHIPPING";
+  value: number;
+  minOrderAmount?: number;
+  maxDiscount?: number;
+  usageLimit?: number;
+  usedCount?: number;
+  active?: boolean;
+  startsAt?: string;
+  endsAt?: string;
+}
+
+export const promotionApi = {
+  validate: async (code: string, subtotal: number) => {
+    const res = await authorizedAxios.post<ApiResponse<{
+      valid: boolean;
+      message: string;
+      discountAmount: number;
+      freeShipping: boolean;
+    }>>("/promotions/validate", { code, subtotal });
+    return res.data.data;
+  },
+  listCoupons: async () => {
+    const res = await authorizedAxios.get<ApiResponse<Coupon[]>>("/admin/promotions/coupons");
+    return res.data.data;
+  },
+  createCoupon: async (data: Partial<Coupon> & { code: string; type: Coupon["type"]; value: number }) => {
+    const res = await authorizedAxios.post<ApiResponse<Coupon>>("/admin/promotions/coupons", data);
     return res.data.data;
   },
 };

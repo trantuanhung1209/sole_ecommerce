@@ -14,6 +14,7 @@ import www.modules.orders.repository.OrderRepository;
 import www.modules.reviews.dto.ProductReviewDtos.*;
 import www.modules.reviews.model.ProductReview;
 import www.modules.reviews.repository.ProductReviewRepository;
+import www.modules.search.service.SearchIndexService;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 public class ProductReviewService {
     private final ProductReviewRepository reviewRepository;
     private final OrderRepository orderRepository;
+    private final SearchIndexService searchIndexService;
 
     public Page<ProductReview> productReviews(String productId, Pageable pageable) {
         return reviewRepository.findByProductIdAndVisibleTrueOrderByCreatedAtDesc(productId, pageable);
@@ -52,7 +54,7 @@ public class ProductReviewService {
         item.setReviewed(true);
         order.setUpdatedAt(now);
         orderRepository.save(order);
-        return reviewRepository.save(ProductReview.builder()
+        ProductReview saved = reviewRepository.save(ProductReview.builder()
                 .productId(item.getProductId())
                 .variantId(item.getVariantId())
                 .userId(userId)
@@ -65,6 +67,8 @@ public class ProductReviewService {
                 .createdAt(now)
                 .updatedAt(now)
                 .build());
+        searchIndexService.indexProductAsync(item.getProductId());
+        return saved;
     }
 
     public ProductReview reply(String reviewId, ReplyReviewRequest request, String actorId) {

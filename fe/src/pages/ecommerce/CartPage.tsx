@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cartApi, checkoutApi, money } from "@/services/ecommerceServices";
 import { formatCartItemLabel } from "@/utils/displayLabels";
+import { useDebounce } from "@/hooks/useDebounce";
 import type { Cart } from "@/types/ecommerce.type";
 
 type CartIssue = { cartItemId?: string; variantId?: string; message: string };
@@ -13,12 +14,14 @@ export default function CartPage() {
   const [issues, setIssues] = useState<CartIssue[]>([]);
   const [valid, setValid] = useState(true);
   const [preview, setPreview] = useState({ shippingFee: 0, grandTotal: 0 });
+  const pendingQty = useRef<Map<string, number>>(new Map());
+  const debouncedCart = useDebounce(cart, 400);
 
   const refresh = useCallback(async () => {
     const [cartData, validation, previewData] = await Promise.all([
       cartApi.get(),
       cartApi.validate(),
-      checkoutApi.preview().catch(() => ({ itemCount: 0, subtotal: 0, shippingFee: 0, grandTotal: 0 })),
+      checkoutApi.preview().catch(() => ({ itemCount: 0, subtotal: 0, shippingFee: 0, grandTotal: 0, discountTotal: 0, taxTotal: 0 })),
     ]);
     setCart(cartData);
     setIssues(validation.issues);
@@ -30,16 +33,23 @@ export default function CartPage() {
     refresh().catch(console.error);
   }, [refresh]);
 
-  const subtotal = useMemo(
-    () => cart?.items.reduce((sum, item) => sum + item.priceSnapshot * item.quantity, 0) || 0,
-    [cart]
-  );
+  useEffect(() => {
+    if (!debouncedCart) return;
+    cartApi.validate().then((validation) => {
+      setIssues(validation.issues);
+      setValid(validation.valid);
+    }).catch(console.error);
+  }, [debouncedCart]);
+
+  const subtotal = cart?.items.reduce((sum, item) => sum + item.priceSnapshot * item.quantity, 0) || 0;
 
   const issueForItem = (cartItemId: string) =>
     issues.find((issue) => issue.cartItemId === cartItemId)?.message;
 
   const updateQuantity = async (cartItemId: string, quantity: number) => {
-    await cartApi.update(cartItemId, Math.max(1, quantity));
+    const qty = Math.max(1, quantity);
+    pendingQty.current.set(cartItemId, qty);
+    await cartApi.update(cartItemId, qty);
     await refresh();
   };
 

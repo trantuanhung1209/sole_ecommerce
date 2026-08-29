@@ -3,15 +3,28 @@ import { Link } from "react-router-dom";
 import { Lock } from "lucide-react";
 import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { submitSePayCheckout } from "@/components/payment/SePayRedirectForm";
-import { addressApi, cartApi, checkoutApi, money } from "@/services/ecommerceServices";
+import { addressApi, cartApi, checkoutApi, money, promotionApi } from "@/services/ecommerceServices";
 import type { Address } from "@/types/ecommerce.type";
 
 export default function CheckoutPage() {
   const [addressId, setAddressId] = useState("");
   const [addresses, setAddresses] = useState<Address[]>([]);
-  const [preview, setPreview] = useState({ itemCount: 0, subtotal: 0, shippingFee: 0, grandTotal: 0 });
+  const [customerNote, setCustomerNote] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [couponMessage, setCouponMessage] = useState("");
+  const [preview, setPreview] = useState({
+    itemCount: 0, subtotal: 0, discountTotal: 0, shippingFee: 0, taxTotal: 0, grandTotal: 0,
+  });
   const [loading, setLoading] = useState(false);
+
+  const loadPreview = async (code?: string) => {
+    const previewData = await checkoutApi.preview(code);
+    setPreview(previewData);
+    if (previewData.couponMessage) setCouponMessage(previewData.couponMessage);
+  };
 
   useEffect(() => {
     Promise.all([addressApi.list(), checkoutApi.preview(), cartApi.validate()])
@@ -19,15 +32,23 @@ export default function CheckoutPage() {
         setAddresses(addrList);
         setPreview(previewData);
         const defaultAddr = addrList.find((a) => a.isDefault) || addrList[0];
-        if (defaultAddr) {
-          setAddressId(defaultAddr.addressId);
-        }
-        if (!validation.valid) {
-          toast.error("Giỏ hàng không hợp lệ. Vui lòng quay lại giỏ hàng.");
-        }
+        if (defaultAddr) setAddressId(defaultAddr.addressId);
+        if (!validation.valid) toast.error("Giỏ hàng không hợp lệ. Vui lòng quay lại giỏ hàng.");
       })
       .catch(console.error);
   }, []);
+
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    try {
+      const result = await promotionApi.validate(couponCode.trim(), preview.subtotal);
+      setCouponMessage(result.message);
+      if (result.valid) await loadPreview(couponCode.trim());
+      else toast.error(result.message);
+    } catch {
+      toast.error("Không thể áp dụng mã");
+    }
+  };
 
   const submit = async () => {
     if (!addressId) {
@@ -41,7 +62,7 @@ export default function CheckoutPage() {
     }
     setLoading(true);
     try {
-      const payment = await checkoutApi.checkout(addressId);
+      const payment = await checkoutApi.checkout(addressId, customerNote, couponCode || undefined);
       toast.success("Đơn hàng đã tạo. Đang chuyển sang thanh toán...");
       submitSePayCheckout(payment);
     } finally {
@@ -63,7 +84,7 @@ export default function CheckoutPage() {
         </div>
       </header>
       <section className="mx-auto grid max-w-[1240px] gap-6 px-4 py-8 lg:grid-cols-[1fr_380px]">
-        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 space-y-4">
+        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Địa chỉ giao hàng</h1>
             <Button asChild variant="outline" size="sm">
@@ -73,65 +94,51 @@ export default function CheckoutPage() {
           {addresses.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[#D1D5DB] p-6 text-center">
               <p className="text-[#6B7280]">Bạn chưa có địa chỉ nào.</p>
-              <Button asChild className="mt-4">
-                <Link to="/addresses">Thêm địa chỉ</Link>
-              </Button>
+              <Button asChild className="mt-4"><Link to="/addresses">Thêm địa chỉ</Link></Button>
             </div>
           ) : (
             <div className="space-y-3">
               {addresses.map((addr) => (
-                <label
-                  key={addr.addressId}
-                  className={`flex cursor-pointer gap-3 rounded-xl border p-4 ${
-                    addressId === addr.addressId ? "border-[#111111] ring-2 ring-[#111111]/10" : "border-[#E5E7EB]"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="address"
-                    value={addr.addressId}
-                    checked={addressId === addr.addressId}
-                    onChange={() => setAddressId(addr.addressId)}
-                    className="mt-1"
-                  />
+                <label key={addr.addressId} className={`flex cursor-pointer gap-3 rounded-xl border p-4 ${addressId === addr.addressId ? "border-[#111111] ring-2 ring-[#111111]/10" : "border-[#E5E7EB]"}`}>
+                  <input type="radio" name="address" checked={addressId === addr.addressId} onChange={() => setAddressId(addr.addressId)} className="mt-1" />
                   <div>
-                    <p className="font-semibold">
-                      {addr.recipientName} · {addr.phone}
-                      {addr.isDefault ? <span className="ml-2 text-xs text-[#6B7280]">(Mặc định)</span> : null}
-                    </p>
-                    <p className="mt-1 text-sm text-[#6B7280]">
-                      {[addr.line1, addr.ward, addr.district, addr.city].filter(Boolean).join(", ")}
-                    </p>
+                    <p className="font-semibold">{addr.recipientName} · {addr.phone}</p>
+                    <p className="mt-1 text-sm text-[#6B7280]">{[addr.line1, addr.ward, addr.district, addr.city].filter(Boolean).join(", ")}</p>
                   </div>
                 </label>
               ))}
             </div>
           )}
-          {selectedAddress ? (
-            <p className="text-sm text-[#6B7280]">
-              Giao đến: {selectedAddress.recipientName}, {selectedAddress.phone},{" "}
-              {[selectedAddress.line1, selectedAddress.city].filter(Boolean).join(", ")}
-            </p>
-          ) : null}
+          <div>
+            <label className="text-sm font-medium">Ghi chú đơn hàng (tuỳ chọn)</label>
+            <Textarea className="mt-2" placeholder="Ghi chú giao hàng..." value={customerNote} onChange={(e) => setCustomerNote(e.target.value)} />
+          </div>
         </div>
-        <aside className="h-fit rounded-2xl border border-[#E5E7EB] bg-white p-6">
+        <aside className="h-fit rounded-2xl border border-[#E5E7EB] bg-white p-6 space-y-4">
           <h2 className="text-xl font-bold">Xem lại & thanh toán</h2>
-          <div className="mt-4 space-y-2 text-sm">
+          <div className="flex gap-2">
+            <Input placeholder="Mã giảm giá" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} />
+            <Button variant="outline" onClick={applyCoupon}>Áp dụng</Button>
+          </div>
+          {couponMessage ? <p className="text-xs text-muted-foreground">{couponMessage}</p> : null}
+          <div className="space-y-2 text-sm">
             <div className="flex justify-between"><span>Sản phẩm</span><span>{preview.itemCount}</span></div>
             <div className="flex justify-between"><span>Tạm tính</span><span>{money(preview.subtotal)}</span></div>
+            {preview.discountTotal > 0 && (
+              <div className="flex justify-between text-green-700"><span>Giảm giá</span><span>-{money(preview.discountTotal)}</span></div>
+            )}
             <div className="flex justify-between"><span>Phí vận chuyển</span><span>{money(preview.shippingFee)}</span></div>
+            {preview.taxTotal > 0 && (
+              <div className="flex justify-between"><span>VAT</span><span>{money(preview.taxTotal)}</span></div>
+            )}
             <div className="flex justify-between font-bold border-t pt-2"><span>Tổng cộng</span><span>{money(preview.grandTotal)}</span></div>
           </div>
-          <p className="mt-3 text-sm text-[#6B7280]">
-            Tồn kho được giữ trong 15 phút sau khi đặt hàng.
-          </p>
-          <Button
-            className="mt-6 h-12 w-full rounded-lg bg-[#111111] text-white"
-            disabled={loading || !addressId || addresses.length === 0}
-            onClick={submit}
-          >
+          <Button className="mt-2 h-12 w-full rounded-lg bg-[#111111] text-white" disabled={loading || !addressId || addresses.length === 0} onClick={submit}>
             {loading ? "Đang tạo đơn..." : "Đặt hàng"}
           </Button>
+          {selectedAddress ? (
+            <p className="text-xs text-[#6B7280]">Giao đến: {selectedAddress.recipientName}, {selectedAddress.phone}</p>
+          ) : null}
         </aside>
       </section>
     </main>

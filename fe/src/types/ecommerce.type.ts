@@ -139,9 +139,14 @@ export interface Order {
   fulfillmentStatus: string;
   items: OrderItem[];
   subtotal: number;
+  discountTotal?: number;
   shippingFee: number;
+  taxTotal?: number;
   grandTotal: number;
+  couponCode?: string;
+  customerNote?: string;
   trackingCode?: string;
+  paidAt?: string;
   deliveredAt?: string;
   createdAt: string;
 }
@@ -187,6 +192,10 @@ export interface ReturnRequest {
   reason: string;
   description?: string;
   status: string;
+  staffNote?: string;
+  managerNote?: string;
+  rejectedReason?: string;
+  refundAmount?: number;
   manualRefundRequired?: boolean;
   createdAt: string;
 }

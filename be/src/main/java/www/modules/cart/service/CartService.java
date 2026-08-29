@@ -2,6 +2,7 @@ package www.modules.cart.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import www.exception.BadRequestException;
 import www.exception.NotFoundException;
 import www.modules.cart.dto.CartDtos.CartValidationIssue;
@@ -21,6 +22,7 @@ import www.modules.inventory.service.InventoryService;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -29,23 +31,56 @@ public class CartService {
     private final ProductVariantRepository variantRepository;
     private final ProductRepository productRepository;
     private final InventoryService inventoryService;
+    private final GuestCartMergeService guestCartMergeService;
 
     public Cart activeCart(String userId) {
         return cartRepository.findFirstByUserIdAndStatus(userId, CartStatus.ACTIVE)
-                .orElseGet(() -> {
-                    LocalDateTime now = LocalDateTime.now();
-                    return cartRepository.save(Cart.builder()
-                            .userId(userId)
-                            .createdAt(now)
-                            .updatedAt(now)
-                            .build());
-                });
+                .orElseGet(() -> createUserCart(userId));
+    }
+
+    public Cart activeGuestCart(String guestSessionId) {
+        if (guestSessionId == null || guestSessionId.isBlank()) {
+            throw new BadRequestException("Guest session required");
+        }
+        return cartRepository.findFirstByGuestSessionIdAndStatus(guestSessionId, CartStatus.ACTIVE)
+                .orElseGet(() -> createGuestCart(guestSessionId));
+    }
+
+    public Cart resolveCart(String userId, String guestSessionId) {
+        if (userId != null && !userId.isBlank()) {
+            return activeCart(userId);
+        }
+        return activeGuestCart(guestSessionId);
+    }
+
+    @Transactional
+    public void mergeGuestCartIntoUser(String guestSessionId, String userId) {
+        guestCartMergeService.mergeGuestCartIntoUser(guestSessionId, userId);
+    }
+
+    private Cart createUserCart(String userId) {
+        LocalDateTime now = LocalDateTime.now();
+        return cartRepository.save(Cart.builder()
+                .userId(userId)
+                .createdAt(now)
+                .updatedAt(now)
+                .build());
+    }
+
+    private Cart createGuestCart(String guestSessionId) {
+        LocalDateTime now = LocalDateTime.now();
+        return cartRepository.save(Cart.builder()
+                .guestSessionId(guestSessionId)
+                .createdAt(now)
+                .updatedAt(now)
+                .build());
     }
 
     public CartView toView(Cart cart) {
         CartView view = new CartView();
         view.setCartId(cart.getCartId());
         view.setUserId(cart.getUserId());
+        view.setGuestSessionId(cart.getGuestSessionId());
         view.setStatus(cart.getStatus());
         view.setCreatedAt(cart.getCreatedAt());
         view.setUpdatedAt(cart.getUpdatedAt());
@@ -76,7 +111,15 @@ public class CartService {
                 .ifPresent(view::setProductName);
     }
 
+    public Cart addItem(String userId, String guestSessionId, String variantId, int quantity) {
+        return addItem(resolveCart(userId, guestSessionId), variantId, quantity);
+    }
+
     public Cart addItem(String userId, String variantId, int quantity) {
+        return addItem(activeCart(userId), variantId, quantity);
+    }
+
+    private Cart addItem(Cart cart, String variantId, int quantity) {
         ProductVariant variant = variantRepository.findById(variantId)
                 .orElseThrow(() -> new NotFoundException("Variant not found: " + variantId));
         if (variant.getStatus() != VariantStatus.ACTIVE) {
@@ -86,7 +129,6 @@ public class CartService {
             throw new BadRequestException("Not enough stock");
         }
 
-        Cart cart = activeCart(userId);
         CartItem existing = cart.getItems().stream()
                 .filter(item -> item.getVariantId().equals(variantId))
                 .findFirst()
@@ -106,8 +148,15 @@ public class CartService {
         return cartRepository.save(cart);
     }
 
+    public Cart updateItem(String userId, String guestSessionId, String cartItemId, int quantity) {
+        return updateItem(resolveCart(userId, guestSessionId), cartItemId, quantity);
+    }
+
     public Cart updateItem(String userId, String cartItemId, int quantity) {
-        Cart cart = activeCart(userId);
+        return updateItem(activeCart(userId), cartItemId, quantity);
+    }
+
+    private Cart updateItem(Cart cart, String cartItemId, int quantity) {
         CartItem item = cart.getItems().stream()
                 .filter(i -> i.getCartItemId().equals(cartItemId))
                 .findFirst()
@@ -120,15 +169,29 @@ public class CartService {
         return cartRepository.save(cart);
     }
 
+    public Cart removeItem(String userId, String guestSessionId, String cartItemId) {
+        return removeItem(resolveCart(userId, guestSessionId), cartItemId);
+    }
+
     public Cart removeItem(String userId, String cartItemId) {
-        Cart cart = activeCart(userId);
+        return removeItem(activeCart(userId), cartItemId);
+    }
+
+    private Cart removeItem(Cart cart, String cartItemId) {
         cart.getItems().removeIf(item -> item.getCartItemId().equals(cartItemId));
         cart.setUpdatedAt(LocalDateTime.now());
         return cartRepository.save(cart);
     }
 
+    public Cart clear(String userId, String guestSessionId) {
+        return clear(resolveCart(userId, guestSessionId));
+    }
+
     public Cart clear(String userId) {
-        Cart cart = activeCart(userId);
+        return clear(activeCart(userId));
+    }
+
+    private Cart clear(Cart cart) {
         cart.getItems().clear();
         cart.setUpdatedAt(LocalDateTime.now());
         return cartRepository.save(cart);
@@ -140,8 +203,15 @@ public class CartService {
         cartRepository.save(cart);
     }
 
+    public CartValidationResult validate(String userId, String guestSessionId) {
+        return validate(resolveCart(userId, guestSessionId));
+    }
+
     public CartValidationResult validate(String userId) {
-        Cart cart = activeCart(userId);
+        return validate(activeCart(userId));
+    }
+
+    private CartValidationResult validate(Cart cart) {
         CartValidationResult result = new CartValidationResult();
         result.setValid(true);
         for (CartItem item : cart.getItems()) {

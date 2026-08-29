@@ -20,6 +20,8 @@ import www.model.dto.response.UserResponse;
 import www.model.entity.GoogleAuth;
 import www.model.entity.User;
 import www.modules.rbac.service.RbacService;
+import www.modules.cart.service.GuestCartMergeService;
+import www.modules.cart.support.GuestCartSupport;
 import www.service.interfaces.*;
 
 import java.time.LocalDateTime;
@@ -38,6 +40,8 @@ public class AuthServiceImpl implements AuthService {
     private final MailService mailService;
     private final PasswordEncoder passwordEncoder;
     private final RbacService rbacService;
+    private final GuestCartMergeService guestCartMergeService;
+    private final GuestCartSupport guestCartSupport;
 
     @Value("${google.client-id}")
     private String googleClientId;
@@ -121,6 +125,7 @@ public class AuthServiceImpl implements AuthService {
             String ip = getClientIpAddress(httpRequest);
             String sessionId = sessionService.createSession(user.getUserId(), userAgent, ip);
             issueAuthTokens(user, sessionId, httpResponse);
+            mergeGuestCart(httpRequest, user.getUserId());
 
             // Create user response
             UserResponse userResponse = UserResponse.builder()
@@ -182,6 +187,7 @@ public class AuthServiceImpl implements AuthService {
             String ip = getClientIpAddress(httpRequest);
             String sessionId = sessionService.createSession(user.getUserId(), userAgent, ip);
             issueAuthTokens(user, sessionId, httpResponse);
+            mergeGuestCart(httpRequest, user.getUserId());
 
             // Create user response
             UserResponse userResponse = UserResponse.builder()
@@ -583,6 +589,7 @@ public class AuthServiceImpl implements AuthService {
             String ip = getClientIpAddress(httpRequest);
             String sessionId = sessionService.createSession(user.getUserId(), userAgent, ip);
             issueAuthTokens(user, sessionId, httpResponse);
+            mergeGuestCart(httpRequest, user.getUserId());
 
             // Create user response
             UserResponse userResponse = UserResponse.builder()
@@ -606,6 +613,17 @@ public class AuthServiceImpl implements AuthService {
         } catch (Exception e) {
             log.error("Google authentication failed", e);
             throw new AuthException("Xác thực Google thất bại: " + e.getMessage(), e);
+        }
+    }
+
+    private void mergeGuestCart(HttpServletRequest httpRequest, String userId) {
+        try {
+            String guestSessionId = guestCartSupport.resolveGuestSessionId(httpRequest);
+            if (guestSessionId != null) {
+                guestCartMergeService.mergeGuestCartIntoUser(guestSessionId, userId);
+            }
+        } catch (Exception e) {
+            log.warn("Guest cart merge skipped for user {}: {}", userId, e.getMessage());
         }
     }
 }

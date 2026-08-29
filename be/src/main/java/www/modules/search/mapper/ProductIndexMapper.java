@@ -10,7 +10,7 @@ import www.modules.catalog.repository.BrandRepository;
 import www.modules.catalog.repository.ProductVariantRepository;
 import www.modules.common.EcommerceEnums.VariantStatus;
 import www.modules.inventory.model.Inventory;
-import www.modules.inventory.service.InventoryService;
+import www.modules.inventory.repository.InventoryRepository;
 import www.modules.reviews.repository.ProductReviewRepository;
 import www.modules.search.document.ProductDocument;
 
@@ -22,7 +22,7 @@ public class ProductIndexMapper {
 
     private final ProductVariantRepository variantRepository;
     private final BrandRepository brandRepository;
-    private final InventoryService inventoryService;
+    private final InventoryRepository inventoryRepository;
     private final ProductReviewRepository reviewRepository;
 
     public ProductDocument toDocument(Product product) {
@@ -48,7 +48,8 @@ public class ProductIndexMapper {
         List<ProductDocument.VariantDoc> variantDocs = variants.stream().map(v -> {
             int available = 0;
             try {
-                Inventory inv = inventoryService.getByVariant(v.getVariantId());
+                Inventory inv = inventoryRepository.findByVariantIdAndWarehouseId(v.getVariantId(), "default")
+                        .orElseThrow(() -> new NotFoundException("missing"));
                 available = inv.getAvailable() != null ? inv.getAvailable() : 0;
             } catch (NotFoundException ignored) {
             }

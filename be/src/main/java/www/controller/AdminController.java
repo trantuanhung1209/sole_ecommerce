@@ -85,6 +85,7 @@ public class AdminController {
      * Update user information
      */
     @PutMapping("/users/{userId}")
+    @PreAuthorize("@perm.has(authentication, 'USER_UPDATE')")
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(
             @PathVariable String userId,
             @Valid @RequestBody UpdateUserRequest request) {

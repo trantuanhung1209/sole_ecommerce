@@ -40,6 +40,8 @@ import ProductManagementPage from "./pages/admin/ProductManagement/ProductManage
 import ProductDetailAdminPage from "./pages/admin/ProductManagement/ProductDetailAdminPage";
 import InventoryManagementPage from "./pages/admin/InventoryManagement/InventoryManagementPage";
 import OrderManagementPage from "./pages/admin/OrderManagement/OrderManagementPage";
+import OrderDetailAdminPage from "./pages/admin/OrderManagement/OrderDetailAdminPage";
+import PromotionManagementPage from "./pages/admin/PromotionManagement/PromotionManagementPage";
 import ReturnManagementPage from "./pages/admin/ReturnManagement/ReturnManagementPage";
 import ReviewManagementPage from "./pages/admin/ReviewManagement/ReviewManagementPage";
 import BrandManagementPage from "./pages/admin/BrandManagement/BrandManagementPage";
@@ -76,11 +78,7 @@ const router = createBrowserRouter([
           },
           {
             path: "cart",
-            element: (
-              <ProtectedRoute>
-                <CartPage />
-              </ProtectedRoute>
-            ),
+            element: <CartPage />,
           },
           {
             path: "checkout",
@@ -214,6 +212,8 @@ const router = createBrowserRouter([
               { path: "categories", element: <CategoryManagementPage /> },
               { path: "inventory", element: <InventoryManagementPage /> },
               { path: "orders", element: <OrderManagementPage /> },
+              { path: "orders/:orderId", element: <OrderDetailAdminPage /> },
+              { path: "promotions", element: <PromotionManagementPage /> },
               { path: "returns", element: <ReturnManagementPage /> },
               { path: "reviews", element: <ReviewManagementPage /> },
             ],
@@ -233,6 +233,7 @@ const router = createBrowserRouter([
               { path: "products/:productId", element: <ProductDetailAdminPage /> },
               { path: "inventory", element: <InventoryManagementPage /> },
               { path: "orders", element: <OrderManagementPage /> },
+              { path: "orders/:orderId", element: <OrderDetailAdminPage /> },
               { path: "returns", element: <ReturnManagementPage /> },
               { path: "reviews", element: <ReviewManagementPage /> },
             ],

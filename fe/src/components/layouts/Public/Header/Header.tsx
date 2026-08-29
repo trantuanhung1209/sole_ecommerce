@@ -19,9 +19,8 @@ const Header = () => {
     { name: "Sản phẩm", href: "/products", icon: ShoppingBag },
     {
       name: "Giỏ hàng",
-      href: isLoggedIn ? "/cart" : `/login?redirect=${encodeURIComponent("/cart")}`,
+      href: "/cart",
       icon: ShoppingCart,
-      guestHint: !isLoggedIn,
     },
     { name: "Trợ lý AI", href: "/ai-chat", icon: MessageCircle },
   ];

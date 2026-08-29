@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
@@ -24,6 +25,8 @@ const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
 
 export default function OrderManagementPage() {
   const { access } = useRoleAccess();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/staff") ? "/staff" : "/admin";
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -123,7 +126,9 @@ export default function OrderManagementPage() {
             orders.map((order) => (
               <div key={order.orderId} className="flex items-center justify-between rounded-lg border p-4">
                 <div>
-                  <p className="font-semibold">{order.orderCode}</p>
+                  <Link to={`${basePath}/orders/${order.orderId}`} className="font-semibold hover:underline">
+                    {order.orderCode}
+                  </Link>
                   <p className="text-sm text-muted-foreground">
                     {formatOrderItemNames(order.items)} · {money(order.grandTotal)}
                   </p>

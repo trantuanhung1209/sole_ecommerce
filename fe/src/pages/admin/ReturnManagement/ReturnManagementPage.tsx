@@ -21,6 +21,7 @@ export default function ReturnManagementPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const ordersById = useMemo(
     () => Object.fromEntries(orders.map((order) => [order.orderId, order])),
@@ -103,15 +104,18 @@ export default function ReturnManagementPage() {
             </p>
           ) : (
             returns.map((item) => (
-              <div key={item.returnId} className="flex items-center justify-between rounded-lg border p-4">
+              <div key={item.returnId} className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center justify-between">
                 <div>
+                  <button type="button" className="text-left" onClick={() => setSelectedId(selectedId === item.returnId ? null : item.returnId)}>
                   <p className="font-semibold">{resolveReturnProductName(item, ordersById)}</p>
                   <p className="text-sm text-muted-foreground">
                     {resolveOrderCode(item.orderId, ordersById)} · {item.reason}
                   </p>
                   {item.manualRefundRequired && (
-                    <p className="text-xs text-amber-600 mt-1">Cần hoàn tiền thủ công qua SePay</p>
+                    <p className="text-xs text-amber-600 mt-1 font-medium">⚠ Cần hoàn tiền thủ công qua SePay — xem RUNBOOK_REFUND.md</p>
                   )}
+                  </button>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <StatusBadge kind="return" status={item.status} />
@@ -160,6 +164,18 @@ export default function ReturnManagementPage() {
                     </Button>
                   )}
                 </div>
+                </div>
+                {selectedId === item.returnId && (
+                  <div className="rounded-md bg-muted/50 p-3 text-sm space-y-1 border-t pt-3">
+                    {item.staffNote && <p><strong>Staff:</strong> {item.staffNote}</p>}
+                    {item.managerNote && <p><strong>Manager:</strong> {item.managerNote}</p>}
+                    {item.refundAmount != null && <p><strong>Hoàn:</strong> {item.refundAmount.toLocaleString("vi-VN")}đ</p>}
+                    {item.rejectedReason && <p className="text-red-600"><strong>Lý do từ chối:</strong> {item.rejectedReason}</p>}
+                    {item.manualRefundRequired && (
+                      <p className="text-amber-700">manualRefundRequired=true — thực hiện hoàn SePay thủ công trước khi đóng ticket.</p>
+                    )}
+                  </div>
+                )}
               </div>
             ))
           )}

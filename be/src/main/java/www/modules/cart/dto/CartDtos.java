@@ -60,6 +60,7 @@ public final class CartDtos {
     public static class CartView {
         private String cartId;
         private String userId;
+        private String guestSessionId;
         private CartStatus status;
         private List<CartItemView> items = new ArrayList<>();
         private LocalDateTime createdAt;

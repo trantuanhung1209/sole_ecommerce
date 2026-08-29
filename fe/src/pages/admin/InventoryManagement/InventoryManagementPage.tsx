@@ -3,7 +3,7 @@ import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
-import { inventoryApi } from "@/services/ecommerceServices";
+import { inventoryApi, searchApi } from "@/services/ecommerceServices";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { TablePagination } from "@/components/shared/TablePagination";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -24,6 +24,7 @@ export default function InventoryManagementPage() {
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState("ALL");
   const [importText, setImportText] = useState("");
+  const [lowStockCount, setLowStockCount] = useState(0);
   const debouncedSearch = useDebounce(search, 300);
 
   const load = useCallback(async () => {
@@ -50,8 +51,21 @@ export default function InventoryManagementPage() {
   }, [load]);
 
   useEffect(() => {
+    inventoryApi.lowStock(5).then((rows) => setLowStockCount(rows.length)).catch(() => undefined);
+  }, [items]);
+
+  useEffect(() => {
     setPage(0);
   }, [debouncedSearch, stockFilter]);
+
+  const handleReindex = async () => {
+    try {
+      const count = await searchApi.reindex();
+      toast.success(`Đã re-index ${count} sản phẩm`);
+    } catch {
+      toast.error("Re-index thất bại");
+    }
+  };
 
   const handleAdjust = async (variantId: string) => {
     const change = Number(adjustments[variantId] || 0);
@@ -109,6 +123,15 @@ export default function InventoryManagementPage() {
             ? "Shop Manager trở lên có thể điều chỉnh tồn kho"
             : "Chế độ xem — Staff chỉ theo dõi tồn kho"}
         </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {lowStockCount > 0 && (
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {lowStockCount} biến thể sắp hết hàng (≤5)
+          </p>
+        )}
+        <Button variant="outline" size="sm" onClick={handleReindex}>Re-index Elasticsearch</Button>
       </div>
 
       <AdminFilterBar

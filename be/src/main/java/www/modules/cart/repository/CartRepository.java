@@ -8,4 +8,5 @@ import java.util.Optional;
 
 public interface CartRepository extends MongoRepository<Cart, String> {
     Optional<Cart> findFirstByUserIdAndStatus(String userId, CartStatus status);
+    Optional<Cart> findFirstByGuestSessionIdAndStatus(String guestSessionId, CartStatus status);
 }

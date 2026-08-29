@@ -76,7 +76,7 @@ public class ProductReviewController {
         return ResponseEntity.ok(ApiResponse.success(reviewService.vote(reviewId, user.getId())));
     }
 
-    @PreAuthorize("hasAnyRole('STAFF','SHOP_MANAGER','ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF','SHOP_MANAGER','ADMIN','SUPER_ADMIN') and @perm.has(authentication, 'REVIEW_MODERATE')")
     @PutMapping("/admin/reviews/{reviewId}/reply")
     public ResponseEntity<ApiResponse<ProductReview>> reply(
             @PathVariable String reviewId,
@@ -85,7 +85,7 @@ public class ProductReviewController {
         return ResponseEntity.ok(ApiResponse.success(reviewService.reply(reviewId, request, user.getId())));
     }
 
-    @PreAuthorize("hasAnyRole('STAFF','SHOP_MANAGER','ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF','SHOP_MANAGER','ADMIN','SUPER_ADMIN') and @perm.has(authentication, 'REVIEW_MODERATE')")
     @PutMapping("/admin/reviews/{reviewId}/visibility")
     public ResponseEntity<ApiResponse<ProductReview>> visibility(
             @PathVariable String reviewId,

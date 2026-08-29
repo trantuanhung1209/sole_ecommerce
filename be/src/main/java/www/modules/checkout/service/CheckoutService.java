@@ -26,6 +26,11 @@ import www.modules.orders.model.OrderItem;
 import www.modules.orders.service.OrderService;
 import www.modules.payments.dto.PaymentDtos.PaymentCheckoutResponse;
 import www.modules.payments.service.EcommercePaymentService;
+import www.modules.promotions.PromotionEnums.CouponType;
+import www.modules.promotions.dto.PromotionDtos.CouponValidationResult;
+import www.modules.promotions.model.Coupon;
+import www.modules.promotions.service.CouponValidator;
+import www.modules.promotions.service.PromotionService;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -43,22 +48,29 @@ public class CheckoutService {
     private final NotificationService notificationService;
     private final AddressService addressService;
     private final ShippingFeeCalculator shippingFeeCalculator;
+    private final VatCalculator vatCalculator;
+    private final CouponValidator couponValidator;
+    private final PromotionService promotionService;
     private final ObjectMapper objectMapper;
 
     public CheckoutPreview preview(String userId) {
+        return preview(userId, null);
+    }
+
+    public CheckoutPreview preview(String userId, String couponCode) {
         Cart cart = cartService.activeCart(userId);
-        double subtotal = 0;
-        for (CartItem cartItem : cart.getItems()) {
-            ProductVariant variant = variantRepository.findById(cartItem.getVariantId())
-                    .orElseThrow(() -> new NotFoundException("Variant not found: " + cartItem.getVariantId()));
-            subtotal += variant.getPrice() * cartItem.getQuantity();
-        }
-        double shippingFee = shippingFeeCalculator.calculate(subtotal);
+        double subtotal = computeSubtotal(cart);
+        Pricing pricing = computePricing(userId, subtotal, couponCode);
         CheckoutPreview preview = new CheckoutPreview();
         preview.setItemCount(cart.getItems().size());
         preview.setSubtotal(subtotal);
-        preview.setShippingFee(shippingFee);
-        preview.setGrandTotal(subtotal + shippingFee);
+        preview.setDiscountTotal(pricing.discountTotal());
+        preview.setShippingFee(pricing.shippingFee());
+        preview.setTaxTotal(pricing.taxTotal());
+        preview.setGrandTotal(pricing.grandTotal());
+        preview.setCouponCode(couponCode);
+        preview.setCouponValid(pricing.couponValid());
+        preview.setCouponMessage(pricing.couponMessage());
         return preview;
     }
 
@@ -92,6 +104,12 @@ public class CheckoutService {
 
         Address address = addressService.getOwned(userId, request.getAddressId());
         String addressSnapshot = toAddressSnapshot(address);
+        double subtotal = computeSubtotal(cart);
+        Pricing pricing = computePricing(userId, subtotal, request.getCouponCode());
+        if (request.getCouponCode() != null && !request.getCouponCode().isBlank() && !pricing.couponValid()) {
+            inventoryService.releaseOrderReservations(orderId);
+            throw new BadRequestException(pricing.couponMessage());
+        }
 
         try {
             Order order = Order.builder()
@@ -100,19 +118,18 @@ public class CheckoutService {
                     .userId(userId)
                     .shippingAddressSnapshot(addressSnapshot)
                     .customerNote(request.getCustomerNote())
+                    .couponCode(pricing.appliedCouponCode())
                     .items(new ArrayList<>())
                     .createdAt(LocalDateTime.now())
                     .updatedAt(LocalDateTime.now())
                     .build();
 
-            double subtotal = 0;
             for (CartItem cartItem : cart.getItems()) {
                 ProductVariant variant = variantRepository.findById(cartItem.getVariantId())
                         .orElseThrow(() -> new NotFoundException("Variant not found: " + cartItem.getVariantId()));
                 Product product = productRepository.findById(variant.getProductId())
                         .orElseThrow(() -> new NotFoundException("Product not found: " + variant.getProductId()));
                 double lineTotal = variant.getPrice() * cartItem.getQuantity();
-                subtotal += lineTotal;
                 String image = !variant.getImageUrls().isEmpty()
                         ? variant.getImageUrls().get(0)
                         : (!product.getImageUrls().isEmpty() ? product.getImageUrls().get(0) : null);
@@ -133,11 +150,16 @@ public class CheckoutService {
                         .build());
             }
 
-            double shippingFee = shippingFeeCalculator.calculate(subtotal);
             order.setSubtotal(subtotal);
-            order.setShippingFee(shippingFee);
-            order.setGrandTotal(subtotal + shippingFee + order.getTaxTotal() - order.getDiscountTotal());
+            order.setDiscountTotal(pricing.discountTotal());
+            order.setShippingFee(pricing.shippingFee());
+            order.setTaxTotal(pricing.taxTotal());
+            order.setGrandTotal(pricing.grandTotal());
             Order savedOrder = orderService.save(order);
+
+            if (pricing.coupon() != null) {
+                promotionService.recordUsage(pricing.coupon(), userId, savedOrder.getOrderId(), pricing.discountTotal());
+            }
 
             cartService.markCheckedOut(cart);
             notificationService.create(
@@ -158,6 +180,44 @@ public class CheckoutService {
         }
     }
 
+    private double computeSubtotal(Cart cart) {
+        double subtotal = 0;
+        for (CartItem cartItem : cart.getItems()) {
+            ProductVariant variant = variantRepository.findById(cartItem.getVariantId())
+                    .orElseThrow(() -> new NotFoundException("Variant not found: " + cartItem.getVariantId()));
+            subtotal += variant.getPrice() * cartItem.getQuantity();
+        }
+        return subtotal;
+    }
+
+    private Pricing computePricing(String userId, double subtotal, String couponCode) {
+        double discountTotal = 0;
+        double shippingFee = shippingFeeCalculator.calculate(subtotal);
+        boolean couponValid = false;
+        String couponMessage = null;
+        String appliedCouponCode = null;
+        Coupon coupon = null;
+
+        if (couponCode != null && !couponCode.isBlank()) {
+            CouponValidationResult result = couponValidator.validate(couponCode, userId, subtotal);
+            couponValid = result.isValid();
+            couponMessage = result.getMessage();
+            if (result.isValid()) {
+                appliedCouponCode = result.getCode();
+                discountTotal = result.getDiscountAmount();
+                if (result.getType() == CouponType.FREE_SHIPPING) {
+                    shippingFee = 0;
+                }
+                coupon = couponValidator.requireValid(couponCode, userId, subtotal);
+            }
+        }
+
+        double taxTotal = vatCalculator.calculateTax(subtotal, discountTotal);
+        double grandTotal = Math.max(0, subtotal - discountTotal + shippingFee + taxTotal);
+        return new Pricing(discountTotal, shippingFee, taxTotal, grandTotal, couponValid, couponMessage,
+                appliedCouponCode, coupon);
+    }
+
     private String toAddressSnapshot(Address address) {
         try {
             return objectMapper.writeValueAsString(address);
@@ -166,4 +226,14 @@ public class CheckoutService {
                     + address.getLine1() + ", " + address.getCity();
         }
     }
+
+    private record Pricing(
+            double discountTotal,
+            double shippingFee,
+            double taxTotal,
+            double grandTotal,
+            boolean couponValid,
+            String couponMessage,
+            String appliedCouponCode,
+            Coupon coupon) {}
 }

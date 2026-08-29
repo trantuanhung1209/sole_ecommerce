@@ -19,9 +19,11 @@ public class CheckoutController {
     private final CheckoutService checkoutService;
 
     @PostMapping("/preview")
-    public ResponseEntity<ApiResponse<CheckoutPreview>> preview(Authentication authentication) {
+    public ResponseEntity<ApiResponse<CheckoutPreview>> preview(
+            Authentication authentication,
+            @RequestParam(required = false) String couponCode) {
         return ResponseEntity.ok(ApiResponse.success(checkoutService.preview(
-                ((UserPrincipal) authentication.getPrincipal()).getId())));
+                ((UserPrincipal) authentication.getPrincipal()).getId(), couponCode)));
     }
 
     @PostMapping

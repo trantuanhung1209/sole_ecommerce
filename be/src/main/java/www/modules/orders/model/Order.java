@@ -42,6 +42,7 @@ public class Order {
     private Double taxTotal = 0.0;
     private Double grandTotal;
     private String customerNote;
+    private String couponCode;
     private String cancelReason;
     @Field("created_at")
     private LocalDateTime createdAt;

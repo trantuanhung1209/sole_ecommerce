@@ -19,6 +19,7 @@ public class Cart {
     @Id
     private String cartId;
     private String userId;
+    private String guestSessionId;
     @Builder.Default
     private CartStatus status = CartStatus.ACTIVE;
     @Builder.Default

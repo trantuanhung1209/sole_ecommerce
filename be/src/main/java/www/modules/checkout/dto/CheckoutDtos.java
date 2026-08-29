@@ -11,6 +11,7 @@ public final class CheckoutDtos {
         @NotBlank
         private String addressId;
         private String customerNote;
+        private String couponCode;
         private String paymentMethod = "SEPAY";
     }
 
@@ -18,7 +19,12 @@ public final class CheckoutDtos {
     public static class CheckoutPreview {
         private int itemCount;
         private double subtotal;
+        private double discountTotal;
         private double shippingFee;
+        private double taxTotal;
         private double grandTotal;
+        private String couponCode;
+        private boolean couponValid;
+        private String couponMessage;
     }
 }

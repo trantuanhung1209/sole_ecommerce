@@ -70,16 +70,26 @@ public class InventoryService {
     }
 
     public Page<InventoryDtos.InventoryView> allViews(String search, String stockFilter, Pageable pageable) {
-        List<InventoryDtos.InventoryView> filtered = allViews().stream()
-                .filter(view -> matchesInventorySearch(view, search))
-                .filter(view -> matchesStockFilter(view, stockFilter))
-                .toList();
-        int start = (int) pageable.getOffset();
-        int end = Math.min(start + pageable.getPageSize(), filtered.size());
-        if (start > filtered.size()) {
-            return new PageImpl<>(List.of(), pageable, filtered.size());
+        Query query = new Query();
+        if (stockFilter != null && !stockFilter.isBlank() && !"ALL".equalsIgnoreCase(stockFilter)) {
+            if ("LOW".equalsIgnoreCase(stockFilter)) {
+                query.addCriteria(new Criteria().andOperator(
+                        Criteria.where("available").gt(0),
+                        Criteria.where("available").lte(5)));
+            } else if ("OUT".equalsIgnoreCase(stockFilter)) {
+                query.addCriteria(Criteria.where("available").lte(0));
+            }
         }
-        return new PageImpl<>(filtered.subList(start, end), pageable, filtered.size());
+        long total = mongoTemplate.count(query, Inventory.class);
+        query.with(pageable);
+        List<Inventory> pageItems = mongoTemplate.find(query, Inventory.class);
+        List<InventoryDtos.InventoryView> views = toViews(pageItems).stream()
+                .filter(view -> matchesInventorySearch(view, search))
+                .toList();
+        if (search != null && !search.isBlank()) {
+            return new PageImpl<>(views, pageable, views.size());
+        }
+        return new PageImpl<>(views, pageable, total);
     }
 
     private boolean matchesInventorySearch(InventoryDtos.InventoryView view, String search) {

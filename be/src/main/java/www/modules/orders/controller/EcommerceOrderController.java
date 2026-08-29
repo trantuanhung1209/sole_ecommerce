@@ -62,7 +62,7 @@ public class EcommerceOrderController {
     }
 
     @PutMapping("/admin/orders/{orderId}/status")
-    @PreAuthorize("hasAnyRole('ADMIN','STAFF','SHOP_MANAGER','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','STAFF','SHOP_MANAGER','SUPER_ADMIN') and @perm.has(authentication, 'ORDER_UPDATE')")
     public ResponseEntity<ApiResponse<Order>> updateStatus(
             @PathVariable String orderId,
             @RequestParam OrderStatus status) {
@@ -70,13 +70,13 @@ public class EcommerceOrderController {
     }
 
     @PostMapping("/admin/orders/{orderId}/confirm")
-    @PreAuthorize("hasAnyRole('ADMIN','STAFF','SHOP_MANAGER','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','STAFF','SHOP_MANAGER','SUPER_ADMIN') and @perm.has(authentication, 'ORDER_UPDATE')")
     public ResponseEntity<ApiResponse<Order>> confirm(@PathVariable String orderId) {
         return ResponseEntity.ok(ApiResponse.success(orderService.updateStatus(orderId, OrderStatus.CONFIRMED)));
     }
 
     @PostMapping("/admin/orders/{orderId}/ship")
-    @PreAuthorize("hasAnyRole('ADMIN','STAFF','SHOP_MANAGER','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','STAFF','SHOP_MANAGER','SUPER_ADMIN') and @perm.has(authentication, 'ORDER_UPDATE')")
     public ResponseEntity<ApiResponse<Order>> ship(
             @PathVariable String orderId,
             @RequestParam(required = false) String trackingCode) {
@@ -85,13 +85,13 @@ public class EcommerceOrderController {
     }
 
     @PostMapping("/admin/orders/{orderId}/deliver")
-    @PreAuthorize("hasAnyRole('ADMIN','STAFF','SHOP_MANAGER','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','STAFF','SHOP_MANAGER','SUPER_ADMIN') and @perm.has(authentication, 'ORDER_UPDATE')")
     public ResponseEntity<ApiResponse<Order>> deliver(@PathVariable String orderId) {
         return ResponseEntity.ok(ApiResponse.success(orderService.updateStatus(orderId, OrderStatus.DELIVERED)));
     }
 
     @PostMapping("/admin/orders/{orderId}/cancel")
-    @PreAuthorize("hasAnyRole('ADMIN','STAFF','SHOP_MANAGER','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','STAFF','SHOP_MANAGER','SUPER_ADMIN') and @perm.has(authentication, 'ORDER_CANCEL')")
     public ResponseEntity<ApiResponse<Order>> adminCancel(
             @PathVariable String orderId,
             @RequestParam(required = false) String reason) {
