@@ -9,7 +9,7 @@ public final class CheckoutDtos {
     @Data
     public static class CheckoutRequest {
         @NotBlank
-        private String shippingAddress;
+        private String addressId;
         private String customerNote;
         private String paymentMethod = "SEPAY";
     }

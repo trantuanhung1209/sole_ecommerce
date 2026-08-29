@@ -45,10 +45,32 @@ export const catalogApi = {
   },
 };
 
+export interface ProductFilterParams {
+  search?: string;
+  brandId?: string;
+  categoryId?: string;
+  gender?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  variantSize?: string;
+  color?: string;
+  inStock?: boolean;
+  sort?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 export const productApi = {
-  list: async (search?: string, page = 0, size = 12) => {
+  list: async (params: ProductFilterParams = {}) => {
+    const { page = 0, pageSize = 12, ...filters } = params;
     const res = await publicAxios.get<ApiResponse<PageResponse<ProductSummary>>>("/products", {
-      params: { search, page, pageSize: size },
+      params: { ...filters, page, pageSize },
+    });
+    return res.data.data;
+  },
+  related: async (productId: string, limit = 8) => {
+    const res = await publicAxios.get<ApiResponse<ProductSummary[]>>(`/products/${productId}/related`, {
+      params: { limit },
     });
     return res.data.data;
   },
@@ -150,6 +172,12 @@ export const cartApi = {
     const res = await authorizedAxios.get<ApiResponse<Cart>>("/cart");
     return res.data.data;
   },
+  validate: async () => {
+    const res = await authorizedAxios.post<
+      ApiResponse<{ valid: boolean; issues: { cartItemId?: string; variantId?: string; message: string }[] }>
+    >("/cart/validate");
+    return res.data.data;
+  },
   add: async (variantId: string, quantity: number) => {
     const res = await authorizedAxios.post<ApiResponse<Cart>>("/cart/items", { variantId, quantity });
     return res.data.data;
@@ -169,9 +197,9 @@ export const checkoutApi = {
     const res = await authorizedAxios.post<ApiResponse<{ itemCount: number; subtotal: number; shippingFee: number; grandTotal: number }>>("/checkout/preview");
     return res.data.data;
   },
-  checkout: async (shippingAddress: string, customerNote?: string) => {
+  checkout: async (addressId: string, customerNote?: string) => {
     const res = await authorizedAxios.post<ApiResponse<PaymentCheckoutResponse>>("/checkout", {
-      shippingAddress,
+      addressId,
       customerNote,
       paymentMethod: "SEPAY",
     });
@@ -202,7 +230,13 @@ export const orderApi = {
     });
     return res.data.data;
   },
-  updateStatus: async (orderId: string, status: OrderStatus) => {
+  updateStatus: async (orderId: string, status: OrderStatus, trackingCode?: string) => {
+    if (status === "SHIPPED" && trackingCode) {
+      const res = await authorizedAxios.post<ApiResponse<Order>>(`/admin/orders/${orderId}/ship`, null, {
+        params: { trackingCode },
+      });
+      return res.data.data;
+    }
     const res = await authorizedAxios.put<ApiResponse<Order>>(`/admin/orders/${orderId}/status`, null, {
       params: { status },
     });
@@ -248,7 +282,14 @@ export const reviewApi = {
     );
     return res.data.data;
   },
-  create: async (data: { productId: string; rating: number; title?: string; content: string }) => {
+  create: async (data: {
+    orderId: string;
+    orderItemId: string;
+    rating: number;
+    title?: string;
+    content: string;
+    imageUrls?: string[];
+  }) => {
     const res = await authorizedAxios.post<ApiResponse<ProductReview>>("/reviews/products", data);
     return res.data.data;
   },
@@ -262,6 +303,12 @@ export const reviewApi = {
     });
     return res.data.data;
   },
+  mine: async (page = 0, size = 50) => {
+    const res = await authorizedAxios.get<ApiResponse<PageResponse<ProductReview>>>("/reviews/me", {
+      params: { page, size },
+    });
+    return res.data.data.content;
+  },
 };
 
 export const returnApi = {
@@ -271,7 +318,13 @@ export const returnApi = {
     });
     return res.data.data.content;
   },
-  create: async (data: { orderId: string; orderItemId: string; reason: string; description?: string }) => {
+  create: async (data: {
+    orderId: string;
+    orderItemId: string;
+    reason: string;
+    customerNote?: string;
+    imageUrls?: string[];
+  }) => {
     const res = await authorizedAxios.post<ApiResponse<ReturnRequest>>("/returns", data);
     return res.data.data;
   },

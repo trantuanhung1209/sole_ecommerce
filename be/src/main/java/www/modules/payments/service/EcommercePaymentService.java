@@ -72,7 +72,8 @@ public class EcommercePaymentService {
     }
 
     @Transactional
-    public boolean handleCallback(String invoice, String status, String transactionId, Map<String, Object> payload) {
+    public boolean handleCallback(String invoice, String status, String transactionId,
+                                  Map<String, Object> payload, String signature) {
         if (invoice == null || transactionId == null) {
             throw new BadRequestException("Missing invoice or transaction ID");
         }
@@ -83,6 +84,7 @@ public class EcommercePaymentService {
                     .transactionId(transactionId)
                     .eventType(status)
                     .rawPayload(toJson(payload))
+                    .signature(signature)
                     .createdAt(LocalDateTime.now())
                     .build());
         } catch (DuplicateKeyException duplicate) {
@@ -140,8 +142,11 @@ public class EcommercePaymentService {
 
     private void validateCallbackAmount(EcommercePayment payment, Map<String, Object> payload) {
         Double callbackAmount = extractAmount(payload);
-        if (callbackAmount == null || payment.getAmount() == null) {
-            return;
+        if (callbackAmount == null) {
+            throw new BadRequestException("Payment amount missing in callback");
+        }
+        if (payment.getAmount() == null) {
+            throw new BadRequestException("Payment amount not configured");
         }
         if (Math.abs(callbackAmount - payment.getAmount()) > 1.0) {
             throw new BadRequestException("Payment amount mismatch");
@@ -174,6 +179,13 @@ public class EcommercePaymentService {
                 "Thanh toán thất bại",
                 "Thanh toán đơn " + payment.getOrderCode() + " không thành công",
                 "/orders/" + payment.getOrderId());
+    }
+
+    public EcommercePayment markRefunded(String orderId) {
+        EcommercePayment payment = byOrder(orderId);
+        payment.setStatus(EcommercePaymentStatus.REFUNDED);
+        payment.setUpdatedAt(LocalDateTime.now());
+        return paymentRepository.save(payment);
     }
 
     private PaymentCheckoutResponse toCheckoutResponse(EcommercePayment payment) {

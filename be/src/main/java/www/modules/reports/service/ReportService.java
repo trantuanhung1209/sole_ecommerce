@@ -14,6 +14,10 @@ import www.modules.reports.dto.ReportDtos.DashboardReport;
 import www.modules.returns.repository.ReturnRequestRepository;
 import www.repository.UserRepository;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ReportService {
@@ -26,7 +30,13 @@ public class ReportService {
     private final UserRepository userRepository;
 
     public DashboardReport dashboard() {
-        var orders = orderRepository.findAll();
+        return dashboard(null, null);
+    }
+
+    public DashboardReport dashboard(LocalDate from, LocalDate to) {
+        List<www.modules.orders.model.Order> orders = orderRepository.findAll().stream()
+                .filter(o -> withinRange(o.getCreatedAt(), from, to))
+                .toList();
         double revenue = orders.stream()
                 .filter(o -> o.getPaymentStatus() == EcommercePaymentStatus.COMPLETED)
                 .mapToDouble(o -> o.getGrandTotal() != null ? o.getGrandTotal() : 0)
@@ -45,5 +55,18 @@ public class ReportService {
                 .pendingReturns(returnRepository.countByStatus(ReturnStatus.PENDING))
                 .totalUsers(userRepository.count())
                 .build();
+    }
+
+    private boolean withinRange(LocalDateTime createdAt, LocalDate from, LocalDate to) {
+        if (createdAt == null) {
+            return true;
+        }
+        if (from != null && createdAt.toLocalDate().isBefore(from)) {
+            return false;
+        }
+        if (to != null && createdAt.toLocalDate().isAfter(to)) {
+            return false;
+        }
+        return true;
     }
 }

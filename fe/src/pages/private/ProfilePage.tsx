@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { profileSchema, type ProfileFormData } from "@/schemas/profileSchema";
 import { Gender } from "@/types/user.type";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
+import { SessionsPanel } from "@/components/profile/SessionsPanel";
 import { getRoleLabel } from "@/utils/displayLabels";
 
 export default function ProfilePage() {
@@ -421,6 +422,10 @@ export default function ProfilePage() {
               </div>
             </form>
           </div>
+        </Card>
+
+        <Card className="p-6">
+          <SessionsPanel />
         </Card>
 
         {/* Change Password Dialog */}

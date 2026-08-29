@@ -13,6 +13,7 @@ import www.model.enums.UserRole;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -35,6 +36,7 @@ public class UserResponse {
     private Boolean isActive;
     private Boolean isEmailVerified;
     private UserRole role;
+    private List<String> permissions;
     
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
     private LocalDateTime createdAt;

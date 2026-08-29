@@ -88,7 +88,7 @@ export function useDashboardData(timeRange: TimeRange) {
 
       const [ordersPage, productsPage, usersPage] = await Promise.all([
         orderApi.adminList(undefined, 0, 500),
-        productApi.list(undefined, 0, 1),
+        productApi.list({ page: 0, pageSize: 1 }),
         userServices.getAllUsersPaginated({ page: 0, size: 1 }),
       ]);
       const ordersData = ordersPage.content;

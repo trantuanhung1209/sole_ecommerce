@@ -37,6 +37,7 @@ export interface User {
   isEmailVerified?: boolean;
   isActive?: boolean;
   role: UserRole;
+  permissions?: string[];
   phone?: string | null;
   gender?: Gender | null;
   dateOfBirth?: string | null;

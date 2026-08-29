@@ -64,7 +64,15 @@ export default function OrderManagementPage() {
     const next = NEXT_STATUS[order.status];
     if (!next) return;
     try {
-      await orderApi.updateStatus(order.orderId, next);
+      let trackingCode: string | undefined;
+      if (next === "SHIPPED") {
+        trackingCode = window.prompt("Nhập mã vận đơn (tracking code):") || undefined;
+        if (!trackingCode?.trim()) {
+          toast.error("Cần mã vận đơn khi giao cho shipper");
+          return;
+        }
+      }
+      await orderApi.updateStatus(order.orderId, next, trackingCode);
       toast.success("Cập nhật trạng thái thành công");
       load();
     } catch {

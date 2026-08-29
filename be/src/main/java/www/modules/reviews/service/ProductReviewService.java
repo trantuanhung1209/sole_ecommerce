@@ -16,6 +16,7 @@ import www.modules.reviews.model.ProductReview;
 import www.modules.reviews.repository.ProductReviewRepository;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +26,10 @@ public class ProductReviewService {
 
     public Page<ProductReview> productReviews(String productId, Pageable pageable) {
         return reviewRepository.findByProductIdAndVisibleTrueOrderByCreatedAtDesc(productId, pageable);
+    }
+
+    public Page<ProductReview> myReviews(String userId, Pageable pageable) {
+        return reviewRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
     }
 
     public ProductReview create(String userId, CreateReviewRequest request) {
@@ -99,8 +104,15 @@ public class ProductReviewService {
         reviewRepository.delete(review);
     }
 
-    public ProductReview vote(String reviewId) {
+    public ProductReview vote(String reviewId, String userId) {
         ProductReview review = get(reviewId);
+        if (review.getVotedUserIds() == null) {
+            review.setVotedUserIds(new ArrayList<>());
+        }
+        if (review.getVotedUserIds().contains(userId)) {
+            return review;
+        }
+        review.getVotedUserIds().add(userId);
         review.setHelpfulCount((review.getHelpfulCount() != null ? review.getHelpfulCount() : 0) + 1);
         review.setUpdatedAt(LocalDateTime.now());
         return reviewRepository.save(review);

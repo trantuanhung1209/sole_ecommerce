@@ -33,6 +33,8 @@ public class ProductReview {
     private List<String> imageUrls = new ArrayList<>();
     @Builder.Default
     private Integer helpfulCount = 0;
+    @Builder.Default
+    private List<String> votedUserIds = new ArrayList<>();
     private String staffReply;
     private String repliedBy;
     private LocalDateTime repliedAt;

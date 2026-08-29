@@ -1,29 +1,51 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cartApi, money } from "@/services/ecommerceServices";
+import { cartApi, checkoutApi, money } from "@/services/ecommerceServices";
 import { formatCartItemLabel } from "@/utils/displayLabels";
 import type { Cart } from "@/types/ecommerce.type";
 
+type CartIssue = { cartItemId?: string; variantId?: string; message: string };
+
 export default function CartPage() {
   const [cart, setCart] = useState<Cart | null>(null);
+  const [issues, setIssues] = useState<CartIssue[]>([]);
+  const [valid, setValid] = useState(true);
+  const [preview, setPreview] = useState({ shippingFee: 0, grandTotal: 0 });
+
+  const refresh = useCallback(async () => {
+    const [cartData, validation, previewData] = await Promise.all([
+      cartApi.get(),
+      cartApi.validate(),
+      checkoutApi.preview().catch(() => ({ itemCount: 0, subtotal: 0, shippingFee: 0, grandTotal: 0 })),
+    ]);
+    setCart(cartData);
+    setIssues(validation.issues);
+    setValid(validation.valid);
+    setPreview({ shippingFee: previewData.shippingFee, grandTotal: previewData.grandTotal });
+  }, []);
 
   useEffect(() => {
-    cartApi.get().then(setCart);
-  }, []);
+    refresh().catch(console.error);
+  }, [refresh]);
 
   const subtotal = useMemo(
     () => cart?.items.reduce((sum, item) => sum + item.priceSnapshot * item.quantity, 0) || 0,
     [cart]
   );
 
+  const issueForItem = (cartItemId: string) =>
+    issues.find((issue) => issue.cartItemId === cartItemId)?.message;
+
   const updateQuantity = async (cartItemId: string, quantity: number) => {
-    setCart(await cartApi.update(cartItemId, Math.max(1, quantity)));
+    await cartApi.update(cartItemId, Math.max(1, quantity));
+    await refresh();
   };
 
   const remove = async (cartItemId: string) => {
-    setCart(await cartApi.remove(cartItemId));
+    await cartApi.remove(cartItemId);
+    await refresh();
   };
 
   return (
@@ -41,6 +63,11 @@ export default function CartPage() {
         ) : (
           <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_380px]">
             <div className="space-y-4">
+              {!valid && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  Một số sản phẩm trong giỏ không còn hợp lệ. Vui lòng cập nhật trước khi thanh toán.
+                </div>
+              )}
               {cart.items.map((item) => (
                 <div key={item.cartItemId} className="flex gap-4 rounded-2xl border border-[#E5E7EB] bg-white p-4">
                   <div className="h-24 w-24 overflow-hidden rounded-xl bg-[#F1F1EF]">
@@ -52,6 +79,9 @@ export default function CartPage() {
                     <p className="font-bold">{formatCartItemLabel(item)}</p>
                     {item.sku ? <p className="text-xs text-[#6B7280]">SKU {item.sku}</p> : null}
                     <p className="mt-1 text-sm text-[#6B7280]">{money(item.priceSnapshot)}</p>
+                    {issueForItem(item.cartItemId) ? (
+                      <p className="mt-2 text-sm text-red-600">{issueForItem(item.cartItemId)}</p>
+                    ) : null}
                     <div className="mt-4 flex items-center gap-2">
                       <Button variant="outline" size="icon" onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}>
                         <Minus className="h-4 w-4" />
@@ -72,11 +102,14 @@ export default function CartPage() {
               <h2 className="text-xl font-bold">Tóm tắt đơn hàng</h2>
               <div className="mt-6 space-y-3 text-sm">
                 <div className="flex justify-between"><span>Tạm tính</span><span>{money(subtotal)}</span></div>
-                <div className="flex justify-between"><span>Phí vận chuyển</span><span>{money(30000)}</span></div>
-                <div className="border-t pt-3 flex justify-between text-lg font-bold"><span>Tổng cộng</span><span>{money(subtotal + 30000)}</span></div>
+                <div className="flex justify-between"><span>Phí vận chuyển</span><span>{money(preview.shippingFee)}</span></div>
+                <div className="border-t pt-3 flex justify-between text-lg font-bold"><span>Tổng cộng</span><span>{money(preview.grandTotal || subtotal + preview.shippingFee)}</span></div>
               </div>
-              <Button asChild className="mt-6 h-12 w-full rounded-lg bg-[#111111] text-white">
-                <Link to="/checkout">Thanh toán</Link>
+              {preview.shippingFee === 0 && subtotal >= 2_000_000 ? (
+                <p className="mt-3 text-xs text-green-700">Miễn phí vận chuyển cho đơn từ 2.000.000đ</p>
+              ) : null}
+              <Button asChild className="mt-6 h-12 w-full rounded-lg bg-[#111111] text-white" disabled={!valid}>
+                <Link to={valid ? "/checkout" : "#"} onClick={(e) => !valid && e.preventDefault()}>Thanh toán</Link>
               </Button>
             </aside>
           </div>

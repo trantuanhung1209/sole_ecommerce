@@ -77,8 +77,11 @@ public class EcommerceOrderController {
 
     @PostMapping("/admin/orders/{orderId}/ship")
     @PreAuthorize("hasAnyRole('ADMIN','STAFF','SHOP_MANAGER','SUPER_ADMIN')")
-    public ResponseEntity<ApiResponse<Order>> ship(@PathVariable String orderId) {
-        return ResponseEntity.ok(ApiResponse.success(orderService.updateStatus(orderId, OrderStatus.SHIPPED)));
+    public ResponseEntity<ApiResponse<Order>> ship(
+            @PathVariable String orderId,
+            @RequestParam(required = false) String trackingCode) {
+        return ResponseEntity.ok(ApiResponse.success(
+                orderService.updateStatus(orderId, OrderStatus.SHIPPED, trackingCode)));
     }
 
     @PostMapping("/admin/orders/{orderId}/deliver")

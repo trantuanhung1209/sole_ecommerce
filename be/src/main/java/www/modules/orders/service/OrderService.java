@@ -13,11 +13,14 @@ import www.modules.common.EcommerceEnums.OrderStatus;
 import www.modules.inventory.service.InventoryService;
 import www.modules.orders.model.Order;
 import www.modules.orders.repository.OrderRepository;
+import www.modules.returns.repository.ReturnRequestRepository;
+import www.modules.common.EcommerceEnums.ReturnStatus;
 import www.service.implement.OrderMailNotifier;
 import www.modules.notifications.service.NotificationService;
 import www.modules.common.EcommerceEnums.NotificationType;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -27,6 +30,7 @@ public class OrderService {
     private final InventoryService inventoryService;
     private final OrderMailNotifier orderMailNotifier;
     private final NotificationService notificationService;
+    private final ReturnRequestRepository returnRequestRepository;
 
     public String nextOrderCode() {
         return "SO-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
@@ -109,6 +113,10 @@ public class OrderService {
     }
 
     public Order updateStatus(String orderId, OrderStatus status) {
+        return updateStatus(orderId, status, null);
+    }
+
+    public Order updateStatus(String orderId, OrderStatus status, String trackingCode) {
         Order order = get(orderId);
         OrderStatus previousStatus = order.getStatus();
         order.setStatus(status);
@@ -116,8 +124,12 @@ public class OrderService {
             order.setFulfillmentStatus(FulfillmentStatus.PROCESSING);
         } else if (status == OrderStatus.SHIPPED) {
             order.setFulfillmentStatus(FulfillmentStatus.SHIPPED);
+            if (trackingCode != null && !trackingCode.isBlank()) {
+                order.setTrackingCode(trackingCode.trim());
+            }
         } else if (status == OrderStatus.DELIVERED) {
             order.setFulfillmentStatus(FulfillmentStatus.DELIVERED);
+            order.setDeliveredAt(LocalDateTime.now());
         } else if (status == OrderStatus.COMPLETED) {
             order.setCompletedAt(LocalDateTime.now());
         }
@@ -132,7 +144,8 @@ public class OrderService {
                     "Đơn " + saved.getOrderCode() + " đã được giao cho đơn vị vận chuyển",
                     "/orders/" + saved.getOrderId());
         }
-        if (status == OrderStatus.DELIVERED) {
+        if (status == OrderStatus.DELIVERED && previousStatus != OrderStatus.DELIVERED) {
+            orderMailNotifier.sendOrderDelivered(saved);
             notificationService.create(
                     saved.getUserId(),
                     NotificationType.ORDER_DELIVERED,
@@ -141,5 +154,26 @@ public class OrderService {
                     "/orders/" + saved.getOrderId());
         }
         return saved;
+    }
+
+    public int autoCompleteDeliveredOrders(int daysAfterDelivery) {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(daysAfterDelivery);
+        List<Order> candidates = orderRepository.findByStatusAndDeliveredAtBefore(OrderStatus.DELIVERED, cutoff);
+        int count = 0;
+        for (Order order : candidates) {
+            boolean hasOpenReturn = returnRequestRepository.findByOrderId(order.getOrderId()).stream()
+                    .anyMatch(r -> r.getStatus() != ReturnStatus.REJECTED
+                            && r.getStatus() != ReturnStatus.CLOSED
+                            && r.getStatus() != ReturnStatus.REFUNDED);
+            if (hasOpenReturn) {
+                continue;
+            }
+            order.setStatus(OrderStatus.COMPLETED);
+            order.setCompletedAt(LocalDateTime.now());
+            order.setUpdatedAt(LocalDateTime.now());
+            orderRepository.save(order);
+            count++;
+        }
+        return count;
     }
 }

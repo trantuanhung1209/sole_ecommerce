@@ -19,6 +19,7 @@ import www.model.dto.response.AuthResponse;
 import www.model.dto.response.UserResponse;
 import www.model.entity.GoogleAuth;
 import www.model.entity.User;
+import www.modules.rbac.service.RbacService;
 import www.service.interfaces.*;
 
 import java.time.LocalDateTime;
@@ -36,6 +37,7 @@ public class AuthServiceImpl implements AuthService {
     private final SessionService sessionService;
     private final MailService mailService;
     private final PasswordEncoder passwordEncoder;
+    private final RbacService rbacService;
 
     @Value("${google.client-id}")
     private String googleClientId;
@@ -304,6 +306,7 @@ public class AuthServiceImpl implements AuthService {
                 .isActive(user.getIsActive())
                 .isEmailVerified(user.getIsEmailVerified())
                 .role(user.getRole())
+                .permissions(rbacService.permissionsForRole(user.getRole().name()))
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .lastLoginAt(user.getLastLoginAt())

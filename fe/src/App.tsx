@@ -21,6 +21,7 @@ import { UserAdminManagement } from "./pages/admin/UserAdminManagement";
 import { PaymentSuccess, PaymentError, PaymentCancel } from "./pages/payment";
 import ProfilePage from "./pages/private/ProfilePage";
 import ProductListPage from "./pages/ecommerce/ProductListPage";
+import CategoryProductsPage from "./pages/ecommerce/CategoryProductsPage";
 import ProductDetailPage from "./pages/ecommerce/ProductDetailPage";
 import CartPage from "./pages/ecommerce/CartPage";
 import CheckoutPage from "./pages/ecommerce/CheckoutPage";
@@ -28,6 +29,8 @@ import OrderHistoryPage from "./pages/ecommerce/OrderHistoryPage";
 import OrderDetailPage from "./pages/ecommerce/OrderDetailPage";
 import WishlistPage from "./pages/ecommerce/WishlistPage";
 import ReturnRequestPage from "./pages/ecommerce/ReturnRequestPage";
+import MyReturnsPage from "./pages/ecommerce/MyReturnsPage";
+import MyReviewsPage from "./pages/ecommerce/MyReviewsPage";
 import AddressBookPage from "./pages/ecommerce/AddressBookPage";
 import RolePermissionsPage from "./pages/admin/RolePermissions/RolePermissionsPage";
 import { RoleGate } from "./components/auth/RoleGate";
@@ -59,6 +62,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Home /> },
           { path: "products", element: <ProductListPage /> },
+          { path: "categories/:slug", element: <CategoryProductsPage /> },
           { path: "products/:idOrSlug", element: <ProductDetailPage /> },
           {
             path: "profile",
@@ -113,6 +117,22 @@ const router = createBrowserRouter([
             element: (
               <ProtectedRoute>
                 <WishlistPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: "returns",
+            element: (
+              <ProtectedRoute>
+                <MyReturnsPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: "reviews",
+            element: (
+              <ProtectedRoute>
+                <MyReviewsPage />
               </ProtectedRoute>
             ),
           },

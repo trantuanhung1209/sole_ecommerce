@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { Heart, ShoppingCart } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { Heart, Minus, Plus, ShoppingCart } from "lucide-react";
 import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,8 @@ import {
   reviewApi,
   wishlistApi,
 } from "@/services/ecommerceServices";
-import type { Brand, Category, Product, ProductVariant } from "@/types/ecommerce.type";
+import type { Brand, Category, Product, ProductSummary, ProductVariant } from "@/types/ecommerce.type";
+import { ProductCard } from "@/components/home/ProductCard";
 
 const fallback = "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=1000&q=80";
 
@@ -28,15 +29,18 @@ const GENDER_LABELS: Record<string, string> = {
 
 export default function ProductDetailPage() {
   const { idOrSlug = "" } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
+  const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
   const [reviewAverage, setReviewAverage] = useState(0);
+  const [relatedProducts, setRelatedProducts] = useState<ProductSummary[]>([]);
 
   useEffect(() => {
     Promise.all([brandApi.list(), categoryApi.list()]).then(([brandList, categoryList]) => {
@@ -54,8 +58,10 @@ export default function ProductDetailPage() {
         const colors = [...new Set(active.map((v) => v.colorName))];
         const firstColor = colors[0] || "";
         setSelectedColor(firstColor);
-        const sizesForColor = active.filter((v) => v.colorName === firstColor).map((v) => v.size);
-        setSelectedSize(sizesForColor[0] || "");
+        const sizesForColor = active
+          .filter((v) => v.colorName === firstColor && (v.available ?? 1) > 0)
+          .map((v) => v.size);
+        setSelectedSize(sizesForColor[0] || active.find((v) => v.colorName === firstColor)?.size || "");
       });
       reviewApi.listByProduct(data.productId, 0, 50).then((result) => {
         setReviewCount(result.totalElements);
@@ -67,6 +73,7 @@ export default function ProductDetailPage() {
           setReviewAverage(0);
         }
       });
+      productApi.related(data.productId, 8).then(setRelatedProducts).catch(() => setRelatedProducts([]));
     });
   }, [idOrSlug]);
 
@@ -83,14 +90,15 @@ export default function ProductDetailPage() {
   const colors = useMemo(() => [...new Set(variants.map((v) => v.colorName))], [variants]);
 
   const sizesForColor = useMemo(
-    () => variants.filter((v) => v.colorName === selectedColor).map((v) => v.size),
+    () => variants.filter((v) => v.colorName === selectedColor),
     [selectedColor, variants]
   );
 
-  const selected = useMemo(
     () => variants.find((v) => v.colorName === selectedColor && v.size === selectedSize),
     [selectedColor, selectedSize, variants]
   );
+
+  const available = selected?.available ?? 0;
 
   const galleryImages = useMemo(() => {
     if (selected?.imageUrls?.length) return selected.imageUrls;
@@ -107,11 +115,21 @@ export default function ProductDetailPage() {
     selected?.compareAtPrice != null &&
     selected.compareAtPrice > (selected.price || 0);
 
-  const outOfStock = variants.length === 0;
+  const outOfStock = variants.every((v) => (v.available ?? 0) <= 0);
 
   useEffect(() => {
     setActiveImage(0);
   }, [galleryImages]);
+
+  useEffect(() => {
+    setQuantity(1);
+  }, [selected?.variantId]);
+
+  useEffect(() => {
+    if (quantity > available && available > 0) {
+      setQuantity(available);
+    }
+  }, [available, quantity]);
 
   if (!product) {
     return <main className="min-h-screen bg-[#F7F7F5] p-8">Đang tải sản phẩm...</main>;
@@ -122,19 +140,32 @@ export default function ProductDetailPage() {
     toast.success("Đã thêm vào yêu thích");
   };
 
-  const addToCart = async () => {
+  const addToCart = async (qty = quantity) => {
     if (!selected) {
       toast.error("Vui lòng chọn màu và size");
       return;
     }
-    await cartApi.add(selected.variantId, 1);
+    if ((selected.available ?? 0) <= 0) {
+      toast.error("Size này đã hết hàng");
+      return;
+    }
+    await cartApi.add(selected.variantId, qty);
     toast.success("Đã thêm vào giỏ hàng");
+  };
+
+  const buyNow = async () => {
+    if (!selected || (selected.available ?? 0) <= 0) {
+      toast.error("Vui lòng chọn size còn hàng");
+      return;
+    }
+    await cartApi.add(selected.variantId, quantity);
+    navigate("/checkout");
   };
 
   const handleColorChange = (color: string) => {
     setSelectedColor(color);
-    const sizes = variants.filter((v) => v.colorName === color).map((v) => v.size);
-    setSelectedSize(sizes[0] || "");
+    const firstAvailable = variants.find((v) => v.colorName === color && (v.available ?? 0) > 0);
+    setSelectedSize(firstAvailable?.size || variants.find((v) => v.colorName === color)?.size || "");
   };
 
   const specs = [
@@ -245,31 +276,65 @@ export default function ProductDetailPage() {
               <Badge variant="outline">SKU {selected?.sku || "N/A"}</Badge>
             </div>
             <div className="grid grid-cols-4 gap-2">
-              {sizesForColor.map((size) => (
-                <button
-                  key={size}
-                  type="button"
-                  className={`h-11 rounded-lg border text-sm font-semibold ${
-                    selectedSize === size
-                      ? "border-[#111111] bg-[#111111] text-white"
-                      : "border-[#D1D5DB] bg-white text-[#111111]"
-                  }`}
-                  onClick={() => setSelectedSize(size)}
-                >
-                  {size}
-                </button>
-              ))}
+              {sizesForColor.map((variant) => {
+                const size = variant.size;
+                const sizeAvailable = variant.available ?? 0;
+                const disabled = sizeAvailable <= 0;
+                return (
+                  <button
+                    key={size}
+                    type="button"
+                    disabled={disabled}
+                    className={`h-11 rounded-lg border text-sm font-semibold ${
+                      disabled
+                        ? "cursor-not-allowed border-[#E5E7EB] bg-[#F3F4F6] text-[#9CA3AF] line-through"
+                        : selectedSize === size
+                          ? "border-[#111111] bg-[#111111] text-white"
+                          : "border-[#D1D5DB] bg-white text-[#111111]"
+                    }`}
+                    onClick={() => setSelectedSize(size)}
+                  >
+                    {size}
+                  </button>
+                );
+              })}
             </div>
+            {selected && available > 0 ? (
+              <p className="mt-2 text-sm text-[#6B7280]">Còn {available} sản phẩm</p>
+            ) : selected ? (
+              <p className="mt-2 text-sm text-red-600">Size này đã hết hàng</p>
+            ) : null}
           </div>
+
+          {available > 0 ? (
+            <div className="mt-6 flex items-center gap-3">
+              <span className="text-sm font-semibold">Số lượng</span>
+              <Button variant="outline" size="icon" disabled={quantity <= 1} onClick={() => setQuantity((q) => q - 1)}>
+                <Minus className="h-4 w-4" />
+              </Button>
+              <span className="w-8 text-center font-semibold">{quantity}</span>
+              <Button variant="outline" size="icon" disabled={quantity >= available} onClick={() => setQuantity((q) => q + 1)}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : null}
 
           <div className="mt-8 flex gap-3">
             <Button
               className="h-12 flex-1 rounded-lg bg-[#111111] text-white"
-              onClick={addToCart}
-              disabled={outOfStock || !selected}
+              onClick={() => addToCart()}
+              disabled={outOfStock || !selected || available <= 0}
             >
               <ShoppingCart className="h-4 w-4" />
               Thêm vào giỏ
+            </Button>
+            <Button
+              variant="outline"
+              className="h-12 flex-1 rounded-lg border-[#111111]"
+              onClick={buyNow}
+              disabled={outOfStock || !selected || available <= 0}
+            >
+              Mua ngay
             </Button>
             <Button variant="outline" className="h-12 rounded-lg border-[#D1D5DB] bg-white" onClick={addToWishlist}>
               <Heart className="h-4 w-4" />
@@ -313,6 +378,17 @@ export default function ProductDetailPage() {
         <div id="reviews">
           <ProductReviewsSection productId={product.productId} />
         </div>
+
+        {relatedProducts.length > 0 ? (
+          <div>
+            <h2 className="text-2xl font-bold">Sản phẩm liên quan</h2>
+            <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 lg:gap-6">
+              {relatedProducts.map((item) => (
+                <ProductCard key={item.productId} product={item} />
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
     </main>
   );

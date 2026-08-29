@@ -74,7 +74,32 @@ public class MailServiceImpl implements MailService {
         Context context = new Context();
         context.setVariable("customerName", customerName);
         context.setVariable("orderCode", order.getOrderCode());
+        context.setVariable("trackingCode", order.getTrackingCode());
         sendHtmlEmail(to, "Đơn hàng đã được giao vận chuyển - " + order.getOrderCode(), "order-shipped", context);
+    }
+
+    @Override
+    public void sendOrderDeliveredMail(String to, String customerName, Order order) {
+        Context context = new Context();
+        context.setVariable("customerName", customerName);
+        context.setVariable("orderCode", order.getOrderCode());
+        sendHtmlEmail(to, "Đơn hàng đã giao thành công - " + order.getOrderCode(), "order-delivered", context);
+    }
+
+    @Override
+    public void sendPaymentExpiredMail(String to, String customerName, String orderCode) {
+        Context context = new Context();
+        context.setVariable("customerName", customerName);
+        context.setVariable("orderCode", orderCode);
+        sendHtmlEmail(to, "Thanh toán hết hạn - " + orderCode, "payment-expired", context);
+    }
+
+    @Override
+    public void sendPaymentFailedMail(String to, String customerName, String orderCode) {
+        Context context = new Context();
+        context.setVariable("customerName", customerName);
+        context.setVariable("orderCode", orderCode);
+        sendHtmlEmail(to, "Thanh toán thất bại - " + orderCode, "payment-failed", context);
     }
 
     @Override
@@ -84,5 +109,14 @@ public class MailServiceImpl implements MailService {
         context.setVariable("orderCode", orderCode);
         context.setVariable("refundAmount", CURRENCY_FORMATTER.format(refundAmount) + " VNĐ");
         sendHtmlEmail(to, "Yêu cầu trả hàng đã được duyệt - " + orderCode, "return-approved", context);
+    }
+
+    @Override
+    public void sendReturnRejectedMail(String to, String customerName, String orderCode, String reason) {
+        Context context = new Context();
+        context.setVariable("customerName", customerName);
+        context.setVariable("orderCode", orderCode);
+        context.setVariable("reason", reason != null ? reason : "Không đủ điều kiện trả hàng");
+        sendHtmlEmail(to, "Yêu cầu trả hàng bị từ chối - " + orderCode, "return-rejected", context);
     }
 }

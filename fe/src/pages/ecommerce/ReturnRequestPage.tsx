@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { orderApi, returnApi } from "@/services/ecommerceServices";
+import { catalogApi, orderApi, returnApi } from "@/services/ecommerceServices";
 import type { Order, OrderItem } from "@/types/ecommerce.type";
 
 function formatOrderItemOption(item: OrderItem): string {
@@ -18,6 +18,7 @@ export default function ReturnRequestPage() {
   const [description, setDescription] = useState("");
   const [orderItemId, setOrderItemId] = useState("");
   const [items, setItems] = useState<OrderItem[]>([]);
+  const [images, setImages] = useState<File[]>([]);
 
   useEffect(() => {
     if (!orderId) return;
@@ -33,7 +34,11 @@ export default function ReturnRequestPage() {
   const handleSubmit = async () => {
     if (!orderId || !orderItemId || !reason) return;
     try {
-      await returnApi.create({ orderId, orderItemId, reason, description });
+      let imageUrls: string[] = [];
+      if (images.length > 0) {
+        imageUrls = await catalogApi.uploadImages(images);
+      }
+      await returnApi.create({ orderId, orderItemId, reason, customerNote: description, imageUrls });
       toast.success("Đã gửi yêu cầu trả hàng");
       navigate(`/orders/${orderId}`);
     } catch {
@@ -44,6 +49,7 @@ export default function ReturnRequestPage() {
   return (
     <main className="mx-auto max-w-[600px] px-4 py-8 space-y-4">
       <h1 className="text-2xl font-bold">Yêu cầu trả hàng</h1>
+      <p className="text-sm text-[#6B7280]">Chỉ chấp nhận trong vòng 7 ngày kể từ khi giao hàng.</p>
       {items.length > 1 ? (
         <div className="space-y-2">
           <label className="text-sm font-medium">Sản phẩm cần trả</label>
@@ -67,6 +73,10 @@ export default function ReturnRequestPage() {
       ) : null}
       <Input placeholder="Lý do trả hàng" value={reason} onChange={(e) => setReason(e.target.value)} />
       <Textarea placeholder="Mô tả chi tiết" value={description} onChange={(e) => setDescription(e.target.value)} />
+      <div>
+        <label className="text-sm font-medium">Ảnh minh chứng (tuỳ chọn)</label>
+        <Input type="file" accept="image/*" multiple className="mt-1" onChange={(e) => setImages(Array.from(e.target.files || []))} />
+      </div>
       <Button onClick={handleSubmit}>Gửi yêu cầu</Button>
     </main>
   );

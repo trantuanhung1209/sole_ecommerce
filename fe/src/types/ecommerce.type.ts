@@ -55,6 +55,7 @@ export interface ProductVariant {
   imageUrls: string[];
   status: VariantStatus;
   initialStock?: number;
+  available?: number;
 }
 
 export interface VariantView extends ProductVariant {
@@ -127,6 +128,7 @@ export interface OrderItem {
   unitPrice: number;
   quantity: number;
   lineTotal: number;
+  reviewed?: boolean;
 }
 
 export interface Order {
@@ -139,6 +141,8 @@ export interface Order {
   subtotal: number;
   shippingFee: number;
   grandTotal: number;
+  trackingCode?: string;
+  deliveredAt?: string;
   createdAt: string;
 }
 

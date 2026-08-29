@@ -31,6 +31,7 @@ public class RbacService {
     private final PermissionRepository permissionRepository;
     private final RolePermissionRepository rolePermissionRepository;
     private final AuditLogRepository auditLogRepository;
+    private final PermissionCacheService permissionCacheService;
 
     @PostConstruct
     public void seedDefaults() {
@@ -53,6 +54,7 @@ public class RbacService {
             for (String permission : PERMISSIONS) {
                 ensureRolePermission("SUPER_ADMIN", permission, true, "system");
             }
+            seedRoleDefaults();
         } catch (DataAccessException e) {
             log.warn("Skip RBAC default seed because database is not ready: {}", e.getMessage());
         }
@@ -137,7 +139,48 @@ public class RbacService {
                     .build());
             updated.add(after);
         }
+        permissionCacheService.invalidate(roleCode);
         return updated;
+    }
+
+    public boolean hasPermission(String roleCode, String permissionCode) {
+        return permissionsForRole(roleCode).contains(permissionCode);
+    }
+
+    public List<String> permissionsForRole(String roleCode) {
+        List<String> cached = permissionCacheService.getCached(roleCode);
+        if (cached != null) {
+            return cached;
+        }
+        List<String> permissions;
+        if ("SUPER_ADMIN".equals(roleCode)) {
+            permissions = PERMISSIONS;
+        } else {
+            permissions = rolePermissionRepository.findByRoleCode(roleCode).stream()
+                    .filter(rp -> Boolean.TRUE.equals(rp.getEnabled()))
+                    .map(RolePermission::getPermissionCode)
+                    .sorted()
+                    .toList();
+        }
+        permissionCacheService.put(roleCode, permissions);
+        return permissions;
+    }
+
+    private void seedRoleDefaults() {
+        List<String> staffPerms = List.of(
+                "CATALOG_READ", "CATALOG_CREATE", "CATALOG_UPDATE",
+                "INVENTORY_READ", "ORDER_READ", "ORDER_UPDATE",
+                "RETURN_READ", "REVIEW_MODERATE");
+        List<String> shopManagerPerms = List.of(
+                "CATALOG_READ", "CATALOG_CREATE", "CATALOG_UPDATE", "CATALOG_APPROVE",
+                "INVENTORY_READ", "INVENTORY_UPDATE", "ORDER_READ", "ORDER_UPDATE", "ORDER_CANCEL",
+                "RETURN_READ", "RETURN_PROCESS", "REVIEW_MODERATE", "REPORT_READ");
+        List<String> adminPerms = PERMISSIONS.stream()
+                .filter(p -> !"MANAGE_ROLE_PERMISSIONS".equals(p) && !"AUDIT_LOG_READ".equals(p))
+                .toList();
+        staffPerms.forEach(p -> ensureRolePermission("STAFF", p, true, "system"));
+        shopManagerPerms.forEach(p -> ensureRolePermission("SHOP_MANAGER", p, true, "system"));
+        adminPerms.forEach(p -> ensureRolePermission("ADMIN", p, true, "system"));
     }
 
     private RolePermission ensureRolePermission(String roleCode, String permissionCode, boolean enabled, String actorId) {

@@ -50,4 +50,6 @@ public class Order {
     private LocalDateTime paidAt;
     private LocalDateTime cancelledAt;
     private LocalDateTime completedAt;
+    private LocalDateTime deliveredAt;
+    private String trackingCode;
 }

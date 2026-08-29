@@ -35,9 +35,23 @@ function onRefreshed(success: boolean) {
   subscribers = [];
 }
 
+function getCsrfToken(): string | null {
+  const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 // Request interceptor
 authorizedAxios.interceptors.request.use(
-  (config) => config,
+  (config) => {
+    const method = config.method?.toUpperCase();
+    if (method && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+      const csrf = getCsrfToken();
+      if (csrf) {
+        config.headers.set("X-XSRF-TOKEN", csrf);
+      }
+    }
+    return config;
+  },
   (error) => Promise.reject(error)
 );
 

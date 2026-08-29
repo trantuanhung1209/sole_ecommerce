@@ -1,10 +1,14 @@
 package www.modules.checkout.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import www.exception.BadRequestException;
 import www.exception.NotFoundException;
+import www.modules.addresses.model.Address;
+import www.modules.addresses.service.AddressService;
 import www.modules.cart.model.Cart;
 import www.modules.cart.model.CartItem;
 import www.modules.cart.service.CartService;
@@ -37,6 +41,9 @@ public class CheckoutService {
     private final OrderService orderService;
     private final EcommercePaymentService paymentService;
     private final NotificationService notificationService;
+    private final AddressService addressService;
+    private final ShippingFeeCalculator shippingFeeCalculator;
+    private final ObjectMapper objectMapper;
 
     public CheckoutPreview preview(String userId) {
         Cart cart = cartService.activeCart(userId);
@@ -46,7 +53,7 @@ public class CheckoutService {
                     .orElseThrow(() -> new NotFoundException("Variant not found: " + cartItem.getVariantId()));
             subtotal += variant.getPrice() * cartItem.getQuantity();
         }
-        double shippingFee = subtotal > 0 ? 30000 : 0;
+        double shippingFee = shippingFeeCalculator.calculate(subtotal);
         CheckoutPreview preview = new CheckoutPreview();
         preview.setItemCount(cart.getItems().size());
         preview.setSubtotal(subtotal);
@@ -62,65 +69,101 @@ public class CheckoutService {
             throw new BadRequestException("Cart is empty");
         }
 
+        var validation = cartService.validate(userId);
+        if (!validation.isValid()) {
+            throw new BadRequestException("Cart validation failed: "
+                    + validation.getIssues().stream()
+                    .map(i -> i.getMessage())
+                    .reduce((a, b) -> a + "; " + b)
+                    .orElse("invalid items"));
+        }
+
+        String orderId = UUID.randomUUID().toString();
         String orderCode = orderService.nextOrderCode();
-        Order order = Order.builder()
-                .orderCode(orderCode)
-                .userId(userId)
-                .shippingAddressSnapshot(request.getShippingAddress())
-                .customerNote(request.getCustomerNote())
-                .items(new ArrayList<>())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
 
-        double subtotal = 0;
-        for (CartItem cartItem : cart.getItems()) {
-            ProductVariant variant = variantRepository.findById(cartItem.getVariantId())
-                    .orElseThrow(() -> new NotFoundException("Variant not found: " + cartItem.getVariantId()));
-            Product product = productRepository.findById(variant.getProductId())
-                    .orElseThrow(() -> new NotFoundException("Product not found: " + variant.getProductId()));
-            double lineTotal = variant.getPrice() * cartItem.getQuantity();
-            subtotal += lineTotal;
-            String image = !variant.getImageUrls().isEmpty()
-                    ? variant.getImageUrls().get(0)
-                    : (!product.getImageUrls().isEmpty() ? product.getImageUrls().get(0) : null);
-
-            order.getItems().add(OrderItem.builder()
-                    .orderItemId(UUID.randomUUID().toString())
-                    .productId(product.getProductId())
-                    .variantId(variant.getVariantId())
-                    .skuSnapshot(variant.getSku())
-                    .productNameSnapshot(product.getName())
-                    .brandNameSnapshot(product.getBrandId())
-                    .sizeSnapshot(variant.getSize())
-                    .colorSnapshot(variant.getColorName())
-                    .imageSnapshot(image)
-                    .unitPrice(variant.getPrice())
-                    .quantity(cartItem.getQuantity())
-                    .lineTotal(lineTotal)
-                    .build());
+        try {
+            for (CartItem cartItem : cart.getItems()) {
+                inventoryService.reserve(orderId, cartItem.getVariantId(), cartItem.getQuantity());
+            }
+        } catch (RuntimeException e) {
+            inventoryService.releaseOrderReservations(orderId);
+            throw e;
         }
 
-        order.setSubtotal(subtotal);
-        order.setGrandTotal(subtotal + order.getShippingFee() + order.getTaxTotal() - order.getDiscountTotal());
-        Order savedOrder = orderService.save(order);
+        Address address = addressService.getOwned(userId, request.getAddressId());
+        String addressSnapshot = toAddressSnapshot(address);
 
-        for (CartItem cartItem : cart.getItems()) {
-            inventoryService.reserve(savedOrder.getOrderId(), cartItem.getVariantId(), cartItem.getQuantity());
+        try {
+            Order order = Order.builder()
+                    .orderId(orderId)
+                    .orderCode(orderCode)
+                    .userId(userId)
+                    .shippingAddressSnapshot(addressSnapshot)
+                    .customerNote(request.getCustomerNote())
+                    .items(new ArrayList<>())
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            double subtotal = 0;
+            for (CartItem cartItem : cart.getItems()) {
+                ProductVariant variant = variantRepository.findById(cartItem.getVariantId())
+                        .orElseThrow(() -> new NotFoundException("Variant not found: " + cartItem.getVariantId()));
+                Product product = productRepository.findById(variant.getProductId())
+                        .orElseThrow(() -> new NotFoundException("Product not found: " + variant.getProductId()));
+                double lineTotal = variant.getPrice() * cartItem.getQuantity();
+                subtotal += lineTotal;
+                String image = !variant.getImageUrls().isEmpty()
+                        ? variant.getImageUrls().get(0)
+                        : (!product.getImageUrls().isEmpty() ? product.getImageUrls().get(0) : null);
+
+                order.getItems().add(OrderItem.builder()
+                        .orderItemId(UUID.randomUUID().toString())
+                        .productId(product.getProductId())
+                        .variantId(variant.getVariantId())
+                        .skuSnapshot(variant.getSku())
+                        .productNameSnapshot(product.getName())
+                        .brandNameSnapshot(product.getBrandId())
+                        .sizeSnapshot(variant.getSize())
+                        .colorSnapshot(variant.getColorName())
+                        .imageSnapshot(image)
+                        .unitPrice(variant.getPrice())
+                        .quantity(cartItem.getQuantity())
+                        .lineTotal(lineTotal)
+                        .build());
+            }
+
+            double shippingFee = shippingFeeCalculator.calculate(subtotal);
+            order.setSubtotal(subtotal);
+            order.setShippingFee(shippingFee);
+            order.setGrandTotal(subtotal + shippingFee + order.getTaxTotal() - order.getDiscountTotal());
+            Order savedOrder = orderService.save(order);
+
+            cartService.markCheckedOut(cart);
+            notificationService.create(
+                    userId,
+                    NotificationType.ORDER_CREATED,
+                    "Đơn hàng đã tạo",
+                    "Đơn " + savedOrder.getOrderCode() + " đang chờ thanh toán",
+                    "/orders/" + savedOrder.getOrderId());
+            notificationService.notifyStaff(
+                    NotificationType.STAFF_NEW_ORDER,
+                    "Đơn hàng mới",
+                    "Đơn " + savedOrder.getOrderCode() + " cần xử lý",
+                    "/admin/orders");
+            return paymentService.createPayment(savedOrder);
+        } catch (RuntimeException e) {
+            inventoryService.releaseOrderReservations(orderId);
+            throw e;
         }
+    }
 
-        cartService.markCheckedOut(cart);
-        notificationService.create(
-                userId,
-                NotificationType.ORDER_CREATED,
-                "Đơn hàng đã tạo",
-                "Đơn " + savedOrder.getOrderCode() + " đang chờ thanh toán",
-                "/orders/" + savedOrder.getOrderId());
-        notificationService.notifyStaff(
-                NotificationType.STAFF_NEW_ORDER,
-                "Đơn hàng mới",
-                "Đơn " + savedOrder.getOrderCode() + " cần xử lý",
-                "/admin/orders");
-        return paymentService.createPayment(savedOrder);
+    private String toAddressSnapshot(Address address) {
+        try {
+            return objectMapper.writeValueAsString(address);
+        } catch (JsonProcessingException e) {
+            return address.getRecipientName() + ", " + address.getPhone() + ", "
+                    + address.getLine1() + ", " + address.getCity();
+        }
     }
 }

@@ -12,4 +12,5 @@ public interface ProductReviewRepository extends MongoRepository<ProductReview, 
     Page<ProductReview> findByProductIdAndVisibleTrueOrderByCreatedAtDesc(String productId, Pageable pageable);
     List<ProductReview> findByProductIdAndVisibleTrue(String productId);
     Optional<ProductReview> findByUserIdAndOrderIdAndOrderItemId(String userId, String orderId, String orderItemId);
+    Page<ProductReview> findByUserIdOrderByCreatedAtDesc(String userId, Pageable pageable);
 }

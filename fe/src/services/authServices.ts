@@ -86,4 +86,28 @@ export const authServices = {
     );
     return response.data;
   },
+
+  listSessions: async () => {
+    const response = await authorizedAxios.get<
+      ApiResponse<
+        {
+          sessionId: string;
+          userAgent?: string;
+          ip?: string;
+          createdAt: string;
+          expiresAt?: string;
+          current?: boolean;
+        }[]
+      >
+    >("/auth/sessions");
+    return response.data.data;
+  },
+
+  revokeSession: async (sessionId: string) => {
+    await authorizedAxios.delete(`/auth/sessions/${sessionId}`);
+  },
+
+  revokeOtherSessions: async () => {
+    await authorizedAxios.delete("/auth/sessions");
+  },
 };

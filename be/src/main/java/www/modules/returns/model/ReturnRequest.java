@@ -36,4 +36,6 @@ public class ReturnRequest {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime closedAt;
+    @Builder.Default
+    private Boolean manualRefundRequired = false;
 }

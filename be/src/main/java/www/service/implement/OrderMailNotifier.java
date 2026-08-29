@@ -39,6 +39,33 @@ public class OrderMailNotifier {
         });
     }
 
+    public void sendOrderDelivered(Order order) {
+        resolveCustomer(order).ifPresent(customer -> {
+            try {
+                mailService.sendOrderDeliveredMail(customer.email(), customer.name(), order);
+            } catch (Exception e) {
+                log.error("Order delivered email failed: orderId={}", order.getOrderId(), e);
+            }
+        });
+    }
+
+    public void sendReturnRejected(Order order, ReturnRequest returnRequest) {
+        if (order == null) {
+            return;
+        }
+        resolveCustomer(order).ifPresent(customer -> {
+            try {
+                mailService.sendReturnRejectedMail(
+                        customer.email(),
+                        customer.name(),
+                        order.getOrderCode(),
+                        returnRequest.getRejectedReason());
+            } catch (Exception e) {
+                log.error("Return rejected email failed: returnId={}", returnRequest.getReturnId(), e);
+            }
+        });
+    }
+
     public void sendReturnApproved(Order order, ReturnRequest returnRequest) {
         resolveCustomer(order).ifPresent(customer -> {
             try {

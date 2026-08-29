@@ -37,6 +37,15 @@ public class ProductReviewController {
         return productReviews(productId, page, size);
     }
 
+    @GetMapping("/reviews/me")
+    public ResponseEntity<ApiResponse<PageResponse<ProductReview>>> myReviews(
+            @AuthenticationPrincipal UserPrincipal user,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.success(PageUtils.toPageResponse(
+                reviewService.myReviews(user.getId(), PageRequest.of(page, size)))));
+    }
+
     @PostMapping("/reviews/products")
     public ResponseEntity<ApiResponse<ProductReview>> create(
             @Valid @RequestBody CreateReviewRequest request,
@@ -61,8 +70,10 @@ public class ProductReviewController {
     }
 
     @PostMapping("/reviews/{reviewId}/vote")
-    public ResponseEntity<ApiResponse<ProductReview>> vote(@PathVariable String reviewId) {
-        return ResponseEntity.ok(ApiResponse.success(reviewService.vote(reviewId)));
+    public ResponseEntity<ApiResponse<ProductReview>> vote(
+            @PathVariable String reviewId,
+            @AuthenticationPrincipal UserPrincipal user) {
+        return ResponseEntity.ok(ApiResponse.success(reviewService.vote(reviewId, user.getId())));
     }
 
     @PreAuthorize("hasAnyRole('STAFF','SHOP_MANAGER','ADMIN','SUPER_ADMIN')")

@@ -68,9 +68,16 @@ public class CatalogController {
         return ResponseEntity.ok(ApiResponse.success(catalogService.getProduct(idOrSlug)));
     }
 
+    @GetMapping("/products/{productId}/related")
+    public ResponseEntity<ApiResponse<List<ProductSummary>>> relatedProducts(
+            @PathVariable String productId,
+            @RequestParam(defaultValue = "8") int limit) {
+        return ResponseEntity.ok(ApiResponse.success(catalogService.getRelatedProducts(productId, limit)));
+    }
+
     @GetMapping("/products/{productId}/variants")
-    public ResponseEntity<ApiResponse<List<ProductVariant>>> variants(@PathVariable String productId) {
-        return ResponseEntity.ok(ApiResponse.success(catalogService.getVariants(productId)));
+    public ResponseEntity<ApiResponse<List<VariantView>>> variants(@PathVariable String productId) {
+        return ResponseEntity.ok(ApiResponse.success(catalogService.getPublicVariants(productId)));
     }
 
     @GetMapping("/admin/products/{productId}/variants")
@@ -143,13 +150,13 @@ public class CatalogController {
     }
 
     @PostMapping("/admin/products/{productId}/approve")
-    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("@perm.has(authentication, 'CATALOG_APPROVE')")
     public ResponseEntity<ApiResponse<Product>> approve(@PathVariable String productId, Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.success("Product approved", catalogService.approve(productId, currentUserId(authentication))));
     }
 
     @PostMapping("/admin/products/{productId}/reject")
-    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("@perm.has(authentication, 'CATALOG_APPROVE')")
     public ResponseEntity<ApiResponse<Product>> reject(
             @PathVariable String productId,
             @RequestParam(required = false) String reason,

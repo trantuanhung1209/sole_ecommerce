@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import www.exception.BadRequestException;
 import www.exception.ForbiddenException;
 import www.exception.NotFoundException;
+import www.modules.common.EcommerceEnums.EcommercePaymentStatus;
 import www.modules.common.EcommerceEnums.OrderStatus;
 import www.modules.common.EcommerceEnums.ReturnStatus;
 import www.modules.orders.model.Order;
@@ -15,6 +16,7 @@ import www.modules.orders.repository.OrderRepository;
 import www.modules.returns.dto.ReturnDtos.*;
 import www.modules.returns.model.ReturnRequest;
 import www.modules.returns.repository.ReturnRequestRepository;
+import www.modules.payments.service.EcommercePaymentService;
 import www.service.implement.OrderMailNotifier;
 import www.modules.notifications.service.NotificationService;
 import www.modules.common.EcommerceEnums.NotificationType;
@@ -24,10 +26,13 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class ReturnService {
+    private static final int RETURN_WINDOW_DAYS = 7;
+
     private final ReturnRequestRepository returnRepository;
     private final OrderRepository orderRepository;
     private final OrderMailNotifier orderMailNotifier;
     private final NotificationService notificationService;
+    private final EcommercePaymentService paymentService;
 
     public Page<ReturnRequest> mine(String userId, Pageable pageable) {
         return returnRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
@@ -61,6 +66,7 @@ public class ReturnService {
         if (order.getStatus() != OrderStatus.DELIVERED && order.getStatus() != OrderStatus.COMPLETED) {
             throw new BadRequestException("Only delivered orders can be returned");
         }
+        validateReturnWindow(order);
         if (returnRepository.findByOrderIdAndOrderItemId(order.getOrderId(), request.getOrderItemId()).isPresent()) {
             throw new BadRequestException("Return request already exists for this order item");
         }
@@ -122,7 +128,14 @@ public class ReturnService {
         if (request.getStatus() == ReturnStatus.CLOSED || request.getStatus() == ReturnStatus.REFUNDED) {
             returnRequest.setClosedAt(LocalDateTime.now());
         }
+        if (request.getStatus() == ReturnStatus.REFUNDED) {
+            processRefund(returnRequest);
+        }
         ReturnRequest saved = returnRepository.save(returnRequest);
+        if (request.getStatus() == ReturnStatus.REJECTED) {
+            orderMailNotifier.sendReturnRejected(
+                    orderRepository.findById(saved.getOrderId()).orElse(null), saved);
+        }
         if (shouldSendReturnApprovedEmail(previousStatus, request.getStatus())) {
             Order order = orderRepository.findById(saved.getOrderId())
                     .orElseThrow(() -> new NotFoundException("Order not found: " + saved.getOrderId()));
@@ -185,6 +198,29 @@ public class ReturnService {
         UpdateReturnStatusRequest body = request != null ? request : new UpdateReturnStatusRequest();
         body.setStatus(ReturnStatus.REFUNDED);
         return updateStatus(returnId, body);
+    }
+
+    private void validateReturnWindow(Order order) {
+        if (order.getDeliveredAt() == null) {
+            throw new BadRequestException("Order delivery date is not recorded");
+        }
+        if (order.getDeliveredAt().isBefore(LocalDateTime.now().minusDays(RETURN_WINDOW_DAYS))) {
+            throw new BadRequestException("Return window expired (" + RETURN_WINDOW_DAYS + " days after delivery)");
+        }
+    }
+
+    private void processRefund(ReturnRequest returnRequest) {
+        Order order = orderRepository.findById(returnRequest.getOrderId())
+                .orElseThrow(() -> new NotFoundException("Order not found: " + returnRequest.getOrderId()));
+        returnRequest.setManualRefundRequired(true);
+        returnRequest.setManagerNote(
+                (returnRequest.getManagerNote() != null ? returnRequest.getManagerNote() + " | " : "")
+                        + "Manual SePay refund may be required");
+        paymentService.markRefunded(order.getOrderId());
+        order.setStatus(OrderStatus.REFUNDED);
+        order.setPaymentStatus(EcommercePaymentStatus.REFUNDED);
+        order.setUpdatedAt(LocalDateTime.now());
+        orderRepository.save(order);
     }
 
     private ReturnStatus normalizeStatus(ReturnStatus status) {

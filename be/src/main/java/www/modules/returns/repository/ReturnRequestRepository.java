@@ -16,5 +16,6 @@ public interface ReturnRequestRepository extends MongoRepository<ReturnRequest, 
 
     Page<ReturnRequest> findByStatusOrderByCreatedAtDesc(ReturnStatus status, Pageable pageable);
     Optional<ReturnRequest> findByOrderIdAndOrderItemId(String orderId, String orderItemId);
+    List<ReturnRequest> findByOrderId(String orderId);
     long countByStatus(ReturnStatus status);
 }

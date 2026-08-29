@@ -2,8 +2,13 @@ import { UserRole, type UserRole as UserRoleType } from "@/types/user.type";
 
 /** Mirrors backend @PreAuthorize + SecurityConfig for SOLE e-commerce. */
 export const roleAccess = {
-  canAccessAdminPortal: (role?: UserRoleType) =>
-    role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN,
+  hasPermission: (permissions: string[] | undefined, code: string) =>
+    permissions?.includes(code) ?? false,
+
+  canAccessAdminPortal: (role?: UserRoleType, permissions?: string[]) =>
+    role === UserRole.ADMIN ||
+    role === UserRole.SUPER_ADMIN ||
+    roleAccess.hasPermission(permissions, "SYSTEM_SETTINGS"),
 
   canAccessStaffPortal: (role?: UserRoleType) =>
     role === UserRole.STAFF ||
@@ -11,22 +16,37 @@ export const roleAccess = {
     role === UserRole.ADMIN ||
     role === UserRole.SUPER_ADMIN,
 
-  canManageUsers: (role?: UserRoleType) =>
-    role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN,
+  canManageUsers: (role?: UserRoleType, permissions?: string[]) =>
+    role === UserRole.ADMIN ||
+    role === UserRole.SUPER_ADMIN ||
+    roleAccess.hasPermission(permissions, "USER_UPDATE"),
 
-  canManageRbac: (role?: UserRoleType) => role === UserRole.SUPER_ADMIN,
+  canManageRbac: (role?: UserRoleType, permissions?: string[]) =>
+    role === UserRole.SUPER_ADMIN ||
+    roleAccess.hasPermission(permissions, "MANAGE_ROLE_PERMISSIONS"),
 
-  canCreateProduct: (role?: UserRoleType) =>
-    role === UserRole.STAFF || role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN,
+  canCreateProduct: (role?: UserRoleType, permissions?: string[]) =>
+    role === UserRole.STAFF ||
+    role === UserRole.ADMIN ||
+    role === UserRole.SUPER_ADMIN ||
+    roleAccess.hasPermission(permissions, "CATALOG_CREATE"),
 
-  canEditProduct: (role?: UserRoleType) =>
-    role === UserRole.STAFF || role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN,
+  canEditProduct: (role?: UserRoleType, permissions?: string[]) =>
+    role === UserRole.STAFF ||
+    role === UserRole.ADMIN ||
+    role === UserRole.SUPER_ADMIN ||
+    roleAccess.hasPermission(permissions, "CATALOG_UPDATE"),
 
-  canApproveProduct: (role?: UserRoleType) =>
-    role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN,
+  canApproveProduct: (role?: UserRoleType, permissions?: string[]) =>
+    role === UserRole.ADMIN ||
+    role === UserRole.SUPER_ADMIN ||
+    role === UserRole.SHOP_MANAGER ||
+    roleAccess.hasPermission(permissions, "CATALOG_APPROVE"),
 
-  canPublishProduct: (role?: UserRoleType) =>
-    role === UserRole.SHOP_MANAGER || role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN,
+  canPublishProduct: (role?: UserRoleType, permissions?: string[]) =>
+    role === UserRole.SHOP_MANAGER ||
+    role === UserRole.ADMIN ||
+    role === UserRole.SUPER_ADMIN,
 
   canDeleteProduct: (role?: UserRoleType) =>
     role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN,

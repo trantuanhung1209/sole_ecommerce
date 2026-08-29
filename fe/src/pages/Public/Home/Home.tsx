@@ -59,7 +59,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([productApi.list(undefined, 0, 100), brandApi.list(), categoryApi.list()])
+    Promise.all([productApi.list({ page: 0, pageSize: 100 }), brandApi.list(), categoryApi.list()])
       .then(([productPage, brandList, categoryList]) => {
         setProducts(productPage.content);
         setBrands(brandList);

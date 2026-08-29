@@ -1,8 +1,10 @@
 package www.modules.catalog.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import www.exception.BadRequestException;
@@ -17,6 +19,8 @@ import www.modules.common.EcommerceEnums.VariantStatus;
 import www.modules.inventory.model.Inventory;
 import www.modules.inventory.service.InventoryService;
 import www.modules.reviews.repository.ProductReviewRepository;
+import www.modules.search.port.ProductSearchPort;
+import www.modules.search.service.SearchIndexService;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -31,6 +35,8 @@ public class CatalogService {
     private final CategoryRepository categoryRepository;
     private final InventoryService inventoryService;
     private final ProductReviewRepository reviewRepository;
+    private final ProductSearchPort productSearchPort;
+    private final SearchIndexService searchIndexService;
 
     public Page<ProductSummary> getPublishedProductSummaries(String search, Pageable pageable) {
         ProductFilter filter = new ProductFilter();
@@ -40,6 +46,10 @@ public class CatalogService {
     }
 
     public Page<ProductSummary> searchPublished(ProductFilter filter, Pageable pageable) {
+        return productSearchPort.search(filter, pageable);
+    }
+
+    public Page<ProductSummary> searchPublishedMongo(ProductFilter filter, Pageable pageable) {
         List<Product> products = loadPublishedCandidates(filter.getSearch());
         List<ProductSummary> summaries = products.stream()
                 .filter(p -> matchesBasicFilter(p, filter))
@@ -163,7 +173,9 @@ public class CatalogService {
         product.setStatus(ProductStatus.PUBLISHED);
         product.setPublicStatus(PublicStatus.PUBLISHED);
         product.setUpdatedAt(LocalDateTime.now());
-        return productRepository.save(product);
+        Product saved = productRepository.save(product);
+        searchIndexService.indexProductAsync(productId);
+        return saved;
     }
 
     public Product unpublish(String productId) {
@@ -171,7 +183,9 @@ public class CatalogService {
         product.setStatus(ProductStatus.UNPUBLISHED);
         product.setPublicStatus(PublicStatus.HIDDEN);
         product.setUpdatedAt(LocalDateTime.now());
-        return productRepository.save(product);
+        Product saved = productRepository.save(product);
+        searchIndexService.indexProductAsync(productId);
+        return saved;
     }
 
     public void softDelete(String productId) {
@@ -180,6 +194,7 @@ public class CatalogService {
         product.setPublicStatus(PublicStatus.HIDDEN);
         product.setUpdatedAt(LocalDateTime.now());
         productRepository.save(product);
+        searchIndexService.indexProductAsync(productId);
     }
 
     public Product restore(String productId) {
@@ -249,6 +264,14 @@ public class CatalogService {
 
     public List<ProductVariant> getVariants(String productId) {
         return variantRepository.findByProductId(productId);
+    }
+
+    public List<VariantView> getPublicVariants(String productIdOrSlug) {
+        Product product = getProduct(productIdOrSlug);
+        return variantRepository.findByProductId(product.getProductId()).stream()
+                .filter(v -> v.getStatus() == null || v.getStatus() == VariantStatus.ACTIVE)
+                .map(this::toVariantView)
+                .toList();
     }
 
     public List<VariantView> getAdminVariants(String productId) {
@@ -464,6 +487,21 @@ public class CatalogService {
             return new PageImpl<>(List.of(), pageable, items.size());
         }
         return new PageImpl<>(items.subList(start, end), pageable, items.size());
+    }
+
+    public List<ProductSummary> getRelatedProducts(String productIdOrSlug, int limit) {
+        Product product = getProduct(productIdOrSlug);
+        List<String> categoryIds = product.getCategoryIds() != null ? product.getCategoryIds() : List.of();
+        if (categoryIds.isEmpty()) {
+            return List.of();
+        }
+        ProductFilter filter = new ProductFilter();
+        filter.setSort("newest");
+        return searchPublished(filter, PageRequest.of(0, 200)).getContent().stream()
+                .filter(s -> !s.getProductId().equals(product.getProductId()))
+                .filter(s -> s.getCategoryIds() != null && s.getCategoryIds().stream().anyMatch(categoryIds::contains))
+                .limit(Math.max(1, limit))
+                .toList();
     }
 
     private String slugOrDefault(String slug, String name) {
