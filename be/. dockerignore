@@ -1,0 +1,11 @@
+# Backend .dockerignore
+build/
+.gradle/
+*.log
+.idea/
+.vscode/
+*.iml
+.DS_Store
+target/
+!gradle/wrapper/gradle-wrapper.jar
+

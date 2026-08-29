@@ -1,0 +1,14 @@
+# Nested Gradle/Java output (default ignore only matches /build at repo root)
+be/build/
+be/out/
+be/target/
+be/.gradle/
+*.class
+
+# Nested Vite output
+fe/dist/
+fe/.vite/
+
+# Secrets and local env
+.env
+**/.env

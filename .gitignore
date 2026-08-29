@@ -1,0 +1,34 @@
+# Java/Spring Boot
+be/build/
+be/target/
+be/.gradle/
+be/.idea/
+be/*.iml
+be/out/
+be/.classpath
+be/.project
+be/.settings/
+be/.vscode/
+
+# Node/Vite/React
+fe/node_modules/
+fe/dist/
+fe/.env
+fe/.DS_Store
+fe/.vscode/
+
+# OS files
+*.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# General
+.vscode/
+.idea/
+
+.env
+be/src/main/resources/application.properties
+# Added by code-review-graph
+.code-review-graph/

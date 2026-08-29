@@ -1,0 +1,45 @@
+services:
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: www-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - www-network
+    command: redis-server --appendonly yes
+
+  # Redis Commander - Web UI for Redis
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: www-redis-commander
+    restart: unless-stopped
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8082}:8081"
+    environment:
+      # BE chạy trên host dùng localhost:6379 — trỏ Commander về cùng instance (tránh Redis Docker rỗng)
+      - REDIS_HOSTS=sole:host.docker.internal:6379
+      - HTTP_USER=${REDIS_COMMANDER_USER:-admin}
+      - HTTP_PASSWORD=${REDIS_COMMANDER_PASSWORD:-admin}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - www-network
+    depends_on:
+      - redis
+
+# Networks
+networks:
+  www-network:
+    driver: bridge
+
+# Volumes cho persistent data
+volumes:
+  gradle_cache:
+    driver: local
+  redis_data:
+    driver: local

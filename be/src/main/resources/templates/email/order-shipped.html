@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>SOLE - Đơn hàng đang giao</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111111; background: #F7F7F5; margin: 0; padding: 24px;">
+  <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 32px; border: 1px solid #E5E7EB;">
+    <p style="margin: 0 0 8px; font-size: 24px; font-weight: 900; letter-spacing: -0.02em;">SOLE.</p>
+    <p style="margin: 0 0 24px; color: #6B7280; font-size: 14px;">Premium sneaker store</p>
+    <h2 style="margin: 0 0 16px; font-size: 20px;">Đơn hàng đang giao vận chuyển</h2>
+    <p style="margin: 0 0 8px; line-height: 1.6;">Xin chào <strong th:text="${customerName}">Customer</strong>,</p>
+    <p style="margin: 0; line-height: 1.6;">
+      Đơn hàng <strong th:text="${orderCode}">ORDER</strong> đang trên đường giao đến bạn.
+    </p>
+  </div>
+  <p style="max-width: 560px; margin: 16px auto 0; text-align: center; color: #9CA3AF; font-size: 12px;">© SOLE Shoe Store</p>
+</body>
+</html>

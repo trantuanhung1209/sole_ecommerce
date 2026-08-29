@@ -1,0 +1,331 @@
+import authorizedAxios from "@/utils/authorizedAxios";
+import publicAxios from "@/utils/publicAxios";
+import type { ApiResponse, PageResponse } from "@/types/api.type";
+import type {
+  Address,
+  Brand,
+  Cart,
+  Category,
+  Inventory,
+  Order,
+  OrderStatus,
+  PaymentCheckoutResponse,
+  PermissionMatrix,
+  Product,
+  ProductSummary,
+  ProductReview,
+  ProductStatus,
+  ProductVariant,
+  PublicStatus,
+  ReturnRequest,
+  VariantView,
+  WishlistItem,
+} from "@/types/ecommerce.type";
+
+export const money = (amount: number) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
+
+const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.split(",")[1];
+      resolve(`data:${file.type};base64,${base64}`);
+    };
+    reader.onerror = reject;
+  });
+
+export const catalogApi = {
+  uploadImages: async (files: File[]) => {
+    const images = await Promise.all(files.map(fileToBase64));
+    const res = await authorizedAxios.post<ApiResponse<string[]>>("/admin/catalog/images", { images });
+    return res.data.data;
+  },
+};
+
+export const productApi = {
+  list: async (search?: string, page = 0, size = 12) => {
+    const res = await publicAxios.get<ApiResponse<PageResponse<ProductSummary>>>("/products", {
+      params: { search, page, pageSize: size },
+    });
+    return res.data.data;
+  },
+  detail: async (idOrSlug: string) => {
+    const res = await publicAxios.get<ApiResponse<Product>>(`/products/${idOrSlug}`);
+    return res.data.data;
+  },
+  variants: async (productId: string) => {
+    const res = await publicAxios.get<ApiResponse<ProductVariant[]>>(`/products/${productId}/variants`);
+    return res.data.data;
+  },
+  adminVariants: async (productId: string) => {
+    const res = await authorizedAxios.get<ApiResponse<VariantView[]>>(`/admin/products/${productId}/variants`);
+    return res.data.data;
+  },
+  adminList: async (
+    search?: string,
+    page = 0,
+    size = 10,
+    status?: ProductStatus,
+    publicStatus?: PublicStatus
+  ) => {
+    const res = await authorizedAxios.get<ApiResponse<PageResponse<Product>>>("/admin/products", {
+      params: { search, page, size, status, publicStatus },
+    });
+    return res.data.data;
+  },
+  create: async (data: Partial<Product>) => {
+    const res = await authorizedAxios.post<ApiResponse<Product>>("/admin/products", data);
+    return res.data.data;
+  },
+  update: async (productId: string, data: Partial<Product>) => {
+    const res = await authorizedAxios.put<ApiResponse<Product>>(`/admin/products/${productId}`, data);
+    return res.data.data;
+  },
+  approve: async (productId: string) => {
+    const res = await authorizedAxios.post<ApiResponse<Product>>(`/admin/products/${productId}/approve`);
+    return res.data.data;
+  },
+  reject: async (productId: string, reason: string) => {
+    const res = await authorizedAxios.post<ApiResponse<Product>>(
+      `/admin/products/${productId}/reject`,
+      { reason }
+    );
+    return res.data.data;
+  },
+  publish: async (productId: string) => {
+    const res = await authorizedAxios.post<ApiResponse<Product>>(`/admin/products/${productId}/publish`);
+    return res.data.data;
+  },
+  unpublish: async (productId: string) => {
+    const res = await authorizedAxios.post<ApiResponse<Product>>(`/admin/products/${productId}/unpublish`);
+    return res.data.data;
+  },
+  createVariant: async (productId: string, data: Partial<ProductVariant> & { initialStock?: number }) => {
+    const res = await authorizedAxios.post<ApiResponse<ProductVariant>>(`/admin/products/${productId}/variants`, data);
+    return res.data.data;
+  },
+  updateVariant: async (
+    productId: string,
+    variantId: string,
+    data: Partial<ProductVariant> & { initialStock?: number }
+  ) => {
+    const res = await authorizedAxios.put<ApiResponse<ProductVariant>>(
+      `/admin/products/${productId}/variants/${variantId}`,
+      data
+    );
+    return res.data.data;
+  },
+  deleteVariant: async (productId: string, variantId: string) => {
+    await authorizedAxios.delete(`/admin/products/${productId}/variants/${variantId}`);
+  },
+};
+
+export const brandApi = {
+  list: async () => {
+    const res = await publicAxios.get<ApiResponse<Brand[]>>("/brands");
+    return res.data.data;
+  },
+  create: async (data: Partial<Brand>) => {
+    const res = await authorizedAxios.post<ApiResponse<Brand>>("/admin/brands", data);
+    return res.data.data;
+  },
+};
+
+export const categoryApi = {
+  list: async () => {
+    const res = await publicAxios.get<ApiResponse<Category[]>>("/categories");
+    return res.data.data;
+  },
+  create: async (data: Partial<Category>) => {
+    const res = await authorizedAxios.post<ApiResponse<Category>>("/admin/categories", data);
+    return res.data.data;
+  },
+};
+
+export const cartApi = {
+  get: async () => {
+    const res = await authorizedAxios.get<ApiResponse<Cart>>("/cart");
+    return res.data.data;
+  },
+  add: async (variantId: string, quantity: number) => {
+    const res = await authorizedAxios.post<ApiResponse<Cart>>("/cart/items", { variantId, quantity });
+    return res.data.data;
+  },
+  update: async (cartItemId: string, quantity: number) => {
+    const res = await authorizedAxios.put<ApiResponse<Cart>>(`/cart/items/${cartItemId}`, { quantity });
+    return res.data.data;
+  },
+  remove: async (cartItemId: string) => {
+    const res = await authorizedAxios.delete<ApiResponse<Cart>>(`/cart/items/${cartItemId}`);
+    return res.data.data;
+  },
+};
+
+export const checkoutApi = {
+  preview: async () => {
+    const res = await authorizedAxios.post<ApiResponse<{ itemCount: number; subtotal: number; shippingFee: number; grandTotal: number }>>("/checkout/preview");
+    return res.data.data;
+  },
+  checkout: async (shippingAddress: string, customerNote?: string) => {
+    const res = await authorizedAxios.post<ApiResponse<PaymentCheckoutResponse>>("/checkout", {
+      shippingAddress,
+      customerNote,
+      paymentMethod: "SEPAY",
+    });
+    return res.data.data;
+  },
+};
+
+export const orderApi = {
+  mine: async (page = 0, size = 10) => {
+    const res = await authorizedAxios.get<ApiResponse<PageResponse<Order>>>("/orders/my-orders", {
+      params: { page, size },
+    });
+    return res.data.data;
+  },
+  detail: async (orderId: string) => {
+    const res = await authorizedAxios.get<ApiResponse<Order>>(`/orders/${orderId}`);
+    return res.data.data;
+  },
+  cancel: async (orderId: string, reason?: string) => {
+    const res = await authorizedAxios.post<ApiResponse<Order>>(`/orders/${orderId}/cancel`, null, {
+      params: { reason },
+    });
+    return res.data.data;
+  },
+  adminList: async (status?: OrderStatus, page = 0, size = 10, search?: string) => {
+    const res = await authorizedAxios.get<ApiResponse<PageResponse<Order>>>("/admin/orders", {
+      params: { status, page, size, search },
+    });
+    return res.data.data;
+  },
+  updateStatus: async (orderId: string, status: OrderStatus) => {
+    const res = await authorizedAxios.put<ApiResponse<Order>>(`/admin/orders/${orderId}/status`, null, {
+      params: { status },
+    });
+    return res.data.data;
+  },
+};
+
+export const inventoryApi = {
+  list: async (page = 0, size = 10, search?: string, stockFilter?: string) => {
+    const res = await authorizedAxios.get<ApiResponse<PageResponse<Inventory>>>("/admin/inventory", {
+      params: { page, size, search, stockFilter },
+    });
+    return res.data.data;
+  },
+  adjust: async (variantId: string, quantityChange: number) => {
+    const res = await authorizedAxios.put<ApiResponse<Inventory>>(
+      `/admin/inventory/${variantId}/adjust`,
+      { quantityChange }
+    );
+    return res.data.data;
+  },
+};
+
+export const wishlistApi = {
+  list: async () => {
+    const res = await authorizedAxios.get<ApiResponse<WishlistItem[]>>("/wishlist");
+    return res.data.data;
+  },
+  add: async (productId: string) => {
+    const res = await authorizedAxios.post<ApiResponse<WishlistItem>>("/wishlist", { productId });
+    return res.data.data;
+  },
+  remove: async (productId: string) => {
+    await authorizedAxios.delete(`/wishlist/${productId}`);
+  },
+};
+
+export const reviewApi = {
+  listByProduct: async (productId: string, page = 0, size = 10) => {
+    const res = await publicAxios.get<ApiResponse<PageResponse<ProductReview>>>(
+      `/reviews/products/${productId}`,
+      { params: { page, size } }
+    );
+    return res.data.data;
+  },
+  create: async (data: { productId: string; rating: number; title?: string; content: string }) => {
+    const res = await authorizedAxios.post<ApiResponse<ProductReview>>("/reviews/products", data);
+    return res.data.data;
+  },
+  adminReply: async (reviewId: string, reply: string) => {
+    const res = await authorizedAxios.put<ApiResponse<ProductReview>>(`/admin/reviews/${reviewId}/reply`, { reply });
+    return res.data.data;
+  },
+  adminVisibility: async (reviewId: string, visible: boolean) => {
+    const res = await authorizedAxios.put<ApiResponse<ProductReview>>(`/admin/reviews/${reviewId}/visibility`, {
+      visible,
+    });
+    return res.data.data;
+  },
+};
+
+export const returnApi = {
+  mine: async () => {
+    const res = await authorizedAxios.get<ApiResponse<PageResponse<ReturnRequest>>>("/returns", {
+      params: { size: 100 },
+    });
+    return res.data.data.content;
+  },
+  create: async (data: { orderId: string; orderItemId: string; reason: string; description?: string }) => {
+    const res = await authorizedAxios.post<ApiResponse<ReturnRequest>>("/returns", data);
+    return res.data.data;
+  },
+  adminList: async (page = 0, size = 10, status?: string) => {
+    const res = await authorizedAxios.get<ApiResponse<PageResponse<ReturnRequest>>>("/admin/returns", {
+      params: { page, size, status },
+    });
+    return res.data.data;
+  },
+  updateStatus: async (returnId: string, status: string, note?: string) => {
+    const res = await authorizedAxios.put<ApiResponse<ReturnRequest>>(`/admin/returns/${returnId}/status`, {
+      status,
+      note,
+    });
+    return res.data.data;
+  },
+};
+
+export const addressApi = {
+  list: async () => {
+    const res = await authorizedAxios.get<ApiResponse<Address[]>>("/addresses");
+    return res.data.data;
+  },
+  create: async (data: Omit<Address, "addressId">) => {
+    const res = await authorizedAxios.post<ApiResponse<Address>>("/addresses", data);
+    return res.data.data;
+  },
+  update: async (addressId: string, data: Partial<Address>) => {
+    const res = await authorizedAxios.put<ApiResponse<Address>>(`/addresses/${addressId}`, data);
+    return res.data.data;
+  },
+  remove: async (addressId: string) => {
+    await authorizedAxios.delete(`/addresses/${addressId}`);
+  },
+  setDefault: async (addressId: string) => {
+    const res = await authorizedAxios.post<ApiResponse<Address>>(`/addresses/${addressId}/default`);
+    return res.data.data;
+  },
+};
+
+export const rbacApi = {
+  matrix: async () => {
+    const res = await authorizedAxios.get<ApiResponse<PermissionMatrix>>("/admin/role-permissions/matrix");
+    return res.data.data;
+  },
+  updateRole: async (
+    roleCode: string,
+    permissions: { code: string; enabled: boolean }[],
+    reason: string
+  ) => {
+    const res = await authorizedAxios.put<ApiResponse<unknown>>(`/admin/roles/${roleCode}/permissions`, {
+      permissions,
+      reason,
+    });
+    return res.data.data;
+  },
+};
