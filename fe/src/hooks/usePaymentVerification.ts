@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { orderApi, paymentApi } from "@/services/ecommerceServices";
+import {
+  resolveInitialPaymentVerifyState,
+  resolvePaymentVerifyFallback,
+  resolvePaymentVerifyState,
+  type PaymentVerifyState,
+} from "@/utils/paymentVerification";
 
-export type PaymentVerifyState =
-  | "loading"
-  | "confirmed"
-  | "pending"
-  | "failed"
-  | "cancelled"
-  | "unauthenticated";
+export type { PaymentVerifyState } from "@/utils/paymentVerification";
 
 export function usePaymentVerification(
   orderId: string | null,
@@ -20,12 +20,9 @@ export function usePaymentVerification(
     let cancelled = false;
 
     async function verify() {
-      if (!orderId) {
-        setVerifyState("pending");
-        return;
-      }
-      if (!isLoggedIn) {
-        setVerifyState("unauthenticated");
+      const initial = resolveInitialPaymentVerifyState(orderId, isLoggedIn);
+      if (initial !== "loading") {
+        setVerifyState(initial);
         return;
       }
 
@@ -33,37 +30,14 @@ export function usePaymentVerification(
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
           const [order, payment] = await Promise.all([
-            orderApi.detail(orderId),
-            paymentApi.byOrder(orderId).catch(() => null),
+            orderApi.detail(orderId!),
+            paymentApi.byOrder(orderId!).catch(() => null),
           ]);
           if (cancelled) return;
 
-          const paid =
-            order.paymentStatus === "COMPLETED" ||
-            order.status === "PAID" ||
-            payment?.status === "COMPLETED";
-          const failed =
-            payment?.status === "FAILED" ||
-            payment?.status === "EXPIRED" ||
-            order.status === "CANCELLED";
-          const pendingPayment =
-            order.status === "PENDING_PAYMENT" &&
-            payment?.status === "PENDING";
-
-          if (expectedOutcome === "success" && paid) {
-            setVerifyState("confirmed");
-            return;
-          }
-          if (expectedOutcome === "failure" && failed) {
-            setVerifyState("failed");
-            return;
-          }
-          if (expectedOutcome === "cancel" && (pendingPayment || failed)) {
-            setVerifyState(pendingPayment ? "cancelled" : "failed");
-            return;
-          }
-          if (expectedOutcome === "failure" && paid) {
-            setVerifyState("confirmed");
+          const resolved = resolvePaymentVerifyState(order, payment, expectedOutcome);
+          if (resolved) {
+            setVerifyState(resolved);
             return;
           }
         } catch {
@@ -72,7 +46,7 @@ export function usePaymentVerification(
         await new Promise((r) => setTimeout(r, 1200));
       }
       if (!cancelled) {
-        setVerifyState(expectedOutcome === "success" ? "pending" : expectedOutcome === "cancel" ? "cancelled" : "failed");
+        setVerifyState(resolvePaymentVerifyFallback(expectedOutcome));
       }
     }
 

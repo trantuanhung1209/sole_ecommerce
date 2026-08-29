@@ -8,7 +8,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import www.exception.BadRequestException;
+import www.modules.addresses.model.Address;
 import www.modules.addresses.service.AddressService;
+import www.modules.catalog.model.ProductVariant;
 import www.modules.cart.dto.CartDtos.CartValidationResult;
 import www.modules.cart.model.Cart;
 import www.modules.cart.service.CartService;
@@ -26,6 +28,7 @@ import www.modules.promotions.service.CouponValidator;
 import www.modules.promotions.service.PromotionService;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -79,5 +82,30 @@ class CheckoutServiceTest {
         request.setAddressId("a1");
         assertThrows(BadRequestException.class, () -> checkoutService.checkout("u1", request));
         verify(inventoryService, never()).reserve(anyString(), anyString(), anyInt());
+    }
+
+    @Test
+    void checkout_invalidCoupon_releasesReservation() {
+        Cart cart = Cart.builder().userId("u1").items(new java.util.ArrayList<>()).build();
+        cart.getItems().add(www.modules.cart.model.CartItem.builder().variantId("v1").quantity(1).build());
+        when(cartService.activeCart("u1")).thenReturn(cart);
+        when(cartService.validate("u1")).thenReturn(new CartValidationResult() {{ setValid(true); }});
+        when(variantRepository.findById("v1")).thenReturn(java.util.Optional.of(
+                ProductVariant.builder().variantId("v1").price(100_000.0).build()));
+        when(addressService.getOwned(eq("u1"), eq("a1"))).thenReturn(Address.builder().addressId("a1").build());
+
+        www.modules.promotions.dto.PromotionDtos.CouponValidationResult invalidCoupon =
+                new www.modules.promotions.dto.PromotionDtos.CouponValidationResult();
+        invalidCoupon.setValid(false);
+        invalidCoupon.setMessage("Mã hết hạn");
+        when(couponValidator.validate(eq("EXPIRED"), eq("u1"), anyDouble())).thenReturn(invalidCoupon);
+
+        CheckoutRequest request = new CheckoutRequest();
+        request.setAddressId("a1");
+        request.setCouponCode("EXPIRED");
+
+        assertThrows(BadRequestException.class, () -> checkoutService.checkout("u1", request));
+        verify(inventoryService).reserve(anyString(), eq("v1"), eq(1));
+        verify(inventoryService).releaseOrderReservations(anyString());
     }
 }

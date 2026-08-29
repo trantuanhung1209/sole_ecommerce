@@ -83,4 +83,12 @@ class InventoryServiceTest {
         assertEquals(ReservationStatus.EXPIRED, saved.getValue().getStatus());
         verify(mongoTemplate).updateFirst(any(Query.class), any(Update.class), eq(www.modules.inventory.model.Inventory.class));
     }
+
+    @Test
+    void expireReservations_emptyList() {
+        when(reservationRepository.findByStatusAndExpiresAtBefore(eq(ReservationStatus.ACTIVE), any()))
+                .thenReturn(List.of());
+        assertEquals(0, inventoryService.expireReservations());
+        verify(mongoTemplate, never()).updateFirst(any(), any(), eq(www.modules.inventory.model.Inventory.class));
+    }
 }

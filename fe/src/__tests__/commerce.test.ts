@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { roleAccess } from "@/config/roleAccess";
 import { UserRole } from "@/types/user.type";
+import { calculateShippingFee } from "@/utils/checkoutPricing";
 
 describe("roleAccess", () => {
   it("allows SHOP_MANAGER to approve products", () => {
@@ -28,15 +29,11 @@ describe("roleAccess", () => {
 
 describe("shipping threshold", () => {
   it("free shipping at 2M VND", () => {
-    const subtotal = 2_000_000;
-    const shipping = subtotal >= 2_000_000 ? 0 : 30_000;
-    expect(shipping).toBe(0);
+    expect(calculateShippingFee(2_000_000)).toBe(0);
   });
 
   it("charges shipping below 2M VND", () => {
-    const subtotal = 1_999_999;
-    const shipping = subtotal >= 2_000_000 ? 0 : 30_000;
-    expect(shipping).toBe(30_000);
+    expect(calculateShippingFee(1_999_999)).toBe(30_000);
   });
 });
 

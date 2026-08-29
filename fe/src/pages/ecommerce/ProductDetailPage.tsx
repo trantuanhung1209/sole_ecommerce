@@ -94,6 +94,7 @@ export default function ProductDetailPage() {
     [selectedColor, variants]
   );
 
+  const selected = useMemo(
     () => variants.find((v) => v.colorName === selectedColor && v.size === selectedSize),
     [selectedColor, selectedSize, variants]
   );
