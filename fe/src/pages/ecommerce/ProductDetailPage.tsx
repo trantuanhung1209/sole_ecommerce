@@ -143,6 +143,18 @@ export default function ProductDetailPage() {
     toast.success("Đã thêm vào yêu thích");
   };
 
+  const buildCartItemOptions = () => ({
+    imageUrl: galleryImages[activeImage] || fallback,
+    sourceElement: mainImageRef.current,
+    productId: product!.productId,
+    productSlug: product!.slug,
+    productName: product!.name,
+    price: selected!.price,
+    sku: selected!.sku,
+    size: selected!.size,
+    colorName: selected!.colorName,
+  });
+
   const addToCart = async (qty = quantity) => {
     if (!selected) {
       toast.error("Vui lòng chọn màu và size");
@@ -152,11 +164,11 @@ export default function ProductDetailPage() {
       toast.error("Size này đã hết hàng");
       return;
     }
-    await addItem(selected.variantId, qty, {
-      imageUrl: galleryImages[activeImage] || fallback,
-      sourceElement: mainImageRef.current,
-    });
-    toast.success("Đã thêm vào giỏ hàng");
+    try {
+      await addItem(selected.variantId, qty, buildCartItemOptions());
+    } catch {
+      // Rollback + toast handled by cart mutation
+    }
   };
 
   const buyNow = async () => {
@@ -164,11 +176,12 @@ export default function ProductDetailPage() {
       toast.error("Vui lòng chọn size còn hàng");
       return;
     }
-    await addItem(selected.variantId, quantity, {
-      imageUrl: galleryImages[activeImage] || fallback,
-      sourceElement: mainImageRef.current,
-    });
-    navigate("/checkout");
+    try {
+      await addItem(selected.variantId, quantity, buildCartItemOptions());
+      navigate("/checkout");
+    } catch {
+      // Stay on page when add fails
+    }
   };
 
   const handleColorChange = (color: string) => {

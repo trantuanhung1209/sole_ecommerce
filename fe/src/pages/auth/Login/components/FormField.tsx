@@ -44,7 +44,7 @@ export const FormField = ({
           maxLength={maxLength}
           className={`pl-10 ${
             rightIcon ? "pr-10" : ""
-          } h-11 border-blue-200 focus:border-blue-500`}
+          } h-10 border-blue-200 focus:border-blue-500`}
           {...register}
         />
         {rightIcon && (

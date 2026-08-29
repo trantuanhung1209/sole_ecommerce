@@ -20,6 +20,12 @@ import www.util.PageUtils;
 public class ProductReviewController {
     private final ProductReviewService reviewService;
 
+    @GetMapping("/reviews/home")
+    public ResponseEntity<ApiResponse<HomeReviewsResponse>> homeReviews(
+            @RequestParam(defaultValue = "4") int limit) {
+        return ResponseEntity.ok(ApiResponse.success(reviewService.homeReviews(limit)));
+    }
+
     @GetMapping("/reviews/products/{productId}")
     public ResponseEntity<ApiResponse<PageResponse<ProductReview>>> productReviews(
             @PathVariable String productId,

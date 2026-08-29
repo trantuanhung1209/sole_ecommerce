@@ -279,6 +279,16 @@ public class CatalogService {
                 .toList();
     }
 
+    public ProductRef getProductMetaByVariant(String variantId) {
+        ProductVariant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new NotFoundException("Variant not found: " + variantId));
+        Product product = getProduct(variant.getProductId());
+        return ProductRef.builder()
+                .productId(product.getProductId())
+                .slug(product.getSlug())
+                .build();
+    }
+
     public List<VariantView> getAdminVariants(String productId) {
         getProduct(productId);
         return variantRepository.findByProductId(productId).stream()

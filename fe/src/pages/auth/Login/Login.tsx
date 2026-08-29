@@ -25,31 +25,31 @@ const Login = () => {
   } = form;
 
   return (
-    <div className="relative min-h-screen lg:grid lg:grid-cols-2">
+    <div className="relative h-dvh max-h-dvh overflow-hidden lg:grid lg:grid-cols-2">
       <AuthPageBackground />
-      <BackToHomeButton className="lg:left-auto lg:right-6" />
+      <BackToHomeButton className="lg:left-auto lg:right-4 lg:top-4" />
 
-      <div className="relative flex min-h-screen items-center justify-center p-4 sm:p-8">
-        <Card className="w-full max-w-md border-[#E5E7EB] bg-white/95 shadow-[0_20px_60px_rgba(17,17,17,0.08)] backdrop-blur-sm animate-fade-in-up">
-          <CardHeader className="space-y-4 pb-2 text-center">
+      <div className="relative flex h-full min-h-0 items-center justify-center px-3 py-3 sm:px-4">
+        <Card className="w-full max-w-[400px] border-[#E5E7EB] bg-white/95 shadow-[0_16px_48px_rgba(17,17,17,0.08)] backdrop-blur-sm animate-fade-in-up">
+          <CardHeader className="space-y-2 px-5 pb-0 pt-5 text-center">
             <div className="flex justify-center lg:hidden">
-              <SoleLogo size="lg" />
-            </div>
-            <div className="hidden justify-center lg:flex">
-              <SoleLogo size="md" />
+              <SoleLogo size="sm" />
             </div>
             <div>
-              <CardTitle className="text-3xl font-black tracking-tight text-[#111111]">
+              <CardTitle className="text-2xl font-black tracking-tight text-[#111111]">
                 Chào mừng trở lại
               </CardTitle>
-              <CardDescription className="mt-2 text-base text-[#6B7280]">
+              <CardDescription className="mt-1 text-sm text-[#6B7280]">
                 Đăng nhập để mua sắm và theo dõi đơn hàng
               </CardDescription>
             </div>
           </CardHeader>
 
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <CardContent className="px-5 pb-3 pt-4">
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="space-y-3 [&_input]:h-10 [&_label]:text-xs"
+            >
               <ErrorAlert message={errorMessage} />
 
               <FormField
@@ -57,7 +57,7 @@ const Login = () => {
                 label="Địa chỉ Email"
                 type="email"
                 placeholder="email@example.com"
-                icon={<Mail size={18} />}
+                icon={<Mail size={16} />}
                 error={errors.email}
                 register={register("email")}
               />
@@ -67,13 +67,12 @@ const Login = () => {
                 label="Mật khẩu"
                 error={errors.password}
                 register={register("password")}
-                animationDelay="delay-100"
               />
 
-              <div className="flex items-center justify-end">
+              <div className="flex items-center justify-end pt-0.5">
                 <Link
                   to="/forgot-password"
-                  className="text-sm font-medium text-[#E53935] transition-colors hover:text-[#c62828] hover:underline"
+                  className="text-xs font-medium text-[#E53935] transition-colors hover:text-[#c62828] hover:underline"
                 >
                   Quên mật khẩu?
                 </Link>
@@ -81,7 +80,7 @@ const Login = () => {
 
               <Button
                 type="submit"
-                className="h-11 w-full bg-[#111111] font-semibold text-white shadow-lg transition-all hover:bg-[#111111]/90 hover:shadow-xl"
+                className="h-10 w-full bg-[#111111] text-sm font-semibold text-white shadow-md transition-all hover:bg-[#111111]/90"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -96,8 +95,8 @@ const Login = () => {
             </form>
           </CardContent>
 
-          <CardFooter className="flex flex-col space-y-4 pt-2">
-            <div className="text-center text-sm text-[#6B7280]">
+          <CardFooter className="flex flex-col space-y-3 px-5 pb-5 pt-0">
+            <div className="text-center text-xs text-[#6B7280]">
               Chưa có tài khoản?{" "}
               <Link
                 to="/register"
@@ -111,12 +110,12 @@ const Login = () => {
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-[#E5E7EB]" />
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
+              <div className="relative flex justify-center text-[10px] uppercase">
                 <span className="bg-white px-2 text-[#9CA3AF]">Hoặc tiếp tục với</span>
               </div>
             </div>
 
-            <GoogleSignInButton />
+            <GoogleSignInButton size="medium" />
           </CardFooter>
         </Card>
       </div>

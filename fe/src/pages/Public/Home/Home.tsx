@@ -2,33 +2,25 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  BadgeCheck,
   Headphones,
   Package,
   RefreshCcw,
   ShieldCheck,
   Sparkles,
-  Star,
   Truck,
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "@/components/home/ProductCard";
-import { brandApi, categoryApi, productApi } from "@/services/ecommerceServices";
-import type { Brand, Category, ProductSummary } from "@/types/ecommerce.type";
+import { HomeReviewsSection } from "@/components/home/HomeReviewsSection";
+import { brandApi, categoryApi, productApi, reviewApi } from "@/services/ecommerceServices";
+import type { Brand, Category, HomeReviewsSummary, ProductSummary } from "@/types/ecommerce.type";
 
 const heroImage =
   "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=1600&q=80";
 const promoImage =
   "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?auto=format&fit=crop&w=1200&q=80";
-
-const stats = [
-  { value: "12+", label: "Mẫu sneaker hot" },
-  { value: "8", label: "Thương hiệu" },
-  { value: "200+", label: "Biến thể size/màu" },
-  { value: "4.9", label: "Đánh giá trung bình" },
-];
 
 const perks = [
   { icon: Truck, title: "Giao nhanh 2-4 ngày", desc: "Miễn phí ship đơn từ 2 triệu" },
@@ -41,6 +33,8 @@ export default function Home() {
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [homeReviews, setHomeReviews] = useState<HomeReviewsSummary | null>(null);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,9 +47,29 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    reviewApi
+      .home(4)
+      .then(setHomeReviews)
+      .catch(() => setHomeReviews(null))
+      .finally(() => setReviewsLoading(false));
+  }, []);
+
   const featuredProducts = useMemo(() => products.slice(0, 8), [products]);
   const newArrivals = useMemo(() => products.slice(0, 4), [products]);
   const topCategories = useMemo(() => categories.slice(0, 6), [categories]);
+  const stats = useMemo(() => {
+    const ratingValue =
+      homeReviews && homeReviews.totalReviews > 0
+        ? homeReviews.averageRating.toFixed(1)
+        : "—";
+    return [
+      { value: "12+", label: "Mẫu sneaker hot" },
+      { value: "8", label: "Thương hiệu" },
+      { value: "200+", label: "Biến thể size/màu" },
+      { value: ratingValue, label: "Đánh giá trung bình" },
+    ];
+  }, [homeReviews]);
 
   return (
     <main className="min-h-screen bg-[#F7F7F5] text-[#111111]">
@@ -83,7 +97,7 @@ export default function Home() {
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-12 rounded-lg border-[#D1D5DB] bg-white px-6">
-              <Link to="/products?sort=new">Hàng mới về</Link>
+              <Link to="/new-arrivals">Hàng mới về</Link>
             </Button>
           </div>
           <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -153,7 +167,7 @@ export default function Home() {
             {topCategories.map((category) => (
               <Link
                 key={category.categoryId}
-                to={`/products?category=${category.slug}`}
+                to={`/categories/${category.slug}`}
                 className="group relative aspect-[4/5] overflow-hidden rounded-2xl bg-[#F1F1EF]"
               >
                 <img
@@ -278,42 +292,7 @@ export default function Home() {
         ) : null}
       </section>
 
-      {/* Reviews / social proof */}
-      <section className="mx-auto max-w-[1240px] px-4 pb-12 md:px-5">
-        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-8 md:p-10">
-          <div className="grid gap-8 md:grid-cols-[1fr_1.2fr] md:items-center">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-[#E53935]">Khách hàng nói gì</p>
-              <h2 className="mt-2 text-3xl font-bold">Trusted by sneakerheads</h2>
-              <p className="mt-3 text-sm text-[#6B7280]">
-                Trải nghiệm mua sắm minh bạch: giá rõ ràng, variant chuẩn, tồn kho realtime.
-              </p>
-              <div className="mt-5 flex items-center gap-1">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <Star key={index} className="h-5 w-5 fill-[#E53935] text-[#E53935]" />
-                ))}
-                <span className="ml-2 text-sm font-bold">4.9/5 từ khách hàng</span>
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {[
-                ["Minh Anh", "AF1 Triple White đẹp, giao nhanh, đúng size."],
-                ["Hoàng Long", "Dunk Panda chính hãng, checkout SePay tiện."],
-                ["Thu Hà", "UI gọn, chọn màu/size rõ ràng, rất thích."],
-                ["Quốc Bảo", "Support phản hồi nhanh, đổi size dễ dàng."],
-              ].map(([name, quote]) => (
-                <div key={name} className="rounded-xl bg-[#F7F7F5] p-4">
-                  <div className="flex items-center gap-2">
-                    <BadgeCheck className="h-4 w-4 text-[#E53935]" />
-                    <span className="text-sm font-bold">{name}</span>
-                  </div>
-                  <p className="mt-2 text-sm text-[#6B7280]">"{quote}"</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+      <HomeReviewsSection data={homeReviews} loading={reviewsLoading} />
 
       {/* CTA */}
       <section className="mx-auto max-w-[1240px] px-4 pb-16 md:px-5">

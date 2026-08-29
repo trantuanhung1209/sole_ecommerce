@@ -10,6 +10,7 @@ import www.exception.NotFoundException;
 import www.modules.common.EcommerceEnums.OrderStatus;
 import www.modules.orders.model.Order;
 import www.modules.orders.model.OrderItem;
+import www.modules.catalog.repository.ProductRepository;
 import www.modules.orders.repository.OrderRepository;
 import www.modules.reviews.dto.ProductReviewDtos.*;
 import www.modules.reviews.model.ProductReview;
@@ -18,12 +19,14 @@ import www.modules.search.service.SearchIndexService;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class ProductReviewService {
     private final ProductReviewRepository reviewRepository;
     private final OrderRepository orderRepository;
+    private final ProductRepository productRepository;
     private final SearchIndexService searchIndexService;
 
     public Page<ProductReview> productReviews(String productId, Pageable pageable) {
@@ -32,6 +35,51 @@ public class ProductReviewService {
 
     public Page<ProductReview> myReviews(String userId, Pageable pageable) {
         return reviewRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+    }
+
+    public HomeReviewsResponse homeReviews(int limit) {
+        int size = Math.max(1, Math.min(limit, 12));
+        List<ProductReview> visible = reviewRepository.findByVisibleTrue();
+        double averageRating = visible.stream()
+                .mapToInt(review -> review.getRating() != null ? review.getRating() : 0)
+                .average()
+                .orElse(0);
+
+        List<HomeReviewView> recent = reviewRepository
+                .findByVisibleTrueOrderByCreatedAtDesc(Pageable.ofSize(size))
+                .stream()
+                .map(this::toHomeReviewView)
+                .toList();
+
+        return HomeReviewsResponse.builder()
+                .averageRating(Math.round(averageRating * 10.0) / 10.0)
+                .totalReviews(visible.size())
+                .recent(recent)
+                .build();
+    }
+
+    private HomeReviewView toHomeReviewView(ProductReview review) {
+        String productName = null;
+        String productSlug = null;
+        if (review.getProductId() != null) {
+            var product = productRepository.findById(review.getProductId()).orElse(null);
+            if (product != null) {
+                productName = product.getName();
+                productSlug = product.getSlug();
+            }
+        }
+        return HomeReviewView.builder()
+                .reviewId(review.getReviewId())
+                .productId(review.getProductId())
+                .productName(productName)
+                .productSlug(productSlug)
+                .userId(review.getUserId())
+                .rating(review.getRating())
+                .title(review.getTitle())
+                .content(review.getContent())
+                .verifiedPurchase(review.getVerifiedPurchase())
+                .createdAt(review.getCreatedAt())
+                .build();
     }
 
     public ProductReview create(String userId, CreateReviewRequest request) {

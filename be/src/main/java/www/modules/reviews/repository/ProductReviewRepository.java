@@ -11,6 +11,9 @@ import java.util.Optional;
 public interface ProductReviewRepository extends MongoRepository<ProductReview, String> {
     Page<ProductReview> findByProductIdAndVisibleTrueOrderByCreatedAtDesc(String productId, Pageable pageable);
     List<ProductReview> findByProductIdAndVisibleTrue(String productId);
+    Page<ProductReview> findByVisibleTrueOrderByCreatedAtDesc(Pageable pageable);
+    List<ProductReview> findByVisibleTrue();
     Optional<ProductReview> findByUserIdAndOrderIdAndOrderItemId(String userId, String orderId, String orderItemId);
+    List<ProductReview> findByOrderIdStartingWith(String prefix);
     Page<ProductReview> findByUserIdOrderByCreatedAtDesc(String userId, Pageable pageable);
 }

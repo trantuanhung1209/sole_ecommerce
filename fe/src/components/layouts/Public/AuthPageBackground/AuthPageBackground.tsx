@@ -20,27 +20,27 @@ export function AuthPageBackground() {
       </div>
 
       {/* Desktop brand panel */}
-      <div className="relative hidden overflow-hidden bg-[#111111] lg:flex lg:flex-col lg:justify-between">
+      <div className="relative hidden h-full min-h-0 overflow-hidden bg-[#111111] lg:flex lg:flex-col lg:justify-between">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(229,57,53,0.35),transparent_42%),radial-gradient(circle_at_85%_75%,rgba(255,255,255,0.08),transparent_35%)]" />
         <div className="absolute -right-24 top-1/2 h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[#E53935]/20 blur-3xl" />
         <div className="absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:32px_32px]" />
 
-        <div className="relative z-10 flex flex-col gap-10 p-10 xl:p-14">
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col justify-center gap-6 p-8 xl:gap-8 xl:p-10">
           <SoleLogo size="lg" inverted />
 
           <div className="max-w-md">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#E53935]">
               Premium sneaker store
             </p>
-            <h1 className="mt-4 text-4xl font-black leading-tight text-white xl:text-5xl">
+            <h1 className="mt-3 text-3xl font-black leading-tight text-white xl:text-4xl">
               Đăng nhập và khám phá bộ sưu tập mới nhất
             </h1>
-            <p className="mt-4 text-base leading-relaxed text-white/70">
+            <p className="mt-3 text-sm leading-relaxed text-white/70 xl:text-base">
               Chọn size, màu, SKU chính xác. Tồn kho thật, checkout an toàn, theo dõi đơn hàng dễ dàng.
             </p>
           </div>
 
-          <ul className="space-y-4">
+          <ul className="space-y-3">
             {highlights.map(({ icon: Icon, text }) => (
               <li key={text} className="flex items-center gap-3 text-sm text-white/85">
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
@@ -52,12 +52,12 @@ export function AuthPageBackground() {
           </ul>
         </div>
 
-        <div className="relative z-10 p-10 xl:p-14">
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm">
+        <div className="relative z-10 shrink-0 p-8 xl:p-10">
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-2 backdrop-blur-sm">
             <img
               src={heroSneaker}
               alt=""
-              className="h-48 w-full rounded-xl object-cover opacity-90 xl:h-56"
+              className="h-36 w-full rounded-xl object-cover opacity-90 xl:h-44"
             />
           </div>
         </div>

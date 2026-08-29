@@ -187,6 +187,25 @@ export interface ProductReview {
   createdAt: string;
 }
 
+export interface HomeReviewItem {
+  reviewId: string;
+  productId: string;
+  productName?: string;
+  productSlug?: string;
+  userId: string;
+  rating: number;
+  title?: string;
+  content: string;
+  verifiedPurchase?: boolean;
+  createdAt: string;
+}
+
+export interface HomeReviewsSummary {
+  averageRating: number;
+  totalReviews: number;
+  recent: HomeReviewItem[];
+}
+
 export interface ReturnRequest {
   returnId: string;
   orderId: string;

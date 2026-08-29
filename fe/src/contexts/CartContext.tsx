@@ -2,15 +2,20 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
   type RefObject,
 } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
+import { toast } from "react-toastify";
 import { cartApi } from "@/services/ecommerceServices";
+import { cartQueryKeys } from "@/lib/queryClient";
 import type { Cart } from "@/types/ecommerce.type";
+import { applyOptimisticAdd, type OptimisticCartItemInput } from "@/utils/cartOptimistic";
+import { enrichCartItems, rememberVariantProductRef } from "@/utils/cartNavigation";
 
 export type FlyToCartPayload = {
   id: string;
@@ -18,9 +23,16 @@ export type FlyToCartPayload = {
   from: DOMRect;
 };
 
-type AddItemOptions = {
+export type AddItemOptions = {
   imageUrl?: string;
   sourceElement?: HTMLElement | null;
+  productId?: string;
+  productSlug?: string;
+  productName?: string;
+  price?: number;
+  sku?: string;
+  size?: string;
+  colorName?: string;
 };
 
 type CartContextValue = {
@@ -35,28 +47,39 @@ type CartContextValue = {
   addItem: (variantId: string, quantity: number, options?: AddItemOptions) => Promise<Cart>;
   removeFlyItem: (id: string) => void;
   pulseCart: boolean;
+  isAddingToCart: boolean;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
 
+async function fetchCart(): Promise<Cart> {
+  return enrichCartItems(await cartApi.get());
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { message?: string } | undefined;
+    if (data?.message) return data.message;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return "Không thể thêm vào giỏ hàng";
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [cart, setCart] = useState<Cart | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [cartOpen, setCartOpen] = useState(false);
   const [flyItems, setFlyItems] = useState<FlyToCartPayload[]>([]);
   const [pulseCart, setPulseCart] = useState(false);
   const cartIconRef = useRef<HTMLButtonElement>(null);
 
-  const refresh = useCallback(async () => {
-    const data = await cartApi.get();
-    setCart(data);
-  }, []);
+  const { data: cart = null, isLoading } = useQuery({
+    queryKey: cartQueryKeys.all,
+    queryFn: fetchCart,
+  });
 
-  useEffect(() => {
-    refresh()
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [refresh]);
+  const refresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: cartQueryKeys.all });
+  }, [queryClient]);
 
   const triggerFly = useCallback((imageUrl: string, sourceElement?: HTMLElement | null) => {
     if (!sourceElement || !imageUrl) return;
@@ -80,14 +103,69 @@ export function CartProvider({ children }: { children: ReactNode }) {
     window.setTimeout(() => setPulseCart(false), 520);
   }, []);
 
+  const addToCartMutation = useMutation({
+    mutationFn: async ({ variantId, quantity }: OptimisticCartItemInput) =>
+      enrichCartItems(await cartApi.add(variantId, quantity)),
+
+    onMutate: async (input: OptimisticCartItemInput) => {
+      await queryClient.cancelQueries({ queryKey: cartQueryKeys.all });
+
+      const previousCart = queryClient.getQueryData<Cart>(cartQueryKeys.all);
+
+      queryClient.setQueryData<Cart>(cartQueryKeys.all, (old) =>
+        applyOptimisticAdd(old, {
+          variantId: input.variantId,
+          quantity: input.quantity,
+          productId: input.productId,
+          productSlug: input.productSlug,
+          productName: input.productName,
+          imageUrl: input.imageUrl,
+          price: input.price,
+          sku: input.sku,
+          size: input.size,
+          colorName: input.colorName,
+        })
+      );
+
+      return { previousCart };
+    },
+
+    onError: (error, _input, context) => {
+      queryClient.setQueryData(cartQueryKeys.all, context?.previousCart ?? null);
+      toast.error(extractErrorMessage(error));
+    },
+
+    onSuccess: () => {
+      toast.success("Đã thêm vào giỏ hàng");
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: cartQueryKeys.all });
+    },
+  });
+
   const addItem = useCallback(
     async (variantId: string, quantity: number, options?: AddItemOptions) => {
       triggerFly(options?.imageUrl || "", options?.sourceElement);
-      const updated = await cartApi.add(variantId, quantity);
-      setCart(updated);
-      return updated;
+      rememberVariantProductRef(variantId, {
+        productId: options?.productId,
+        productSlug: options?.productSlug,
+      });
+
+      return addToCartMutation.mutateAsync({
+        variantId,
+        quantity,
+        productId: options?.productId,
+        productSlug: options?.productSlug,
+        productName: options?.productName,
+        imageUrl: options?.imageUrl,
+        price: options?.price,
+        sku: options?.sku,
+        size: options?.size,
+        colorName: options?.colorName,
+      });
     },
-    [triggerFly]
+    [addToCartMutation, triggerFly]
   );
 
   const itemCount = useMemo(
@@ -99,7 +177,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     () => ({
       cart,
       itemCount,
-      loading,
+      loading: isLoading,
       cartOpen,
       setCartOpen,
       cartIconRef,
@@ -108,8 +186,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
       addItem,
       removeFlyItem,
       pulseCart,
+      isAddingToCart: addToCartMutation.isPending,
     }),
-    [cart, itemCount, loading, cartOpen, flyItems, refresh, addItem, removeFlyItem, pulseCart]
+    [
+      cart,
+      itemCount,
+      isLoading,
+      cartOpen,
+      flyItems,
+      refresh,
+      addItem,
+      removeFlyItem,
+      pulseCart,
+      addToCartMutation.isPending,
+    ]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

@@ -69,7 +69,7 @@ export function CartDropdown() {
         sideOffset={10}
         onMouseEnter={openCart}
         onMouseLeave={scheduleCloseCart}
-        className="w-[min(92vw,380px)] rounded-2xl border-[#E5E7EB] bg-white p-0 shadow-xl hover:bg-white"
+        className="w-[min(92vw,380px)] rounded-2xl border border-[#E5E7EB] bg-white p-0 shadow-xl"
       >
         <div className="border-b border-[#E5E7EB] px-4 py-3">
           <p className="text-sm font-bold">Giỏ hàng</p>
@@ -94,23 +94,25 @@ export function CartDropdown() {
           ) : (
             <ul className="space-y-2">
               {cart.items.map((item) => (
-                <li key={item.cartItemId}>
+                <li key={item.cartItemId} onMouseEnter={openCart}>
                   <CartItemLink
                     item={item}
                     onNavigate={() => setCartOpen(false)}
                     className="-mx-2 rounded-xl px-2 py-2"
                   >
-                    <div className="flex gap-3">
-                      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-[#F1F1EF]">
+                    <div className="group/item flex gap-3">
+                      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-transparent bg-[#F1F1EF] transition-colors group-hover/item:border-accent/20">
                         <img
                           src={item.imageUrl || placeholder}
                           alt=""
-                          className="h-full w-full object-contain p-1.5"
+                          className="h-full w-full object-contain p-1.5 transition-transform duration-300 group-hover/item:scale-105"
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 text-sm font-semibold">{formatCartItemLabel(item)}</p>
-                        <p className="mt-0.5 text-xs text-[#6B7280]">
+                        <p className="line-clamp-2 text-sm font-semibold transition-colors group-hover/item:text-accent">
+                          {formatCartItemLabel(item)}
+                        </p>
+                        <p className="mt-0.5 text-xs text-[#6B7280] transition-colors group-hover/item:text-accent/80">
                           {item.quantity} × {money(item.priceSnapshot)}
                         </p>
                       </div>
@@ -130,7 +132,7 @@ export function CartDropdown() {
             </div>
             <div className="grid gap-2">
               <Button
-                className="h-11 w-full rounded-lg bg-[#111111] text-white"
+                className="h-11 w-full rounded-lg"
                 onClick={() => {
                   setCartOpen(false);
                   navigate("/checkout");
@@ -141,7 +143,7 @@ export function CartDropdown() {
               <Button
                 asChild
                 variant="outline"
-                className="h-11 w-full rounded-lg border-[#D1D5DB]"
+                className="h-11 w-full rounded-lg border-[#D1D5DB] bg-white"
                 onClick={() => setCartOpen(false)}
               >
                 <Link to="/cart">Xem tất cả</Link>
@@ -150,7 +152,7 @@ export function CartDropdown() {
           </div>
         ) : (
           <div className="border-t border-[#E5E7EB] px-4 py-4">
-            <Button asChild variant="outline" className="h-11 w-full rounded-lg border-[#D1D5DB]">
+            <Button asChild variant="outline" className="h-11 w-full rounded-lg border-[#D1D5DB] bg-white">
               <Link to="/products" onClick={() => setCartOpen(false)}>
                 Tiếp tục mua sắm
               </Link>

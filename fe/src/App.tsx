@@ -13,6 +13,11 @@ import StaffLayout from "./layouts/StaffLayout";
 import AdminLayout from "./layouts/AdminLayout";
 
 import Home from "./pages/Public/Home/Home";
+import CategoriesPage from "./pages/Public/Categories/CategoriesPage";
+import BrandsPage from "./pages/Public/Brands/BrandsPage";
+import NewArrivalsPage from "./pages/Public/NewArrivals/NewArrivalsPage";
+import AboutPage from "./pages/Public/About/AboutPage";
+import ContactPage from "./pages/Public/Contact/ContactPage";
 import Register from "./pages/auth/Register";
 import Login from "./pages/auth/Login";
 import ForgotPassword from "./pages/auth/ForgotPassword";
@@ -66,7 +71,12 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Home /> },
           { path: "products", element: <ProductListPage /> },
+          { path: "categories", element: <CategoriesPage /> },
           { path: "categories/:slug", element: <CategoryProductsPage /> },
+          { path: "brands", element: <BrandsPage /> },
+          { path: "new-arrivals", element: <NewArrivalsPage /> },
+          { path: "about", element: <AboutPage /> },
+          { path: "contact", element: <ContactPage /> },
           { path: "products/:idOrSlug", element: <ProductDetailPage /> },
           {
             path: "profile",

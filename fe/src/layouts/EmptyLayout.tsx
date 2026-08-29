@@ -2,8 +2,8 @@ import { Outlet } from "react-router-dom";
 
 const EmptyLayout = () => {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-full">
+    <div className="h-dvh max-h-dvh overflow-hidden bg-background">
+      <div className="h-full w-full">
         <Outlet />
       </div>
     </div>

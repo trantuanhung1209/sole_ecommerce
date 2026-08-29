@@ -15,6 +15,7 @@ import type {
   Product,
   ProductSummary,
   ProductReview,
+  HomeReviewsSummary,
   ProductStatus,
   ProductVariant,
   PublicStatus,
@@ -82,6 +83,12 @@ export const productApi = {
   },
   variants: async (productId: string) => {
     const res = await publicAxios.get<ApiResponse<ProductVariant[]>>(`/products/${productId}/variants`);
+    return res.data.data;
+  },
+  variantProductMeta: async (variantId: string) => {
+    const res = await publicAxios.get<ApiResponse<{ productId: string; slug: string }>>(
+      `/variants/${variantId}/product-meta`
+    );
     return res.data.data;
   },
   adminVariants: async (productId: string) => {
@@ -392,6 +399,12 @@ export const wishlistApi = {
 };
 
 export const reviewApi = {
+  home: async (limit = 4) => {
+    const res = await publicAxios.get<ApiResponse<HomeReviewsSummary>>("/reviews/home", {
+      params: { limit },
+    });
+    return res.data.data;
+  },
   listByProduct: async (productId: string, page = 0, size = 10) => {
     const res = await publicAxios.get<ApiResponse<PageResponse<ProductReview>>>(
       `/reviews/products/${productId}`,

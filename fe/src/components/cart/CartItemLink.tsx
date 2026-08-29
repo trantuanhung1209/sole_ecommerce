@@ -1,12 +1,7 @@
-import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import type { CartItem } from "@/types/ecommerce.type";
-
-export function cartItemProductUrl(item: CartItem): string | null {
-  if (item.productSlug) return `/products/${item.productSlug}`;
-  if (item.productId) return `/products/${item.productId}`;
-  return null;
-}
+import { resolveCartItemProductUrl } from "@/utils/cartNavigation";
 
 type CartItemLinkProps = {
   item: CartItem;
@@ -16,19 +11,26 @@ type CartItemLinkProps = {
 };
 
 export function CartItemLink({ item, onNavigate, className = "", children }: CartItemLinkProps) {
-  const url = cartItemProductUrl(item);
+  const navigate = useNavigate();
 
-  if (!url) {
-    return <div className={className}>{children}</div>;
-  }
+  const handleClick = async (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const url = await resolveCartItemProductUrl(item);
+    if (!url) return;
+
+    onNavigate?.();
+    navigate(url);
+  };
 
   return (
-    <Link
-      to={url}
-      onClick={onNavigate}
-      className={`block cursor-pointer transition hover:bg-[#F7F7F5] ${className}`}
+    <button
+      type="button"
+      onClick={handleClick}
+      className={`block w-full cursor-pointer text-left transition-colors hover:bg-accent/5 ${className}`}
     >
       {children}
-    </Link>
+    </button>
   );
 }

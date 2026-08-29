@@ -88,6 +88,13 @@ public final class ProductDtos {
 
     @Data
     @lombok.Builder
+    public static class ProductRef {
+        private String productId;
+        private String slug;
+    }
+
+    @Data
+    @lombok.Builder
     public static class VariantView {
         private String variantId;
         private String productId;

@@ -11,7 +11,7 @@ export const ErrorAlert = ({ message }: ErrorAlertProps) => {
   return (
     <Alert
       variant="destructive"
-      className="mb-4 animate-fade-in flex items-center"
+      className="animate-fade-in flex items-center py-2"
     >
       <AlertCircle className="h-4 w-4" />
       <AlertDescription>{message}</AlertDescription>

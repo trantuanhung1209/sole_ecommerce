@@ -47,10 +47,16 @@ export function ProductCard({ product, badge = "NEW", className = "" }: ProductC
       await addItem(available.variantId, 1, {
         imageUrl: product.imageUrls?.[0] || placeholder,
         sourceElement: imageRef.current,
+        productId: product.productId,
+        productSlug: product.slug,
+        productName: product.name,
+        price: available.price,
+        sku: available.sku,
+        size: available.size,
+        colorName: available.colorName,
       });
-      toast.success("Đã thêm vào giỏ hàng");
     } catch {
-      toast.error("Không thể thêm vào giỏ hàng");
+      // Toast handled by cart mutation rollback
     } finally {
       setAdding(false);
     }
@@ -58,7 +64,7 @@ export function ProductCard({ product, badge = "NEW", className = "" }: ProductC
 
   return (
     <article
-      className={`group relative overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_4px_20px_rgba(0,0,0,.05)] transition hover:shadow-[0_10px_30px_rgba(0,0,0,.10)] ${className}`}
+      className={`group relative overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_4px_20px_rgba(0,0,0,.05)] transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:shadow-[0_12px_32px_rgba(229,57,53,0.12)] ${className}`}
     >
       <Link
         to={productUrl}
@@ -73,19 +79,25 @@ export function ProductCard({ product, badge = "NEW", className = "" }: ProductC
             ref={imageRef}
             src={product.imageUrls?.[0] || placeholder}
             alt={product.name}
-            className="h-full w-full object-contain p-5 transition duration-300 group-hover:scale-105"
+            className="h-full w-full object-contain p-5 transition duration-500 group-hover:scale-110"
           />
         </div>
 
         <div className="p-4 pr-12">
-          <p className="text-xs font-bold uppercase text-[#6B7280]">{product.brandName || "SOLE"}</p>
-          <h2 className="mt-1 line-clamp-2 text-base font-bold">{product.name}</h2>
+          <p className="text-xs font-bold uppercase text-[#6B7280] transition-colors group-hover:text-accent">
+            {product.brandName || "SOLE"}
+          </p>
+          <h2 className="mt-1 line-clamp-2 text-base font-bold transition-colors group-hover:text-accent">
+            {product.name}
+          </h2>
           <p className="mt-1 line-clamp-1 text-sm text-[#6B7280]">
             {product.shortDescription || "Sneaker essentials"}
           </p>
           <div className="mt-4 flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <span className="text-sm font-bold">{money(product.minPrice ?? 0)}</span>
+              <span className="text-sm font-bold transition-colors group-hover:text-accent">
+                {money(product.minPrice ?? 0)}
+              </span>
               {hasDiscount ? (
                 <span className="ml-2 text-xs text-[#9CA3AF] line-through">
                   {money(product.compareAtPrice!)}
@@ -98,7 +110,7 @@ export function ProductCard({ product, badge = "NEW", className = "" }: ProductC
 
       <button
         type="button"
-        className="absolute right-3 top-3 z-10 cursor-pointer rounded-full bg-white p-2 shadow-sm transition hover:scale-105"
+        className="absolute right-3 top-3 z-10 cursor-pointer rounded-full bg-white p-2 shadow-sm transition hover:scale-105 hover:text-accent"
         aria-label="Yêu thích"
         onClick={(event) => {
           event.preventDefault();
@@ -113,7 +125,7 @@ export function ProductCard({ product, badge = "NEW", className = "" }: ProductC
         aria-label="Thêm vào giỏ hàng"
         disabled={adding}
         onClick={handleAddToCart}
-        className="absolute bottom-4 right-4 z-10 cursor-pointer rounded-full bg-[#111111] p-2 text-white transition hover:scale-105 hover:bg-[#222222] disabled:cursor-wait disabled:opacity-70"
+        className="absolute bottom-4 right-4 z-10 cursor-pointer rounded-full bg-[#111111] p-2 text-white transition hover:scale-105 hover:bg-accent disabled:cursor-wait disabled:opacity-70 group-hover:bg-accent"
       >
         {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingCart className="h-4 w-4" />}
       </button>

@@ -15,10 +15,17 @@ const PAGE_SIZE = 12;
 
 type ProductListPageProps = {
   presetCategoryId?: string;
+  presetSort?: string;
   title?: string;
+  subtitle?: string;
 };
 
-export default function ProductListPage({ presetCategoryId, title }: ProductListPageProps) {
+export default function ProductListPage({
+  presetCategoryId,
+  presetSort,
+  title,
+  subtitle,
+}: ProductListPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -39,10 +46,10 @@ export default function ProductListPage({ presetCategoryId, title }: ProductList
     variantSize: searchParams.get("size") || undefined,
     color: searchParams.get("color") || undefined,
     inStock: searchParams.get("inStock") === "true" ? true : undefined,
-    sort: searchParams.get("sort") || "newest",
+    sort: searchParams.get("sort") || presetSort || "newest",
     page,
     pageSize: PAGE_SIZE,
-  }), [searchParams, presetCategoryId, page]);
+  }), [searchParams, presetCategoryId, presetSort, page]);
 
   const [draft, setDraft] = useState({
     brandId: "",
@@ -154,7 +161,7 @@ export default function ProductListPage({ presetCategoryId, title }: ProductList
             <p className="text-xs font-bold uppercase tracking-widest text-[#E53935]">Cửa hàng giày cao cấp</p>
             <h1 className="mt-2 text-4xl font-bold md:text-5xl">{title || "Bộ sưu tập giày"}</h1>
             <p className="mt-3 max-w-xl text-sm text-[#6B7280] md:text-base">
-              Tìm giày theo style, size và màu.
+              {subtitle || "Tìm giày theo style, size và màu."}
               {totalElements > 0 ? ` ${totalElements} sản phẩm đang bán.` : ""}
             </p>
           </div>

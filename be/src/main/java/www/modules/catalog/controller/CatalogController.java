@@ -80,6 +80,11 @@ public class CatalogController {
         return ResponseEntity.ok(ApiResponse.success(catalogService.getPublicVariants(productId)));
     }
 
+    @GetMapping("/variants/{variantId}/product-meta")
+    public ResponseEntity<ApiResponse<ProductRef>> variantProductMeta(@PathVariable String variantId) {
+        return ResponseEntity.ok(ApiResponse.success(catalogService.getProductMetaByVariant(variantId)));
+    }
+
     @GetMapping("/admin/products/{productId}/variants")
     @PreAuthorize("hasAnyRole('ADMIN','STAFF','SHOP_MANAGER','SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<VariantView>>> adminVariants(@PathVariable String productId) {
