@@ -84,6 +84,26 @@ public class OrderMailNotifier {
         });
     }
 
+    public void sendPaymentFailed(Order order) {
+        resolveCustomer(order).ifPresent(customer -> {
+            try {
+                mailService.sendPaymentFailedMail(customer.email(), customer.name(), order.getOrderCode());
+            } catch (Exception e) {
+                log.error("Payment failed email failed: orderId={}", order.getOrderId(), e);
+            }
+        });
+    }
+
+    public void sendPaymentExpired(Order order) {
+        resolveCustomer(order).ifPresent(customer -> {
+            try {
+                mailService.sendPaymentExpiredMail(customer.email(), customer.name(), order.getOrderCode());
+            } catch (Exception e) {
+                log.error("Payment expired email failed: orderId={}", order.getOrderId(), e);
+            }
+        });
+    }
+
     private Optional<CustomerContact> resolveCustomer(Order order) {
         if (order.getUserId() == null) {
             log.warn("Skip order email: missing userId on order {}", order.getOrderId());

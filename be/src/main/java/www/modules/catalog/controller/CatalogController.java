@@ -110,7 +110,7 @@ public class CatalogController {
     }
 
     @PostMapping("/admin/products")
-    @PreAuthorize("hasAnyRole('ADMIN','STAFF','SUPER_ADMIN')")
+    @PreAuthorize("@perm.has(authentication, 'CATALOG_CREATE')")
     public ResponseEntity<ApiResponse<Product>> createProduct(
             @Valid @RequestBody ProductRequest request, Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.success("Product created",
@@ -118,9 +118,9 @@ public class CatalogController {
     }
 
     @PutMapping("/admin/products/{productId}")
-    @PreAuthorize("hasAnyRole('ADMIN','STAFF','SUPER_ADMIN')")
+    @PreAuthorize("@perm.has(authentication, 'CATALOG_UPDATE')")
     public ResponseEntity<ApiResponse<Product>> updateProduct(
-            @PathVariable String productId, @Valid @RequestBody ProductRequest request) {
+            @PathVariable String productId, @Valid @RequestBody ProductRequest request, Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.success("Product updated", catalogService.updateProduct(productId, request)));
     }
 

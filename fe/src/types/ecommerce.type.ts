@@ -187,6 +187,7 @@ export interface ReturnRequest {
   reason: string;
   description?: string;
   status: string;
+  manualRefundRequired?: boolean;
   createdAt: string;
 }
 
@@ -212,4 +213,14 @@ export interface PermissionMatrixRow {
 export interface PermissionMatrix {
   roles: string[];
   permissions: PermissionMatrixRow[];
+}
+
+export interface AuditLogEntry {
+  auditLogId: string;
+  actorId?: string;
+  action?: string;
+  targetType?: string;
+  targetId?: string;
+  reason?: string;
+  createdAt?: string;
 }

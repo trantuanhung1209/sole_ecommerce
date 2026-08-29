@@ -5,12 +5,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import www.exception.ForbiddenException;
 import www.model.dto.response.ApiResponse;
+import www.modules.orders.service.OrderService;
 import www.modules.payments.dto.PaymentDtos.PaymentCallbackRequest;
 import www.modules.payments.model.EcommercePayment;
 import www.modules.payments.service.EcommercePaymentService;
 import www.modules.payments.service.SePayIpnVerifier;
+import www.security.CustomUserDetailsService.UserPrincipal;
 
 import java.util.Map;
 
@@ -19,17 +24,25 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class EcommercePaymentController {
     private final EcommercePaymentService paymentService;
+    private final OrderService orderService;
     private final SePayIpnVerifier sePayIpnVerifier;
     private final ObjectMapper objectMapper;
 
     @GetMapping("/order/{orderId}")
-    public ResponseEntity<ApiResponse<EcommercePayment>> byOrder(@PathVariable String orderId) {
+    public ResponseEntity<ApiResponse<EcommercePayment>> byOrder(
+            @PathVariable String orderId,
+            Authentication authentication) {
+        orderService.getOwned(orderId, userId(authentication));
         return ResponseEntity.ok(ApiResponse.success(paymentService.byOrder(orderId)));
     }
 
     @GetMapping("/{paymentId}")
-    public ResponseEntity<ApiResponse<EcommercePayment>> byId(@PathVariable String paymentId) {
-        return ResponseEntity.ok(ApiResponse.success(paymentService.get(paymentId)));
+    public ResponseEntity<ApiResponse<EcommercePayment>> byId(
+            @PathVariable String paymentId,
+            Authentication authentication) {
+        EcommercePayment payment = paymentService.get(paymentId);
+        orderService.getOwned(payment.getOrderId(), userId(authentication));
+        return ResponseEntity.ok(ApiResponse.success(payment));
     }
 
     @PostMapping("/sepay/callback")
@@ -60,6 +73,7 @@ public class EcommercePaymentController {
     }
 
     @PostMapping("/callback")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Boolean>> genericCallback(@RequestBody PaymentCallbackRequest request) {
         return ResponseEntity.ok(ApiResponse.success(paymentService.handleCallback(
                 request.getOrderInvoiceNumber(),
@@ -70,8 +84,16 @@ public class EcommercePaymentController {
     }
 
     @PostMapping("/reconcile")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Integer>> reconcile() {
         return ResponseEntity.ok(ApiResponse.success("Expired payments reconciled", paymentService.expirePendingPayments()));
+    }
+
+    private String userId(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+            throw new ForbiddenException("Authentication required");
+        }
+        return principal.getId();
     }
 
     private Map<String, Object> parsePayload(String rawBody) {

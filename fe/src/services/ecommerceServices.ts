@@ -20,6 +20,7 @@ import type {
   ReturnRequest,
   VariantView,
   WishlistItem,
+  AuditLogEntry,
 } from "@/types/ecommerce.type";
 
 export const money = (amount: number) =>
@@ -258,6 +259,66 @@ export const inventoryApi = {
     );
     return res.data.data;
   },
+  importStock: async (items: { variantId: string; quantity: number }[]) => {
+    const res = await authorizedAxios.post<ApiResponse<Inventory[]>>("/admin/inventory/import", { items });
+    return res.data.data;
+  },
+  lowStock: async (threshold = 5) => {
+    const res = await authorizedAxios.get<ApiResponse<Inventory[]>>("/admin/inventory/low-stock", {
+      params: { threshold },
+    });
+    return res.data.data;
+  },
+};
+
+export interface DashboardReport {
+  totalOrders: number;
+  pendingOrders: number;
+  paidOrders: number;
+  completedOrders: number;
+  totalRevenue: number;
+  totalProducts: number;
+  publishedProducts: number;
+  lowStockVariants: number;
+  pendingReturns: number;
+  totalUsers: number;
+}
+
+export const reportApi = {
+  dashboard: async (from?: string, to?: string) => {
+    const res = await authorizedAxios.get<ApiResponse<DashboardReport>>("/admin/reports/dashboard", {
+      params: { from, to },
+    });
+    return res.data.data;
+  },
+};
+
+export interface EcommercePayment {
+  paymentId: string;
+  orderId: string;
+  orderCode?: string;
+  status: string;
+  amount?: number;
+  paidAt?: string;
+}
+
+export const paymentApi = {
+  byOrder: async (orderId: string) => {
+    const res = await authorizedAxios.get<ApiResponse<EcommercePayment>>(`/payments/order/${orderId}`);
+    return res.data.data;
+  },
+};
+
+export const aiApi = {
+  chat: async (message: string, conversationId?: string) => {
+    const res = await authorizedAxios.post<
+      ApiResponse<{ answer: string; conversationId: string; routeType?: string }>
+    >("/ai/chat", {
+      message,
+      conversationId,
+    });
+    return res.data.data;
+  },
 };
 
 export const wishlistApi = {
@@ -334,6 +395,34 @@ export const returnApi = {
     });
     return res.data.data;
   },
+  staffConfirm: async (returnId: string, note?: string) => {
+    const res = await authorizedAxios.post<ApiResponse<ReturnRequest>>(
+      `/admin/returns/${returnId}/staff-confirm`,
+      { note }
+    );
+    return res.data.data;
+  },
+  reject: async (returnId: string, rejectedReason?: string) => {
+    const res = await authorizedAxios.post<ApiResponse<ReturnRequest>>(`/admin/returns/${returnId}/reject`, {
+      rejectedReason,
+    });
+    return res.data.data;
+  },
+  approve: async (returnId: string, note?: string) => {
+    const res = await authorizedAxios.post<ApiResponse<ReturnRequest>>(`/admin/returns/${returnId}/approve`, { note });
+    return res.data.data;
+  },
+  markReceived: async (returnId: string, note?: string) => {
+    const res = await authorizedAxios.post<ApiResponse<ReturnRequest>>(
+      `/admin/returns/${returnId}/mark-received`,
+      { note }
+    );
+    return res.data.data;
+  },
+  refund: async (returnId: string, note?: string) => {
+    const res = await authorizedAxios.post<ApiResponse<ReturnRequest>>(`/admin/returns/${returnId}/refund`, { note });
+    return res.data.data;
+  },
   updateStatus: async (returnId: string, status: string, note?: string) => {
     const res = await authorizedAxios.put<ApiResponse<ReturnRequest>>(`/admin/returns/${returnId}/status`, {
       status,
@@ -379,6 +468,10 @@ export const rbacApi = {
       permissions,
       reason,
     });
+    return res.data.data;
+  },
+  auditLogs: async () => {
+    const res = await authorizedAxios.get<ApiResponse<AuditLogEntry[]>>("/admin/audit-logs");
     return res.data.data;
   },
 };

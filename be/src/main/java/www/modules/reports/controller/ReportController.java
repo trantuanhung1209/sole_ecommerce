@@ -3,6 +3,7 @@ package www.modules.reports.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -21,9 +22,11 @@ public class ReportController {
     private final ReportService reportService;
 
     @GetMapping("/dashboard")
+    @PreAuthorize("hasAnyRole('SHOP_MANAGER','ADMIN','SUPER_ADMIN') or @perm.has(authentication, 'REPORT_READ')")
     public ResponseEntity<ApiResponse<DashboardReport>> dashboard(
             @RequestParam(required = false) LocalDate from,
-            @RequestParam(required = false) LocalDate to) {
+            @RequestParam(required = false) LocalDate to,
+            Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.success(reportService.dashboard(from, to)));
     }
 }

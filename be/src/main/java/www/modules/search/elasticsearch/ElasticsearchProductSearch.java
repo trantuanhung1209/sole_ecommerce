@@ -44,11 +44,6 @@ public class ElasticsearchProductSearch {
     }
 
     private Page<ProductSummary> doSearch(ProductFilter filter, Pageable pageable) throws Exception {
-        if (filter.getSize() != null || filter.getColor() != null || filter.getMinPrice() != null
-                || filter.getMaxPrice() != null || Boolean.TRUE.equals(filter.getInStock())) {
-            throw new UnsupportedOperationException("Complex variant filters use Mongo fallback");
-        }
-
         List<Query> must = new ArrayList<>();
         if (filter.getSearch() != null && !filter.getSearch().isBlank()) {
             must.add(Query.of(q -> q.multiMatch(m -> m
@@ -64,6 +59,9 @@ public class ElasticsearchProductSearch {
         }
         if (filter.getGender() != null) {
             filterQueries.add(Query.of(q -> q.term(t -> t.field("gender").value(filter.getGender().name()))));
+        }
+        if (hasVariantFilters(filter)) {
+            filterQueries.add(buildVariantNestedQuery(filter));
         }
 
         BoolQuery.Builder bool = new BoolQuery.Builder();
@@ -114,5 +112,35 @@ public class ElasticsearchProductSearch {
         } else {
             request.sort(s -> s.field(f -> f.field("publishedAt").order(SortOrder.Desc)));
         }
+    }
+
+    private boolean hasVariantFilters(ProductFilter filter) {
+        return filter.getSize() != null
+                || filter.getColor() != null
+                || Boolean.TRUE.equals(filter.getInStock())
+                || filter.getMinPrice() != null
+                || filter.getMaxPrice() != null;
+    }
+
+    private Query buildVariantNestedQuery(ProductFilter filter) {
+        List<Query> nestedMust = new ArrayList<>();
+        if (filter.getSize() != null) {
+            nestedMust.add(Query.of(q -> q.term(t -> t.field("variants.size").value(filter.getSize()))));
+        }
+        if (filter.getColor() != null) {
+            nestedMust.add(Query.of(q -> q.match(m -> m.field("variants.color").query(filter.getColor()))));
+        }
+        if (filter.getMinPrice() != null) {
+            nestedMust.add(Query.of(q -> q.range(r -> r.number(n -> n.field("variants.price").gte(filter.getMinPrice())))));
+        }
+        if (filter.getMaxPrice() != null) {
+            nestedMust.add(Query.of(q -> q.range(r -> r.number(n -> n.field("variants.price").lte(filter.getMaxPrice())))));
+        }
+        if (Boolean.TRUE.equals(filter.getInStock())) {
+            nestedMust.add(Query.of(q -> q.range(r -> r.number(n -> n.field("variants.available").gt(0.0)))));
+        }
+        return Query.of(q -> q.nested(n -> n
+                .path("variants")
+                .query(nq -> nq.bool(b -> b.must(nestedMust)))));
     }
 }

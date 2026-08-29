@@ -93,7 +93,7 @@ public class ReturnController {
         return ResponseEntity.ok(ApiResponse.success(returnService.reject(returnId, request)));
     }
 
-    @PreAuthorize("hasAnyRole('SHOP_MANAGER','ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SHOP_MANAGER','ADMIN','SUPER_ADMIN') or @perm.has(authentication, 'RETURN_PROCESS')")
     @PostMapping("/admin/returns/{returnId}/approve")
     public ResponseEntity<ApiResponse<ReturnRequest>> approve(
             @PathVariable String returnId,
@@ -109,7 +109,7 @@ public class ReturnController {
         return ResponseEntity.ok(ApiResponse.success(returnService.markReceived(returnId, request)));
     }
 
-    @PreAuthorize("hasAnyRole('SHOP_MANAGER','ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SHOP_MANAGER','ADMIN','SUPER_ADMIN') or @perm.has(authentication, 'RETURN_PROCESS')")
     @PostMapping("/admin/returns/{returnId}/refund")
     public ResponseEntity<ApiResponse<ReturnRequest>> refund(
             @PathVariable String returnId,

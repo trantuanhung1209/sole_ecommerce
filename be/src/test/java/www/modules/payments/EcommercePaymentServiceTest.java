@@ -17,6 +17,7 @@ import www.modules.payments.model.PaymentEvent;
 import www.modules.payments.repository.EcommercePaymentRepository;
 import www.modules.payments.repository.PaymentEventRepository;
 import www.modules.payments.service.EcommercePaymentService;
+import www.service.implement.OrderMailNotifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
@@ -38,6 +39,8 @@ class EcommercePaymentServiceTest {
     private OrderService orderService;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private OrderMailNotifier orderMailNotifier;
 
     @InjectMocks
     private EcommercePaymentService paymentService;
@@ -49,6 +52,7 @@ class EcommercePaymentServiceTest {
                 eventRepository,
                 orderService,
                 notificationService,
+                orderMailNotifier,
                 new ObjectMapper());
     }
 
@@ -130,11 +134,13 @@ class EcommercePaymentServiceTest {
         when(paymentRepository.findByStatusAndExpiredAtBefore(eq(EcommercePaymentStatus.PENDING), any()))
                 .thenReturn(java.util.List.of(pending));
         when(paymentRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(orderService.cancel(eq("o1"), anyString())).thenReturn(Order.builder().orderId("o1").build());
+        when(orderService.cancel(eq("o1"), anyString())).thenReturn(Order.builder().orderId("o1").userId("u1").orderCode("ORD-1").build());
+        when(orderService.get("o1")).thenReturn(Order.builder().orderId("o1").userId("u1").orderCode("ORD-1").build());
 
         int count = paymentService.expirePendingPayments();
 
         assertEquals(1, count);
         verify(orderService).cancel(eq("o1"), eq("Payment expired"));
+        verify(orderMailNotifier).sendPaymentExpired(any(Order.class));
     }
 }

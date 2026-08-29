@@ -60,8 +60,11 @@ export const roleAccess = {
     role === UserRole.ADMIN ||
     role === UserRole.SUPER_ADMIN,
 
-  canAdjustInventory: (role?: UserRoleType) =>
-    role === UserRole.SHOP_MANAGER || role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN,
+  canAdjustInventory: (role?: UserRoleType, permissions?: string[]) =>
+    role === UserRole.SHOP_MANAGER ||
+    role === UserRole.ADMIN ||
+    role === UserRole.SUPER_ADMIN ||
+    roleAccess.hasPermission(permissions, "INVENTORY_UPDATE"),
 
   canManageOrders: (role?: UserRoleType) =>
     role === UserRole.STAFF ||
@@ -83,11 +86,17 @@ export const roleAccess = {
     role === UserRole.SUPER_ADMIN,
 
   /** Shop manager+: approve refund */
-  canApproveReturn: (role?: UserRoleType) =>
-    role === UserRole.SHOP_MANAGER || role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN,
+  canApproveReturn: (role?: UserRoleType, permissions?: string[]) =>
+    role === UserRole.SHOP_MANAGER ||
+    role === UserRole.ADMIN ||
+    role === UserRole.SUPER_ADMIN ||
+    roleAccess.hasPermission(permissions, "RETURN_PROCESS"),
 
-  canViewReports: (role?: UserRoleType) =>
-    role === UserRole.SHOP_MANAGER || role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN,
+  canViewReports: (role?: UserRoleType, permissions?: string[]) =>
+    role === UserRole.SHOP_MANAGER ||
+    role === UserRole.ADMIN ||
+    role === UserRole.SUPER_ADMIN ||
+    roleAccess.hasPermission(permissions, "REPORT_READ"),
 
   isCustomerFacing: (role?: UserRoleType) =>
     !role || role === UserRole.CUSTOMER,

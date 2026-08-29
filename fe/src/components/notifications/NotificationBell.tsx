@@ -35,13 +35,24 @@ export default function NotificationBell() {
       <DropdownMenuContent align="end" className="w-80">
         <DropdownMenuLabel className="flex items-center justify-between">
           <span>Thông báo</span>
-          {counts.total > 0 && (
-            <button type="button" className="text-xs text-primary" onClick={() => void markAllRead()}>
-              Đánh dấu đã đọc
-            </button>
-          )}
+          <button
+            type="button"
+            className="text-xs text-primary"
+            onClick={() => navigate("/notifications")}
+          >
+            Xem tất cả
+          </button>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {counts.total > 0 && (
+          <>
+            <div className="px-3 pb-2">
+              <button type="button" className="text-xs text-primary" onClick={() => void markAllRead()}>
+                Đánh dấu đã đọc
+              </button>
+            </div>
+          </>
+        )}
         {items.length === 0 ? (
           <div className="px-3 py-6 text-center text-sm text-muted-foreground">Chưa có thông báo</div>
         ) : (

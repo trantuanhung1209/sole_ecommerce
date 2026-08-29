@@ -23,6 +23,7 @@ export default function InventoryManagementPage() {
   const [totalElements, setTotalElements] = useState(0);
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState("ALL");
+  const [importText, setImportText] = useState("");
   const debouncedSearch = useDebounce(search, 300);
 
   const load = useCallback(async () => {
@@ -64,6 +65,35 @@ export default function InventoryManagementPage() {
     }
   };
 
+  const handleImport = async () => {
+    const lines = importText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (lines.length === 0) {
+      toast.error("Nhập CSV: variantId,quantity (mỗi dòng một biến thể)");
+      return;
+    }
+    const items: { variantId: string; quantity: number }[] = [];
+    for (const line of lines) {
+      const [variantId, qtyRaw] = line.split(",").map((s) => s.trim());
+      const quantity = Number(qtyRaw);
+      if (!variantId || Number.isNaN(quantity)) {
+        toast.error("CSV không hợp lệ — dùng variantId,quantity");
+        return;
+      }
+      items.push({ variantId, quantity });
+    }
+    try {
+      await inventoryApi.importStock(items);
+      toast.success(`Đã import ${items.length} dòng tồn kho`);
+      setImportText("");
+      load();
+    } catch {
+      toast.error("Import thất bại");
+    }
+  };
+
   const resetFilters = () => {
     setSearch("");
     setStockFilter("ALL");
@@ -101,6 +131,22 @@ export default function InventoryManagementPage() {
         refreshing={loading}
         resultText={`Tìm thấy ${totalElements} biến thể`}
       />
+
+      {access.adjustInventory && (
+        <div className="rounded-lg border p-4 space-y-2">
+          <p className="text-sm font-medium">Import CSV tồn kho</p>
+          <p className="text-xs text-muted-foreground">Định dạng: variantId,quantity — mỗi dòng một biến thể</p>
+          <textarea
+            className="w-full min-h-[80px] rounded-md border bg-background p-2 text-sm font-mono"
+            placeholder="variant-abc123,10&#10;variant-def456,-2"
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+          />
+          <Button size="sm" onClick={handleImport}>
+            Import
+          </Button>
+        </div>
+      )}
 
       {loading ? (
         <p>Đang tải...</p>

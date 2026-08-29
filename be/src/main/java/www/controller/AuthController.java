@@ -222,7 +222,7 @@ public class AuthController {
     private String extractSessionId(HttpServletRequest request) {
         if (request.getCookies() == null) return null;
         for (var cookie : request.getCookies()) {
-            if ("refreshToken".equals(cookie.getName())) {
+            if ("refresh_token".equals(cookie.getName()) || "refreshToken".equals(cookie.getName())) {
                 try {
                     return jwtService.getSessionIdFromRefreshToken(cookie.getValue());
                 } catch (Exception ignored) {

@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import www.model.dto.common.PageResponse;
 import www.model.dto.response.ApiResponse;
@@ -47,18 +48,20 @@ public class InventoryController {
     }
 
     @PutMapping("/{variantId}/adjust")
-    @PreAuthorize("hasAnyRole('ADMIN','SHOP_MANAGER','SUPER_ADMIN')")
+    @PreAuthorize("@perm.has(authentication, 'INVENTORY_UPDATE')")
     public ResponseEntity<ApiResponse<Inventory>> adjust(
             @PathVariable String variantId,
-            @Valid @RequestBody AdjustStockRequest request) {
+            @Valid @RequestBody AdjustStockRequest request,
+            Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.success("Inventory adjusted",
                 inventoryService.adjust(variantId, request.getQuantityChange())));
     }
 
     @PostMapping("/import")
-    @PreAuthorize("hasAnyRole('ADMIN','SHOP_MANAGER','SUPER_ADMIN')")
+    @PreAuthorize("@perm.has(authentication, 'INVENTORY_UPDATE')")
     public ResponseEntity<ApiResponse<List<Inventory>>> importStock(
-            @Valid @RequestBody ImportStockRequest request) {
+            @Valid @RequestBody ImportStockRequest request,
+            Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.success("Inventory imported",
                 inventoryService.importStock(request.getItems())));
     }

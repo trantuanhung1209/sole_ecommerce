@@ -32,6 +32,8 @@ import ReturnRequestPage from "./pages/ecommerce/ReturnRequestPage";
 import MyReturnsPage from "./pages/ecommerce/MyReturnsPage";
 import MyReviewsPage from "./pages/ecommerce/MyReviewsPage";
 import AddressBookPage from "./pages/ecommerce/AddressBookPage";
+import NotificationsPage from "./pages/ecommerce/NotificationsPage";
+import AiChatPage from "./pages/ecommerce/AiChatPage";
 import RolePermissionsPage from "./pages/admin/RolePermissions/RolePermissionsPage";
 import { RoleGate } from "./components/auth/RoleGate";
 import ProductManagementPage from "./pages/admin/ProductManagement/ProductManagementPage";
@@ -143,6 +145,18 @@ const router = createBrowserRouter([
                 <AddressBookPage />
               </ProtectedRoute>
             ),
+          },
+          {
+            path: "notifications",
+            element: (
+              <ProtectedRoute>
+                <NotificationsPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: "ai-chat",
+            element: <AiChatPage />,
           },
         ],
       },

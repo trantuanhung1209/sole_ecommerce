@@ -12,6 +12,7 @@ import www.modules.common.EcommerceEnums.EcommercePaymentStatus;
 import www.modules.orders.model.Order;
 import www.modules.orders.service.OrderService;
 import www.modules.notifications.service.NotificationService;
+import www.service.implement.OrderMailNotifier;
 import www.modules.common.EcommerceEnums.NotificationType;
 import www.modules.payments.dto.PaymentDtos.PaymentCheckoutResponse;
 import www.modules.payments.model.EcommercePayment;
@@ -31,6 +32,7 @@ public class EcommercePaymentService {
     private final PaymentEventRepository eventRepository;
     private final OrderService orderService;
     private final NotificationService notificationService;
+    private final OrderMailNotifier orderMailNotifier;
     private final ObjectMapper objectMapper;
 
     @Value("${sepay.api-url:https://pay-sandbox.sepay.vn/v1/checkout/init}")
@@ -126,6 +128,7 @@ public class EcommercePaymentService {
             payment.setUpdatedAt(LocalDateTime.now());
             paymentRepository.save(payment);
             orderService.cancel(payment.getOrderId(), "Payment expired");
+            notifyPaymentExpired(payment);
         }
         return expired.size();
     }
@@ -179,6 +182,18 @@ public class EcommercePaymentService {
                 "Thanh toán thất bại",
                 "Thanh toán đơn " + payment.getOrderCode() + " không thành công",
                 "/orders/" + payment.getOrderId());
+        orderMailNotifier.sendPaymentFailed(order);
+    }
+
+    private void notifyPaymentExpired(EcommercePayment payment) {
+        Order order = orderService.get(payment.getOrderId());
+        notificationService.create(
+                order.getUserId(),
+                NotificationType.PAYMENT_FAILED,
+                "Thanh toán hết hạn",
+                "Thời gian thanh toán đơn " + payment.getOrderCode() + " đã hết hạn",
+                "/orders/" + payment.getOrderId());
+        orderMailNotifier.sendPaymentExpired(order);
     }
 
     public EcommercePayment markRefunded(String orderId) {

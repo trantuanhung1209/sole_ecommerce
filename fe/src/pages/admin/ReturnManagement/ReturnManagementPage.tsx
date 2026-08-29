@@ -53,10 +53,10 @@ export default function ReturnManagementPage() {
     setPage(0);
   }, [statusFilter]);
 
-  const updateStatus = async (returnId: string, status: string) => {
+  const runAction = async (action: () => Promise<unknown>, successMsg: string) => {
     try {
-      await returnApi.updateStatus(returnId, status);
-      toast.success("Cập nhật thành công");
+      await action();
+      toast.success(successMsg);
       load();
     } catch {
       toast.error("Không thể cập nhật");
@@ -73,7 +73,7 @@ export default function ReturnManagementPage() {
       <div>
         <h1 className="text-2xl font-bold">Quản lý đổi/trả hàng</h1>
         <p className="text-sm text-muted-foreground">
-          Staff xác nhận → Shop Manager duyệt hoàn tiền
+          Staff xác nhận → Manager duyệt → Nhận hàng → Hoàn tiền
         </p>
       </div>
 
@@ -109,26 +109,54 @@ export default function ReturnManagementPage() {
                   <p className="text-sm text-muted-foreground">
                     {resolveOrderCode(item.orderId, ordersById)} · {item.reason}
                   </p>
+                  {item.manualRefundRequired && (
+                    <p className="text-xs text-amber-600 mt-1">Cần hoàn tiền thủ công qua SePay</p>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <StatusBadge kind="return" status={item.status} />
                   {item.status === "PENDING" && access.processReturnStaff && (
                     <>
-                      <Button size="sm" onClick={() => updateStatus(item.returnId, "STAFF_CONFIRMED")}>
+                      <Button
+                        size="sm"
+                        onClick={() => runAction(() => returnApi.staffConfirm(item.returnId), "Đã xác nhận")}
+                      >
                         Xác nhận
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => updateStatus(item.returnId, "REJECTED")}
+                        onClick={() => runAction(() => returnApi.reject(item.returnId), "Đã từ chối")}
                       >
                         Từ chối
                       </Button>
                     </>
                   )}
                   {item.status === "STAFF_CONFIRMED" && access.approveReturn && (
-                    <Button size="sm" onClick={() => updateStatus(item.returnId, "APPROVED")}>
-                      Duyệt hoàn tiền
+                    <Button
+                      size="sm"
+                      onClick={() => runAction(() => returnApi.approve(item.returnId), "Đã duyệt trả hàng")}
+                    >
+                      Duyệt trả hàng
+                    </Button>
+                  )}
+                  {item.status === "APPROVED" && access.processReturnStaff && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() =>
+                        runAction(() => returnApi.markReceived(item.returnId), "Đã nhận hàng trả — tồn kho đã cập nhật")
+                      }
+                    >
+                      Đã nhận hàng
+                    </Button>
+                  )}
+                  {item.status === "RECEIVED" && access.approveReturn && (
+                    <Button
+                      size="sm"
+                      onClick={() => runAction(() => returnApi.refund(item.returnId), "Đã hoàn tiền")}
+                    >
+                      Hoàn tiền
                     </Button>
                   )}
                 </div>

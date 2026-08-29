@@ -2,7 +2,7 @@ import { SoleLogo } from "@/components/brand/SoleLogo";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppSelector } from "@/hooks/useRedux";
-import { Home, Menu, ShoppingBag, ShoppingCart, User, X } from "lucide-react";
+import { Home, Menu, MessageCircle, ShoppingBag, ShoppingCart, User, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import UserProfile from "./components/UserProfile";
@@ -17,7 +17,13 @@ const Header = () => {
   const navigation = [
     { name: "Trang chủ", href: "/", icon: Home },
     { name: "Sản phẩm", href: "/products", icon: ShoppingBag },
-    { name: "Giỏ hàng", href: "/cart", icon: ShoppingCart },
+    {
+      name: "Giỏ hàng",
+      href: isLoggedIn ? "/cart" : `/login?redirect=${encodeURIComponent("/cart")}`,
+      icon: ShoppingCart,
+      guestHint: !isLoggedIn,
+    },
+    { name: "Trợ lý AI", href: "/ai-chat", icon: MessageCircle },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -46,6 +52,9 @@ const Header = () => {
                 >
                   <IconComponent className="h-4 w-4" />
                   <span>{item.name}</span>
+                  {"guestHint" in item && item.guestHint && (
+                    <span className="text-[10px] text-muted-foreground">(đăng nhập)</span>
+                  )}
                 </Link>
               );
             })}

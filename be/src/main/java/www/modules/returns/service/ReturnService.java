@@ -11,6 +11,7 @@ import www.modules.common.EcommerceEnums.EcommercePaymentStatus;
 import www.modules.common.EcommerceEnums.OrderStatus;
 import www.modules.common.EcommerceEnums.ReturnStatus;
 import www.modules.orders.model.Order;
+import www.modules.inventory.service.InventoryService;
 import www.modules.orders.model.OrderItem;
 import www.modules.orders.repository.OrderRepository;
 import www.modules.returns.dto.ReturnDtos.*;
@@ -33,6 +34,7 @@ public class ReturnService {
     private final OrderMailNotifier orderMailNotifier;
     private final NotificationService notificationService;
     private final EcommercePaymentService paymentService;
+    private final InventoryService inventoryService;
 
     public Page<ReturnRequest> mine(String userId, Pageable pageable) {
         return returnRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
@@ -131,6 +133,9 @@ public class ReturnService {
         if (request.getStatus() == ReturnStatus.REFUNDED) {
             processRefund(returnRequest);
         }
+        if (request.getStatus() == ReturnStatus.RECEIVED && previousStatus != ReturnStatus.RECEIVED) {
+            restockReturnItem(returnRequest);
+        }
         ReturnRequest saved = returnRepository.save(returnRequest);
         if (request.getStatus() == ReturnStatus.REJECTED) {
             orderMailNotifier.sendReturnRejected(
@@ -207,6 +212,17 @@ public class ReturnService {
         if (order.getDeliveredAt().isBefore(LocalDateTime.now().minusDays(RETURN_WINDOW_DAYS))) {
             throw new BadRequestException("Return window expired (" + RETURN_WINDOW_DAYS + " days after delivery)");
         }
+    }
+
+    private void restockReturnItem(ReturnRequest returnRequest) {
+        Order order = orderRepository.findById(returnRequest.getOrderId())
+                .orElseThrow(() -> new NotFoundException("Order not found: " + returnRequest.getOrderId()));
+        OrderItem item = order.getItems().stream()
+                .filter(orderItem -> returnRequest.getOrderItemId().equals(orderItem.getOrderItemId()))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("Order item not found: " + returnRequest.getOrderItemId()));
+        int qty = item.getQuantity() != null ? item.getQuantity() : 1;
+        inventoryService.restock(item.getVariantId(), qty);
     }
 
     private void processRefund(ReturnRequest returnRequest) {
