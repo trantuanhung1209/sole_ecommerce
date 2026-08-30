@@ -34,4 +34,4 @@
 2. Login → add cart → checkout → SePay sandbox
 3. Payment success page xác nhận BE
 4. Admin ship order + tracking
-5. Return workflow: staff-confirm → approve → received → refund
+5. Return workflow: staff-confirm → approve → mark-received → request-refund → confirm-refund

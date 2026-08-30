@@ -200,7 +200,7 @@ be/src/main/java/www/
   security/         # JWT filter, CSRF, rate limit, SolePermissionEvaluator
   controller/       # AuthController
   modules/
-    catalog/        # Sản phẩm, brand, category, variant
+    catalog/        # Sản phẩm, brand, category, variant; search/ ($text FTS)
     inventory/      # Tồn kho, reservation
     cart/
     checkout/
@@ -213,7 +213,6 @@ be/src/main/java/www/
     notifications/  # In-app + SSE stream
     rbac/
     reports/
-    search/         # ES + Mongo router
     ai/
   service/          # Mail, shared services
 ```
@@ -744,7 +743,7 @@ GET      /ai/conversations/...           # auth — lịch sử hội thoại
 User → Trang listing (/products)
      → Filter drawer (brand, category, gender, size, color, giá, còn hàng)
      → Sync query params URL (share link)
-     → Backend: Mongo hoặc ES (nested variants)
+     → Backend: MongoDB `$text` + filter variant/giá/tồn kho (in-memory)
      → PDP: chọn size/màu → hiển thị stock variant
      → Add to cart (guest/user) / Buy now (login → checkout)
 ```
@@ -1229,7 +1228,7 @@ VITE_CLOUDINARY_UPLOAD_PRESET
 - [x] Address book CRUD + ward/district
 - [x] AI RAG + suggested products + order context (login)
 - [x] Correlation ID
-- [x] Unit test suite mở rộng (BE ~90, FE ~28, returnFlow + ReturnServiceTest)
+- [x] Unit test suite mở rộng (BE ~93, FE ~28, returnFlow + ReturnServiceTest + ProductTextSearchServiceTest)
 
 ### 19.3. Production-ready — ⚠️ Còn lại
 
@@ -1241,4 +1240,4 @@ VITE_CLOUDINARY_UPLOAD_PRESET
 
 ---
 
-*Tài liệu này phản ánh codebase SOLE tại nhánh `main` (commit `3269aa9`, 08/2026). Khi thêm tính năng mới, cập nhật mục 6 (trạng thái triển khai), mục 15 (AI), và mục 18 (phạm vi hoãn).*
+*Tài liệu này phản ánh codebase SOLE tại nhánh `main` (commit `99f8b08`, 08/2026). Khi thêm tính năng mới, cập nhật mục 6 (trạng thái triển khai), mục 15 (AI), và mục 18 (phạm vi hoãn).*

@@ -216,10 +216,12 @@ stateDiagram-v2
   SHIPPED --> DELIVERED
   DELIVERED --> COMPLETED: auto sau 7 ngày hoặc thủ công
   DELIVERED --> RETURN_REQUESTED: khách tạo return
-  RETURN_REQUESTED --> RETURNED: nhận hàng trả
-  RETURNED --> REFUNDED: confirm refund
+  RETURN_REQUESTED --> RETURNED: mark-received
+  RETURNED --> REFUNDED: confirm-refund (return qua REFUND_PENDING)
   COMPLETED --> RETURN_REQUESTED: trong 7 ngày giao
 ```
+
+> Hoàn tiền 2 bước (`request-refund` → `confirm-refund`) nằm trên **ReturnRequest** — xem [§6](#6-đổi--trả--hoàn-tiền).
 
 ### 5.2. Luồng admin/staff
 
@@ -518,7 +520,7 @@ flowchart TD
 
 | Suite | Phạm vi |
 |-------|---------|
-| BE `./gradlew test` | ~90 tests (ReturnServiceTest, ReturnRefundPolicyTest, payment, checkout, …) |
+| BE `./gradlew test` | ~93 tests (ReturnServiceTest, ProductTextSearchServiceTest, payment, checkout, …) |
 | FE `npm run test` | 28 tests (returnFlow, commerce, cart, …) |
 | FE `npm run build` | TypeScript + Vite production build |
 | E2E Playwright | Smoke: home, products, cart (chưa cover return/checkout dài) |

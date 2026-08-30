@@ -28,11 +28,11 @@ Milestone: Soft launch sau R1, v1.0 sau R3, v1.1 sau R4.
 
 ## R3 — Hardening & E2E
 
-- [x] ES prod config + review re-index hook
+- [x] MongoDB `$text` search (`ProductTextSearchService` + text index startup)
 - [x] Inventory Mongo query scale
 - [x] Playwright E2E smoke
 - [x] Correlation ID filter
-- [x] Admin re-index + low-stock widget
+- [x] Admin low-stock widget (inventory page)
 
 ## R4 — Promotion & VAT (v1.1)
 
