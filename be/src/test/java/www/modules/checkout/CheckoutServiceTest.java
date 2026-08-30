@@ -16,6 +16,7 @@ import www.modules.cart.model.Cart;
 import www.modules.cart.service.CartService;
 import www.modules.catalog.repository.ProductRepository;
 import www.modules.catalog.repository.ProductVariantRepository;
+import www.modules.catalog.repository.BrandRepository;
 import www.modules.checkout.dto.CheckoutDtos.CheckoutRequest;
 import www.modules.checkout.service.CheckoutService;
 import www.modules.checkout.service.ShippingFeeCalculator;
@@ -37,6 +38,7 @@ class CheckoutServiceTest {
     @Mock private CartService cartService;
     @Mock private ProductVariantRepository variantRepository;
     @Mock private ProductRepository productRepository;
+    @Mock private BrandRepository brandRepository;
     @Mock private InventoryService inventoryService;
     @Mock private OrderService orderService;
     @Mock private EcommercePaymentService paymentService;
@@ -53,7 +55,7 @@ class CheckoutServiceTest {
     @BeforeEach
     void setUp() {
         checkoutService = new CheckoutService(
-                cartService, variantRepository, productRepository, inventoryService,
+                cartService, variantRepository, productRepository, brandRepository, inventoryService,
                 orderService, paymentService, notificationService, addressService,
                 shippingFeeCalculator, vatCalculator, couponValidator, promotionService,
                 new ObjectMapper());

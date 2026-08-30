@@ -17,6 +17,9 @@ import www.modules.payments.model.PaymentEvent;
 import www.modules.payments.repository.EcommercePaymentRepository;
 import www.modules.payments.repository.PaymentEventRepository;
 import www.modules.payments.service.EcommercePaymentService;
+import www.modules.payments.service.SePayCheckoutSigner;
+import www.modules.payments.service.SePayIpnParser;
+import www.config.SePayProperties;
 import www.service.implement.OrderMailNotifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -47,13 +50,20 @@ class EcommercePaymentServiceTest {
 
     @BeforeEach
     void setUp() {
+        SePayProperties properties = new SePayProperties();
+        properties.setMerchantId("MERCHANT_123");
+        properties.setSecretKey("test-secret-key");
+        SePayCheckoutSigner checkoutSigner = new SePayCheckoutSigner(properties);
+        SePayIpnParser ipnParser = new SePayIpnParser();
         paymentService = new EcommercePaymentService(
                 paymentRepository,
                 eventRepository,
                 orderService,
                 notificationService,
                 orderMailNotifier,
-                new ObjectMapper());
+                new ObjectMapper(),
+                checkoutSigner,
+                ipnParser);
     }
 
     @Test
@@ -117,6 +127,39 @@ class EcommercePaymentServiceTest {
                 "INV-1", "SUCCESS", "tx-3",
                 Map.of("order_amount", 500000),
                 "sig");
+
+        assertTrue(ok);
+        verify(orderService).markPaid("o1");
+    }
+
+    @Test
+    void handleCallback_nestedPayload_marksPaid() {
+        EcommercePayment payment = EcommercePayment.builder()
+                .paymentId("p1")
+                .orderId("o1")
+                .orderInvoiceNumber("ORDER_SO-123_999")
+                .amount(500000.0)
+                .status(EcommercePaymentStatus.PENDING)
+                .build();
+
+        Map<String, Object> payload = Map.of(
+                "notification_type", "ORDER_PAID",
+                "order", Map.of(
+                        "order_invoice_number", "ORDER_SO-123_999",
+                        "order_amount", "500000.00"),
+                "transaction", Map.of(
+                        "transaction_id", "tx-nested",
+                        "transaction_status", "APPROVED"));
+
+        when(eventRepository.save(any(PaymentEvent.class))).thenReturn(PaymentEvent.builder().build());
+        when(paymentRepository.findByOrderInvoiceNumber("ORDER_SO-123_999")).thenReturn(Optional.of(payment));
+        when(paymentRepository.save(any(EcommercePayment.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(eventRepository.findByGatewayAndTransactionId(eq("SEPAY"), eq("tx-nested")))
+                .thenReturn(Optional.of(PaymentEvent.builder().build()));
+        when(orderService.markPaid("o1")).thenReturn(Order.builder().orderId("o1").build());
+
+        boolean ok = paymentService.handleCallback(
+                "ORDER_SO-123_999", "ORDER_PAID", "tx-nested", payload, "sig");
 
         assertTrue(ok);
         verify(orderService).markPaid("o1");

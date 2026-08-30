@@ -14,6 +14,7 @@ import www.modules.orders.service.OrderService;
 import www.modules.payments.dto.PaymentDtos.PaymentCallbackRequest;
 import www.modules.payments.model.EcommercePayment;
 import www.modules.payments.service.EcommercePaymentService;
+import www.modules.payments.service.SePayIpnParser;
 import www.modules.payments.service.SePayIpnVerifier;
 import www.security.CustomUserDetailsService.UserPrincipal;
 
@@ -26,6 +27,7 @@ public class EcommercePaymentController {
     private final EcommercePaymentService paymentService;
     private final OrderService orderService;
     private final SePayIpnVerifier sePayIpnVerifier;
+    private final SePayIpnParser sePayIpnParser;
     private final ObjectMapper objectMapper;
 
     @GetMapping("/order/{orderId}")
@@ -46,21 +48,26 @@ public class EcommercePaymentController {
     }
 
     @PostMapping("/sepay/callback")
-    public ResponseEntity<String> callback(HttpServletRequest request, @RequestBody String rawBody) {
+    public ResponseEntity<Map<String, Boolean>> callback(HttpServletRequest request, @RequestBody String rawBody) {
         sePayIpnVerifier.verify(request, rawBody);
         Map<String, Object> payload = parsePayload(rawBody);
-        String invoice = stringVal(payload, "orderInvoiceNumber", "order_invoice_number");
-        String status = stringVal(payload, "status", "transaction_status");
-        if (status == null) {
-            status = "FAILED";
+        SePayIpnParser.ParsedIpn ipn = sePayIpnParser.parse(payload);
+        if (ipn.orderInvoiceNumber() == null || ipn.transactionId() == null) {
+            throw new www.exception.BadRequestException("Missing invoice or transaction ID in SePay IPN");
         }
-        String txId = stringVal(payload, "transactionId", "transaction_id");
         String signature = request.getHeader("X-SePay-Signature");
         if (signature == null) {
             signature = stringVal(payload, "signature");
         }
-        boolean ok = paymentService.handleCallback(invoice, status, txId, payload, signature);
-        return ok ? ResponseEntity.ok("Success") : ResponseEntity.badRequest().body("Failed");
+        boolean ok = paymentService.handleCallback(
+                ipn.orderInvoiceNumber(),
+                ipn.status() != null ? ipn.status() : "FAILED",
+                ipn.transactionId(),
+                ipn.rawPayload(),
+                signature);
+        return ok
+                ? ResponseEntity.ok(Map.of("success", true))
+                : ResponseEntity.badRequest().body(Map.of("success", false));
     }
 
     /** Browser redirect only — must not mutate payment state (IPN POST is authoritative). */

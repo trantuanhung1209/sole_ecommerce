@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { notificationApi } from "@/services/notificationServices";
 import { subscribeNotificationStream } from "@/utils/notificationStream";
@@ -11,11 +11,21 @@ const defaultCounts: NotificationCounts = {
   pendingReturns: 0,
 };
 
+export const NOTIFICATION_DROPDOWN_PAGE_SIZE = 8;
+
 export function useNotifications(enabled: boolean) {
   const [counts, setCounts] = useState<NotificationCounts>(defaultCounts);
   const [items, setItems] = useState<AppNotification[]>([]);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
+  const pageRef = useRef(0);
+
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
 
   const applyCounts = useCallback((next: NotificationCounts) => {
     setCounts({
@@ -25,16 +35,19 @@ export function useNotifications(enabled: boolean) {
     });
   }, []);
 
-  const fetchInitial = useCallback(async () => {
+  const fetchPage = useCallback(async (pageNum: number) => {
     if (!enabled) return;
     setLoading(true);
     try {
-      const [countData, recent] = await Promise.all([
+      const [countData, result] = await Promise.all([
         notificationApi.unreadCount(),
-        notificationApi.recent(),
+        notificationApi.list(pageNum, NOTIFICATION_DROPDOWN_PAGE_SIZE),
       ]);
       applyCounts(countData);
-      setItems(recent);
+      setItems(result.content);
+      setPage(result.page);
+      setTotalPages(result.totalPages);
+      setTotalElements(result.totalElements);
     } catch (error) {
       console.error("Failed to load notifications", error);
     } finally {
@@ -43,8 +56,12 @@ export function useNotifications(enabled: boolean) {
   }, [applyCounts, enabled]);
 
   const refetch = useCallback(() => {
-    void fetchInitial();
-  }, [fetchInitial]);
+    void fetchPage(pageRef.current);
+  }, [fetchPage]);
+
+  const goToPage = useCallback((nextPage: number) => {
+    void fetchPage(nextPage);
+  }, [fetchPage]);
 
   const markRead = useCallback(async (notificationId: string) => {
     setItems((prev) =>
@@ -60,12 +77,12 @@ export function useNotifications(enabled: boolean) {
       const countData = await notificationApi.unreadCount();
       applyCounts(countData);
     } catch (error) {
-      void fetchInitial();
+      void fetchPage(pageRef.current);
       if (isNetworkError(error)) {
         toast.warn("Không kết nối được máy chủ. Thử lại sau vài giây.");
       }
     }
-  }, [applyCounts, fetchInitial]);
+  }, [applyCounts, fetchPage]);
 
   const markAllRead = useCallback(async () => {
     setItems((prev) => prev.map((item) => ({ ...item, read: true })));
@@ -73,17 +90,18 @@ export function useNotifications(enabled: boolean) {
 
     try {
       await notificationApi.markAllRead();
+      void fetchPage(pageRef.current);
     } catch (error) {
-      void fetchInitial();
+      void fetchPage(pageRef.current);
       if (isNetworkError(error)) {
         toast.warn("Không kết nối được máy chủ. Thử lại sau vài giây.");
       }
     }
-  }, [applyCounts, fetchInitial]);
+  }, [applyCounts, fetchPage]);
 
   useEffect(() => {
-    void fetchInitial();
-  }, [fetchInitial]);
+    void fetchPage(0);
+  }, [fetchPage]);
 
   useEffect(() => {
     if (!enabled) {
@@ -100,22 +118,24 @@ export function useNotifications(enabled: boolean) {
         }
         if (event === "notification") {
           const notification = JSON.parse(data) as AppNotification;
-          setItems((prev) =>
-            [notification, ...prev.filter((n) => n.notificationId !== notification.notificationId)].slice(0, 20)
-          );
           toast.info(notification.title, { autoClose: 4000 });
+          void fetchPage(pageRef.current);
         }
       },
       setConnected
     );
-  }, [applyCounts, enabled]);
+  }, [applyCounts, enabled, fetchPage]);
 
   return {
     counts,
     items,
+    page,
+    totalPages,
+    totalElements,
     loading,
     connected,
     refetch,
+    goToPage,
     markRead,
     markAllRead,
     totalNotifications: counts.total,

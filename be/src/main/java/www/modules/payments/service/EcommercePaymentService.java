@@ -21,7 +21,6 @@ import www.modules.payments.repository.EcommercePaymentRepository;
 import www.modules.payments.repository.PaymentEventRepository;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -34,11 +33,11 @@ public class EcommercePaymentService {
     private final NotificationService notificationService;
     private final OrderMailNotifier orderMailNotifier;
     private final ObjectMapper objectMapper;
+    private final SePayCheckoutSigner sePayCheckoutSigner;
+    private final SePayIpnParser sePayIpnParser;
 
     @Value("${sepay.api-url:https://pay-sandbox.sepay.vn/v1/checkout/init}")
     private String sepayUrl;
-    @Value("${sepay.merchant-id:}")
-    private String merchantId;
     @Value("${frontend.base-url:http://localhost:3000}")
     private String frontendBaseUrl;
 
@@ -98,7 +97,7 @@ public class EcommercePaymentService {
 
         validateCallbackAmount(payment, payload);
 
-        if ("SUCCESS".equalsIgnoreCase(status) || "COMPLETED".equalsIgnoreCase(status) || "APPROVED".equalsIgnoreCase(status)) {
+        if (sePayIpnParser.isPaid(status)) {
             payment.setStatus(EcommercePaymentStatus.COMPLETED);
             payment.setPaidAt(LocalDateTime.now());
             payment.setTransactionId(transactionId);
@@ -157,10 +156,27 @@ public class EcommercePaymentService {
     }
 
     private Double extractAmount(Map<String, Object> payload) {
-        Object raw = payload.getOrDefault("order_amount", payload.get("amount"));
-        if (raw == null) return null;
+        Object raw = payload.get("order_amount");
+        if (raw == null) {
+            raw = payload.get("amount");
+        }
+        if (raw == null && payload.get("order") instanceof Map<?, ?> order) {
+            raw = order.get("order_amount");
+            if (raw == null) {
+                raw = order.get("amount");
+            }
+        }
+        if (raw == null && payload.get("transaction") instanceof Map<?, ?> transaction) {
+            raw = transaction.get("transaction_amount");
+            if (raw == null) {
+                raw = transaction.get("amount");
+            }
+        }
+        if (raw == null) {
+            return null;
+        }
         try {
-            return Double.parseDouble(String.valueOf(raw));
+            return Double.parseDouble(String.valueOf(raw).replace(",", ""));
         } catch (NumberFormatException e) {
             return null;
         }
@@ -204,16 +220,6 @@ public class EcommercePaymentService {
     }
 
     private PaymentCheckoutResponse toCheckoutResponse(EcommercePayment payment) {
-        Map<String, String> formData = new LinkedHashMap<>();
-        formData.put("merchant", merchantId);
-        formData.put("currency", payment.getCurrency());
-        formData.put("order_amount", String.valueOf(payment.getAmount().intValue()));
-        formData.put("operation", "PURCHASE");
-        formData.put("order_description", "Thanh toán đơn hàng " + payment.getOrderCode());
-        formData.put("order_invoice_number", payment.getOrderInvoiceNumber());
-        formData.put("success_url", payment.getSuccessUrl());
-        formData.put("error_url", payment.getErrorUrl());
-        formData.put("cancel_url", payment.getCancelUrl());
         return PaymentCheckoutResponse.builder()
                 .paymentId(payment.getPaymentId())
                 .orderId(payment.getOrderId())
@@ -221,7 +227,7 @@ public class EcommercePaymentService {
                 .amount(payment.getAmount())
                 .currency(payment.getCurrency())
                 .paymentUrl(payment.getPaymentUrl())
-                .formData(formData)
+                .formData(sePayCheckoutSigner.buildSignedFormData(payment))
                 .build();
     }
 
