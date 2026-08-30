@@ -23,7 +23,6 @@ Lần **đầu** chạy (MongoDB trống), backend tự seed:
 - 12 sản phẩm, brand, category, tồn kho
 - 6 tài khoản demo `@sole.test`
 - 16 review demo
-- Reindex Elasticsearch nếu `SEARCH_ENGINE=elasticsearch`
 
 Chỉ cần infra (BE/FE chạy local, hot reload):
 
@@ -37,7 +36,7 @@ cd fe && npm run dev
 ### Dev thủ công
 
 ```bash
-# Infrastructure (MongoDB, Redis, Elasticsearch, Redis Commander)
+# Infrastructure (MongoDB, Redis, Redis Commander)
 docker compose up -d
 ```
 
@@ -104,10 +103,9 @@ Disable with `CATALOG_SEED_ENABLED=false` in `.env`. To re-seed from scratch, dr
 | Variable | Mặc định | Ý nghĩa |
 |----------|----------|---------|
 | `CATALOG_SEED_ENABLED` | `true` | Seed catalog khi DB trống |
-| `CATALOG_SEED_FORCE` | `false` | DB đã có SP → refresh ảnh + reindex (không xóa data) |
+| `CATALOG_SEED_FORCE` | `false` | DB đã có SP → refresh ảnh demo (không xóa data) |
 | `REVIEW_SEED_ENABLED` | `true` | Seed review demo |
 | `REVIEW_SEED_FORCE` | `false` | Xóa review seed cũ rồi tạo lại |
-| `APP_BOOTSTRAP_REINDEX` | `true` | Sau khi app sẵn sàng, reindex ES nếu `SEARCH_ENGINE=elasticsearch` |
 | `USER_SEED_PASSWORD` | `Sole@123` | Mật khẩu tất cả demo `@sole.test` |
 
 Reset demo hoàn toàn: `docker compose --profile demo down -v` rồi `./scripts/demo-up.sh`.

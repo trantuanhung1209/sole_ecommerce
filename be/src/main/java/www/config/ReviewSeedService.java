@@ -12,15 +12,12 @@ import www.modules.catalog.model.Product;
 import www.modules.catalog.repository.ProductRepository;
 import www.modules.reviews.model.ProductReview;
 import www.modules.reviews.repository.ProductReviewRepository;
-import www.modules.search.service.SearchIndexService;
 import www.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 @Service
 @DependsOn({"catalogSeedService", "userSeedService"})
@@ -33,7 +30,6 @@ public class ReviewSeedService {
     private final ProductReviewRepository reviewRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
-    private final SearchIndexService searchIndexService;
 
     @Value("${review.seed.enabled:true}")
     private boolean seedEnabled;
@@ -86,7 +82,6 @@ public class ReviewSeedService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        Set<String> productIds = new LinkedHashSet<>();
         List<ProductReview> batch = new ArrayList<>();
         int index = 1;
 
@@ -119,7 +114,6 @@ public class ReviewSeedService {
                     .createdAt(createdAt)
                     .updatedAt(createdAt)
                     .build());
-            productIds.add(product.get().getProductId());
             index++;
         }
 
@@ -129,7 +123,6 @@ public class ReviewSeedService {
         }
 
         reviewRepository.saveAll(batch);
-        productIds.forEach(searchIndexService::indexProductAsync);
         return batch.size();
     }
 

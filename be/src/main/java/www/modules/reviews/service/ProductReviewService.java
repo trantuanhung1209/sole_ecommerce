@@ -15,7 +15,6 @@ import www.modules.orders.repository.OrderRepository;
 import www.modules.reviews.dto.ProductReviewDtos.*;
 import www.modules.reviews.model.ProductReview;
 import www.modules.reviews.repository.ProductReviewRepository;
-import www.modules.search.service.SearchIndexService;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -33,7 +32,6 @@ public class ProductReviewService {
     private final ProductReviewQueryService reviewQueryService;
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
-    private final SearchIndexService searchIndexService;
 
     public Page<ProductReview> productReviews(String productId, Pageable pageable) {
         return reviewRepository.findByProductIdAndVisibleTrueOrderByCreatedAtDesc(productId, pageable);
@@ -175,7 +173,6 @@ public class ProductReviewService {
                 .createdAt(now)
                 .updatedAt(now)
                 .build());
-        searchIndexService.indexProductAsync(item.getProductId());
         return saved;
     }
 

@@ -11,7 +11,7 @@ if [[ ! -f .env ]]; then
   echo "Created .env from .env.example"
 fi
 
-echo "Starting infrastructure (MongoDB, Redis, Elasticsearch)..."
+echo "Starting infrastructure (MongoDB, Redis)..."
 docker compose up -d
 
 echo "Waiting for MongoDB..."

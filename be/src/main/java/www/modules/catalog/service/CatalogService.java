@@ -1,7 +1,6 @@
 package www.modules.catalog.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -19,8 +18,7 @@ import www.modules.common.EcommerceEnums.VariantStatus;
 import www.modules.inventory.model.Inventory;
 import www.modules.inventory.service.InventoryService;
 import www.modules.reviews.repository.ProductReviewRepository;
-import www.modules.search.port.ProductSearchPort;
-import www.modules.search.service.SearchIndexService;
+import www.modules.catalog.search.ProductTextSearchService;
 import www.modules.ai.service.AiIndexService;
 
 import java.time.LocalDateTime;
@@ -36,8 +34,7 @@ public class CatalogService {
     private final CategoryRepository categoryRepository;
     private final InventoryService inventoryService;
     private final ProductReviewRepository reviewRepository;
-    private final ProductSearchPort productSearchPort;
-    private final SearchIndexService searchIndexService;
+    private final ProductTextSearchService productTextSearchService;
     private final AiIndexService aiIndexService;
 
     public Page<ProductSummary> getPublishedProductSummaries(String search, Pageable pageable) {
@@ -48,7 +45,7 @@ public class CatalogService {
     }
 
     public Page<ProductSummary> searchPublished(ProductFilter filter, Pageable pageable) {
-        return productSearchPort.search(filter, pageable);
+        return searchPublishedMongo(filter, pageable);
     }
 
     public Page<ProductSummary> searchPublishedMongo(ProductFilter filter, Pageable pageable) {
@@ -66,7 +63,7 @@ public class CatalogService {
     public Page<Product> getAdminProducts(String search, ProductStatus status, PublicStatus publicStatus, Pageable pageable) {
         List<Product> candidates;
         if (search != null && !search.isBlank()) {
-            candidates = productRepository.search(search.trim(), Pageable.unpaged()).getContent();
+            candidates = productTextSearchService.searchAllNonDeleted(search.trim());
         } else {
             candidates = productRepository.findByDeletedFalse(Pageable.unpaged()).getContent();
         }
@@ -176,7 +173,6 @@ public class CatalogService {
         product.setPublicStatus(PublicStatus.PUBLISHED);
         product.setUpdatedAt(LocalDateTime.now());
         Product saved = productRepository.save(product);
-        searchIndexService.indexProductAsync(productId);
         aiIndexService.indexProductAsync(productId);
         return saved;
     }
@@ -187,7 +183,6 @@ public class CatalogService {
         product.setPublicStatus(PublicStatus.HIDDEN);
         product.setUpdatedAt(LocalDateTime.now());
         Product saved = productRepository.save(product);
-        searchIndexService.indexProductAsync(productId);
         aiIndexService.indexProductAsync(productId);
         return saved;
     }
@@ -198,7 +193,6 @@ public class CatalogService {
         product.setPublicStatus(PublicStatus.HIDDEN);
         product.setUpdatedAt(LocalDateTime.now());
         productRepository.save(product);
-        searchIndexService.indexProductAsync(productId);
         aiIndexService.indexProductAsync(productId);
     }
 
@@ -424,7 +418,7 @@ public class CatalogService {
 
     private List<Product> loadPublishedCandidates(String search) {
         if (search != null && !search.isBlank()) {
-            return productRepository.searchPublished(search.trim(), Pageable.unpaged()).getContent();
+            return productTextSearchService.searchPublished(search.trim());
         }
         return productRepository.findByStatusAndPublicStatusAndDeletedFalse(
                 ProductStatus.PUBLISHED, PublicStatus.PUBLISHED, Pageable.unpaged()).getContent();

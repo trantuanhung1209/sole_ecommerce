@@ -74,7 +74,7 @@
 | **R0** | Bật `permission.enforcement`, trang payment error/cancel poll BE, integration test payment/inventory, checklist staging |
 | **R1** | Admin order detail, return/address/checkout polish, mở rộng `@perm.has`, runbook refund |
 | **R2** | Guest cart BE (`guestSessionId` + merge khi login), route `/cart` public, FloatingChatbot |
-| **R3** | Correlation ID, ES re-index hook (review/inventory), Playwright smoke E2E, inventory paging |
+| **R3** | Correlation ID, Playwright smoke E2E, inventory paging |
 | **R4** | Module `promotions/` (coupon + checkout), `VatCalculator`, FE coupon checkout + admin promotions |
 | **AI** | RAG embedding, context catalog/policy/order, multi-turn, `suggestedProducts` trên FE |
 
@@ -165,7 +165,7 @@ MANAGE_ROLE_PERMISSIONS, AUDIT_LOG_READ
 | Media | Cloudinary |
 | Thanh toán | SePay (sandbox/production qua env) |
 | Email | Thymeleaf templates |
-| Tìm kiếm (tùy chọn) | Elasticsearch 8.x (fallback Mongo) |
+| Tìm kiếm | MongoDB `$text` full-text index (`name`, `shortDescription`, `description`) + filter in-memory |
 | AI | OpenAI API (server-side) |
 
 ### 3.2. Frontend — ✅
@@ -387,7 +387,7 @@ Phần này mô tả **cách từng chức năng hoạt động thực tế** tr
 | Reserve khi checkout | Atomic Mongo update: `available -= qty`, `reserved += qty`; tạo `StockReservation` ACTIVE, TTL 15 phút |
 | Xác nhận khi thanh toán | IPN success → `confirmOrderReservations`: `reserved → sold` |
 | Hủy / hết hạn | Release reservation → trả `available` |
-| Điều chỉnh thủ công | Admin `PUT /admin/inventory/{variantId}/adjust` — re-index ES product |
+| Điều chỉnh thủ công | Admin `PUT /admin/inventory/{variantId}/adjust` |
 | Import CSV | Admin `POST /admin/inventory/import` — FE có textarea `variantId,quantity` |
 | Restock khi trả hàng | Return `RECEIVED` → `InventoryService.restock()` — giảm `sold`, tăng `onHand`/`available` |
 | Scheduler | Job expire reservation + expire payment pending |
@@ -518,10 +518,11 @@ PENDING
 
 | Thành phần | Mô tả |
 |------------|-------|
-| Engine mặc định | `SEARCH_ENGINE=mongo` — regex/filter đầy đủ |
-| Elasticsearch | Nested filter size/color/price/inStock; timeout → fallback Mongo (`ProductSearchRouter`) |
-| Re-index trigger | Publish/unpublish, inventory adjust/restock, **review mới** (`ProductReviewService` → `SearchIndexService`) |
-| Admin re-index | `POST /admin/search/reindex`; widget low-stock trên dashboard |
+| Engine | MongoDB `$text` trên `name` (weight 10), `shortDescription` (5), `description` (1) |
+| Startup | `ProductTextIndexInitializer` — `ensureIndex` text index khi app sẵn sàng |
+| Query | `ProductTextSearchService` — sanitize keyword, sort theo `textScore` |
+| Filter | `CatalogService.searchPublishedMongo` — brand/category/gender/price/size/color/inStock/sort (in-memory sau text query) |
+| Giới hạn | Tokenization tiếng Việt cơ bản; đủ cho catalog demo (~200 SP) |
 
 ### 6.14. Khuyến mãi / Coupon (Promotions) — ✅
 
@@ -711,7 +712,6 @@ GET      /notifications/stream           # SSE — client disconnect handled gra
 GET      /admin/reports/dashboard
 POST     /ai/chat                        # permitAll; response: answer, routeType, suggestedProducts, warnings
 GET      /ai/conversations/...           # auth — lịch sử hội thoại
-POST     /admin/search/reindex
 ```
 
 **`POST /ai/chat` request:**
@@ -1030,19 +1030,15 @@ SSE `/notifications/stream` push realtime tới bell icon.
 
 ## 14. Tìm kiếm và lọc sản phẩm
 
-### 14.1. Mongo (mặc định) — ✅
+### 14.1. MongoDB full-text search — ✅
 
-Filter: keyword, brandId, categoryId, gender, min/max price, size, color, inStock, sort (newest, price, rating).
+- Text index trên `products`: `name`, `shortDescription`, `description` (weights khác nhau).
+- Query: `$text` + `$meta: textScore` sort relevance khi có `search` param.
+- Filter bổ sung (brand, category, gender, min/max price, size, color, inStock, sort) xử lý trong `CatalogService` sau text query.
+- Keyword sanitize: loại `"`, `-` (negation), collapse whitespace.
+- **Lưu ý:** Mongo `$text` không segment tiếng Việt tốt như dedicated search engine; chấp nhận cho quy mô catalog demo.
 
-### 14.2. Elasticsearch (tùy chọn) — ✅ / ⚠️
-
-- Bật: `SEARCH_ENGINE=elasticsearch` + Docker ES.
-- Index `ProductDocument` với nested `variants[]` (size, color, price, available).
-- Filter phức tạp dùng nested query.
-- Timeout → fallback Mongo tự động (`ProductSearchRouter`).
-- Re-index: publish/unpublish, adjust, restock; API admin reindex.
-
-### 14.3. AI RAG (embedding retrieval) — ✅
+### 14.2. AI RAG (embedding retrieval) — ✅
 
 **Phạm vi:** Hỗ trợ trợ lý AI — **không** thay thế search sản phẩm storefront.
 
@@ -1165,8 +1161,6 @@ MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD
 CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
 SEPAY_API_URL, SEPAY_MERCHANT_ID, SEPAY_SECRET_KEY
 FRONTEND_BASE_URL
-SEARCH_ENGINE=mongo|elasticsearch
-ELASTICSEARCH_URI, SEARCH_INDEX_NAME, SEARCH_TIMEOUT_MS
 OPENAI_API_KEY, OPENAI_MODEL, OPENAI_EMBEDDING_MODEL, OPENAI_TIMEOUT_MS
 AI_RETRIEVAL_PRODUCT_TOP_K, AI_RETRIEVAL_POLICY_TOP_K
 AI_CONVERSATION_HISTORY_TURNS, AI_REINDEX_ON_STARTUP
@@ -1234,7 +1228,7 @@ VITE_CLOUDINARY_UPLOAD_PRESET
 - [x] Admin order detail page + staff route
 - [x] Address book CRUD + ward/district
 - [x] AI RAG + suggested products + order context (login)
-- [x] ES re-index on review; correlation ID
+- [x] Correlation ID
 - [x] Unit test suite mở rộng (BE ~90, FE ~28, returnFlow + ReturnServiceTest)
 
 ### 19.3. Production-ready — ⚠️ Còn lại

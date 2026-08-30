@@ -3,7 +3,7 @@ import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
-import { inventoryApi, searchApi } from "@/services/ecommerceServices";
+import { inventoryApi } from "@/services/ecommerceServices";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { TablePagination } from "@/components/shared/TablePagination";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -57,15 +57,6 @@ export default function InventoryManagementPage() {
   useEffect(() => {
     setPage(0);
   }, [debouncedSearch, stockFilter]);
-
-  const handleReindex = async () => {
-    try {
-      const count = await searchApi.reindex();
-      toast.success(`Đã re-index ${count} sản phẩm`);
-    } catch {
-      toast.error("Re-index thất bại");
-    }
-  };
 
   const handleAdjust = async (variantId: string) => {
     const change = Number(adjustments[variantId] || 0);
@@ -131,7 +122,6 @@ export default function InventoryManagementPage() {
             {lowStockCount} biến thể sắp hết hàng (≤5)
           </p>
         )}
-        <Button variant="outline" size="sm" onClick={handleReindex}>Re-index Elasticsearch</Button>
       </div>
 
       <AdminFilterBar

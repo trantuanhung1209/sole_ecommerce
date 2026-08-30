@@ -25,7 +25,6 @@
 ## Ứng dụng
 
 - [ ] `FRONTEND_BASE_URL` redirect payment success/error/cancel
-- [ ] `SEARCH_ENGINE` (mongo hoặc elasticsearch + ES healthy)
 - [ ] `./gradlew test` pass
 - [ ] `npm test` pass
 

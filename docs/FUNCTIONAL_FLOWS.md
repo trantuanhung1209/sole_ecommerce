@@ -114,7 +114,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-  A["/products + filter URL"] --> B["Mongo / Elasticsearch"]
+  A["/products + filter URL"] --> B["MongoDB $text + filter"]
   B --> C["PDP: chọn variant"]
   C --> D{"Đăng nhập?"}
   D -->|Guest| E["POST /cart/items<br/>guestSessionId cookie"]

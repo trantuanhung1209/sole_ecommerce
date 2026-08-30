@@ -18,7 +18,6 @@ import www.modules.inventory.model.StockReservation;
 import www.modules.inventory.repository.InventoryRepository;
 import www.modules.inventory.repository.StockReservationRepository;
 import www.modules.inventory.service.InventoryService;
-import www.modules.search.service.SearchIndexService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -40,8 +39,6 @@ class InventoryServiceTest {
     private ProductRepository productRepository;
     @Mock
     private MongoTemplate mongoTemplate;
-    @Mock
-    private SearchIndexService searchIndexService;
 
     @InjectMocks
     private InventoryService inventoryService;
@@ -53,8 +50,7 @@ class InventoryServiceTest {
                 reservationRepository,
                 variantRepository,
                 productRepository,
-                mongoTemplate,
-                searchIndexService);
+                mongoTemplate);
     }
 
     @Test

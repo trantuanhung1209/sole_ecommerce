@@ -22,7 +22,6 @@ import www.modules.inventory.model.Inventory;
 import www.modules.inventory.model.StockReservation;
 import www.modules.inventory.repository.InventoryRepository;
 import www.modules.inventory.repository.StockReservationRepository;
-import www.modules.search.service.SearchIndexService;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -43,7 +42,6 @@ public class InventoryService {
     private final ProductVariantRepository variantRepository;
     private final ProductRepository productRepository;
     private final MongoTemplate mongoTemplate;
-    private final SearchIndexService searchIndexService;
 
     public Inventory ensureInventory(String variantId, int initialStock) {
         return inventoryRepository.findByVariantIdAndWarehouseId(variantId, DEFAULT_WAREHOUSE)
@@ -180,9 +178,7 @@ public class InventoryService {
         inventory.setOnHand(onHand);
         inventory.setAvailable(onHand - inventory.getReserved() - inventory.getSold());
         inventory.setUpdatedAt(LocalDateTime.now());
-        Inventory saved = inventoryRepository.save(inventory);
-        reindexVariantProduct(variantId);
-        return saved;
+        return inventoryRepository.save(inventory);
     }
 
     @Transactional
@@ -199,12 +195,6 @@ public class InventoryService {
         inventory.setAvailable(inventory.getOnHand() - inventory.getReserved() - inventory.getSold());
         inventory.setUpdatedAt(LocalDateTime.now());
         inventoryRepository.save(inventory);
-        reindexVariantProduct(variantId);
-    }
-
-    private void reindexVariantProduct(String variantId) {
-        variantRepository.findById(variantId)
-                .ifPresent(variant -> searchIndexService.indexProductAsync(variant.getProductId()));
     }
 
     @Transactional

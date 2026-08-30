@@ -306,13 +306,6 @@ export const inventoryApi = {
   },
 };
 
-export const searchApi = {
-  reindex: async () => {
-    const res = await authorizedAxios.post<ApiResponse<number>>("/admin/search/reindex");
-    return res.data.data;
-  },
-};
-
 export interface Coupon {
   couponId: string;
   code: string;

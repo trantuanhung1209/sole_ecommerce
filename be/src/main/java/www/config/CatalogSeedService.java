@@ -19,9 +19,7 @@ import www.modules.common.EcommerceEnums.ProductStatus;
 import www.modules.common.EcommerceEnums.PublicStatus;
 import www.modules.common.EcommerceEnums.VariantStatus;
 import www.modules.inventory.service.InventoryService;
-import www.modules.search.service.SearchIndexService;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -44,7 +42,6 @@ public class CatalogSeedService {
     private final ProductRepository productRepository;
     private final ProductVariantRepository variantRepository;
     private final InventoryService inventoryService;
-    private final SearchIndexService searchIndexService;
 
     @Value("${catalog.seed.enabled:true}")
     private boolean seedEnabled;
@@ -70,7 +67,6 @@ public class CatalogSeedService {
             }
             int products = seedCatalog();
             log.info("Catalog seed complete — {} products ready for UI testing", products);
-            reindexSearchSafely("Search index after catalog seed");
         } catch (DataAccessException e) {
             log.warn("Skip catalog seed because database is not ready: {}", e.getMessage());
         }
@@ -100,17 +96,7 @@ public class CatalogSeedService {
             updated++;
         }
 
-        reindexSearchSafely("Search index refreshed");
         return updated;
-    }
-
-    private void reindexSearchSafely(String context) {
-        try {
-            int indexed = searchIndexService.reindexAll();
-            log.info("{} — {} published products indexed", context, indexed);
-        } catch (IOException e) {
-            log.warn("{} failed: {}", context, e.getMessage());
-        }
     }
 
     private int seedCatalog() {
