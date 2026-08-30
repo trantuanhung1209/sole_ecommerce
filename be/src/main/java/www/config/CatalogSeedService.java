@@ -70,6 +70,7 @@ public class CatalogSeedService {
             }
             int products = seedCatalog();
             log.info("Catalog seed complete — {} products ready for UI testing", products);
+            reindexSearchSafely("Search index after catalog seed");
         } catch (DataAccessException e) {
             log.warn("Skip catalog seed because database is not ready: {}", e.getMessage());
         }
@@ -99,13 +100,17 @@ public class CatalogSeedService {
             updated++;
         }
 
+        reindexSearchSafely("Search index refreshed");
+        return updated;
+    }
+
+    private void reindexSearchSafely(String context) {
         try {
             int indexed = searchIndexService.reindexAll();
-            log.info("Search index refreshed — {} published products", indexed);
+            log.info("{} — {} published products indexed", context, indexed);
         } catch (IOException e) {
-            log.warn("Search reindex after catalog refresh failed: {}", e.getMessage());
+            log.warn("{} failed: {}", context, e.getMessage());
         }
-        return updated;
     }
 
     private int seedCatalog() {

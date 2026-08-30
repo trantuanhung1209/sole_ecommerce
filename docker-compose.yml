@@ -1,5 +1,25 @@
 services:
 
+  # MongoDB
+  mongodb:
+    image: mongo:7
+    container_name: sole-mongodb
+    restart: unless-stopped
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    environment:
+      MONGO_INITDB_DATABASE: sole_ecommerce
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    networks:
+      - www-network
+
   # Redis Cache
   redis:
     image: redis:7-alpine
@@ -21,16 +41,14 @@ services:
     ports:
       - "${REDIS_COMMANDER_PORT:-8082}:8081"
     environment:
-      # BE chạy trên host dùng localhost:6379 — trỏ Commander về cùng instance (tránh Redis Docker rỗng)
-      - REDIS_HOSTS=sole:host.docker.internal:6379
+      - REDIS_HOSTS=sole:redis:6379
       - HTTP_USER=${REDIS_COMMANDER_USER:-admin}
       - HTTP_PASSWORD=${REDIS_COMMANDER_PASSWORD:-admin}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - www-network
     depends_on:
-      - redis
+      redis:
+        condition: service_started
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.5
@@ -52,6 +70,64 @@ services:
     networks:
       - www-network
 
+  # Backend — profile "demo": auto-seed Mongo on first boot + optional ES reindex
+  backend:
+    profiles: ["demo"]
+    build:
+      context: ./be
+      dockerfile: Dockerfile
+    container_name: sole-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-3001}:${BACKEND_INTERNAL_PORT:-8081}"
+    env_file:
+      - .env
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MONGODB_URI: mongodb://mongodb:27017/sole_ecommerce
+      REDIS_HOST: redis
+      ELASTICSEARCH_URI: http://elasticsearch:9200
+      BACKEND_INTERNAL_PORT: ${BACKEND_INTERNAL_PORT:-8081}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+    volumes:
+      - ./be:/app
+      - gradle_cache:/home/gradle/.gradle
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/api/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 120s
+    networks:
+      - www-network
+
+  frontend:
+    profiles: ["demo"]
+    build:
+      context: ./fe
+      dockerfile: Dockerfile
+    container_name: sole-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:${FRONTEND_INTERNAL_PORT:-5173}"
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+    volumes:
+      - ./fe:/app
+      - /app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - www-network
+
 # Networks
 networks:
   www-network:
@@ -64,4 +140,6 @@ volumes:
   redis_data:
     driver: local
   elasticsearch_data:
+    driver: local
+  mongodb_data:
     driver: local

@@ -9,15 +9,36 @@ Full-stack shoe e-commerce platform.
 
 ## Quick start
 
+### Gửi cho người test (một lệnh — Docker full stack + auto seed)
+
 ```bash
-# Redis
-docker compose up -d redis
+cp .env.example .env
+chmod +x scripts/demo-up.sh
+./scripts/demo-up.sh
+```
 
-# Backend
-cd be && ./gradlew bootRun
+Mở http://localhost:3000 — đăng nhập `customer@sole.test` / `Sole@123`.
 
-# Frontend
-cd fe && npm install && npm run dev
+Lần **đầu** chạy (MongoDB trống), backend tự seed:
+- 12 sản phẩm, brand, category, tồn kho
+- 6 tài khoản demo `@sole.test`
+- 16 review demo
+- Reindex Elasticsearch nếu `SEARCH_ENGINE=elasticsearch`
+
+Chỉ cần infra (BE/FE chạy local, hot reload):
+
+```bash
+chmod +x scripts/dev-up.sh
+./scripts/dev-up.sh
+cd be && ./gradlew bootRun   # seed tự chạy nếu DB trống
+cd fe && npm run dev
+```
+
+### Dev thủ công
+
+```bash
+# Infrastructure (MongoDB, Redis, Elasticsearch, Redis Commander)
+docker compose up -d
 ```
 
 ## Migration scripts
@@ -76,7 +97,20 @@ On first boot with an **empty** products collection, the backend auto-seeds:
 - 6 categories (Running, Lifestyle, …)
 - 12 published products with variants, prices, and inventory
 
-Disable with `CATALOG_SEED_ENABLED=false` in `.env`. To re-seed, clear the `products` collection in MongoDB and restart.
+Disable with `CATALOG_SEED_ENABLED=false` in `.env`. To re-seed from scratch, drop MongoDB volume: `docker compose down -v` then start again.
+
+### Seed flags (`.env`)
+
+| Variable | Mặc định | Ý nghĩa |
+|----------|----------|---------|
+| `CATALOG_SEED_ENABLED` | `true` | Seed catalog khi DB trống |
+| `CATALOG_SEED_FORCE` | `false` | DB đã có SP → refresh ảnh + reindex (không xóa data) |
+| `REVIEW_SEED_ENABLED` | `true` | Seed review demo |
+| `REVIEW_SEED_FORCE` | `false` | Xóa review seed cũ rồi tạo lại |
+| `APP_BOOTSTRAP_REINDEX` | `true` | Sau khi app sẵn sàng, reindex ES nếu `SEARCH_ENGINE=elasticsearch` |
+| `USER_SEED_PASSWORD` | `Sole@123` | Mật khẩu tất cả demo `@sole.test` |
+
+Reset demo hoàn toàn: `docker compose --profile demo down -v` rồi `./scripts/demo-up.sh`.
 
 ### Demo user accounts
 
