@@ -16,6 +16,7 @@ public class SePayProperties {
     private String webhookUrl;
     private String ipnUrl;
     private String environment = "sandbox"; // sandbox hoặc production
+    private boolean ipnVerify = true;
     
     // Timeout settings
     private int connectTimeout = 30000; // 30 seconds

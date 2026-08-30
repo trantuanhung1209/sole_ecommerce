@@ -11,7 +11,7 @@ const defaultCounts: NotificationCounts = {
   pendingReturns: 0,
 };
 
-export const NOTIFICATION_DROPDOWN_PAGE_SIZE = 8;
+export const NOTIFICATION_DROPDOWN_PAGE_SIZE = 5;
 
 export function useNotifications(enabled: boolean) {
   const [counts, setCounts] = useState<NotificationCounts>(defaultCounts);
