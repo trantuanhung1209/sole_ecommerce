@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { TrendingUp, Users, Package, DollarSign, ShoppingCart, Activity } from "lucide-react";
+import { Link } from "react-router-dom";
+import { TrendingUp, Users, Package, DollarSign, ShoppingCart, Activity, RotateCcw, AlertTriangle } from "lucide-react";
 import {
   DashboardHeader,
   GrowthStatsCard,
@@ -77,6 +78,57 @@ function DashboardAdmin() {
         </div>
 
         <ProductPopularityChart data={productPopularityData} formatCurrency={formatCurrency} />
+
+        {(stats.overdueApprovedReturns > 0 || stats.staleRefundPendingReturns > 0) && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="flex items-center gap-2 font-semibold">
+              <AlertTriangle className="h-4 w-4" />
+              Cảnh báo đổi/trả hàng
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {stats.overdueApprovedReturns > 0 ? (
+                <li>{stats.overdueApprovedReturns} yêu cầu đã duyệt quá hạn gửi hàng trả</li>
+              ) : null}
+              {stats.staleRefundPendingReturns > 0 ? (
+                <li>{stats.staleRefundPendingReturns} yêu cầu chờ hoàn tiền quá 3 ngày chưa xác nhận</li>
+              ) : null}
+            </ul>
+            <Link to="/admin/returns" className="mt-2 inline-block text-sm font-medium underline">
+              Mở quản lý trả hàng
+            </Link>
+          </div>
+        )}
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <StatsCard
+            title="Return chờ xử lý"
+            value={stats.pendingReturns}
+            icon={RotateCcw}
+            description="Trạng thái PENDING"
+            iconColor="text-orange-600"
+          />
+          <StatsCard
+            title="Chờ chuyển tiền"
+            value={stats.refundPendingReturns}
+            icon={DollarSign}
+            description="REFUND_PENDING"
+            iconColor="text-amber-600"
+          />
+          <StatsCard
+            title="Quá hạn gửi hàng"
+            value={stats.overdueApprovedReturns}
+            icon={AlertTriangle}
+            description="APPROVED quá deadline"
+            iconColor="text-red-600"
+          />
+          <StatsCard
+            title="Hoàn tiền chậm"
+            value={stats.staleRefundPendingReturns}
+            icon={Activity}
+            description="REFUND_PENDING > 3 ngày"
+            iconColor="text-yellow-700"
+          />
+        </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <StatsCard

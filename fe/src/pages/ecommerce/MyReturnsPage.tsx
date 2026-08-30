@@ -4,6 +4,7 @@ import { ReturnFlowStepper } from "@/components/returns/ReturnFlowStepper";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { money, orderApi, returnApi } from "@/services/ecommerceServices";
 import { getReturnStatusLabel } from "@/utils/displayLabels";
+import { RETURN_ITEM_CONDITION_LABELS } from "@/utils/returnFlow";
 import { resolveOrderCode, resolveReturnProductName } from "@/utils/productDisplay";
 import type { Order, ReturnRequest } from "@/types/ecommerce.type";
 
@@ -65,6 +66,25 @@ export default function MyReturnsPage() {
               {expanded ? (
                 <div className="space-y-4 border-t pt-4">
                   <ReturnFlowStepper status={item.status} variant="customer" />
+                  {item.status === "APPROVED" && item.shipBackDeadlineAt ? (
+                    <p className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                      Gửi hàng về trước{" "}
+                      <strong>{new Date(item.shipBackDeadlineAt).toLocaleString("vi-VN")}</strong>. Quá hạn có thể bị
+                      từ chối.
+                    </p>
+                  ) : null}
+                  {item.itemCondition ? (
+                    <p className="rounded-lg border p-3 text-sm">
+                      Tình trạng hàng khi shop kiểm tra:{" "}
+                      <strong>{RETURN_ITEM_CONDITION_LABELS[item.itemCondition] ?? item.itemCondition}</strong>
+                      {item.maxRefundAmount != null ? (
+                        <>
+                          {" "}
+                          · Trần hoàn: <strong>{money(item.maxRefundAmount)}</strong>
+                        </>
+                      ) : null}
+                    </p>
+                  ) : null}
                   {item.status === "REFUND_PENDING" ? (
                     <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                       Cửa hàng đang xử lý hoàn tiền. Bạn sẽ được thông báo khi tiền đã được chuyển.

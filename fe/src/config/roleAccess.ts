@@ -43,7 +43,7 @@ export const roleAccess = {
     role === UserRole.SHOP_MANAGER ||
     roleAccess.hasPermission(permissions, "CATALOG_APPROVE"),
 
-  canPublishProduct: (role?: UserRoleType, permissions?: string[]) =>
+  canPublishProduct: (role?: UserRoleType, _permissions?: string[]) =>
     role === UserRole.SHOP_MANAGER ||
     role === UserRole.ADMIN ||
     role === UserRole.SUPER_ADMIN,

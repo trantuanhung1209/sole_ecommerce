@@ -17,6 +17,10 @@ export interface DashboardStats {
   averageOrderValue: number;
   revenueGrowth: number;
   orderGrowth: number;
+  pendingReturns: number;
+  refundPendingReturns: number;
+  overdueApprovedReturns: number;
+  staleRefundPendingReturns: number;
 }
 
 function formatDate(d: Date): string {
@@ -37,6 +41,10 @@ export function useDashboardData(timeRange: TimeRange) {
     averageOrderValue: 0,
     revenueGrowth: 0,
     orderGrowth: 0,
+    pendingReturns: 0,
+    refundPendingReturns: 0,
+    overdueApprovedReturns: 0,
+    staleRefundPendingReturns: 0,
   });
   const [orders, setOrders] = useState<Order[]>([]);
 
@@ -118,6 +126,10 @@ export function useDashboardData(timeRange: TimeRange) {
         averageOrderValue: report.totalOrders > 0 ? report.totalRevenue / report.totalOrders : 0,
         revenueGrowth,
         orderGrowth,
+        pendingReturns: report.pendingReturns ?? 0,
+        refundPendingReturns: report.refundPendingReturns ?? 0,
+        overdueApprovedReturns: report.overdueApprovedReturns ?? 0,
+        staleRefundPendingReturns: report.staleRefundPendingReturns ?? 0,
       });
     } catch (error) {
       console.error("Error loading dashboard data:", error);

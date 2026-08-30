@@ -120,6 +120,9 @@ public class ReturnService {
         if (request.getStatus() == ReturnStatus.REFUND_PENDING || request.getStatus() == ReturnStatus.REFUNDED) {
             throw new BadRequestException("Dùng API request-refund / confirm-refund cho các bước hoàn tiền");
         }
+        if (request.getStatus() == ReturnStatus.RECEIVED) {
+            throw new BadRequestException("Dùng API mark-received để xác nhận nhận hàng và tình trạng sản phẩm");
+        }
         ReturnRequest returnRequest = returnRepository.findById(returnId)
                 .orElseThrow(() -> new NotFoundException("Return request not found: " + returnId));
         ReturnStatus previousStatus = returnRequest.getStatus();
@@ -148,9 +151,6 @@ public class ReturnService {
             }
             returnRequest.setRejectedReason(rejectedReason.trim());
             returnRequest.setRejectedAt(now);
-        }
-        if (nextStatus == ReturnStatus.RECEIVED) {
-            returnRequest.setReceivedAt(now);
         }
 
         ReturnRequest saved = returnRepository.save(returnRequest);
