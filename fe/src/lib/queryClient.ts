@@ -12,3 +12,7 @@ export const queryClient = new QueryClient({
 export const cartQueryKeys = {
   all: ["cart"] as const,
 };
+
+export const wishlistQueryKeys = {
+  all: ["wishlist"] as const,
+};

@@ -4,6 +4,8 @@ import { Heart, Loader2, ShoppingCart } from "lucide-react";
 import { toast } from "react-toastify";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/contexts/CartContext";
+import { useWishlist } from "@/hooks/useWishlist";
+import { cn } from "@/lib/utils";
 import { money, productApi } from "@/services/ecommerceServices";
 import type { ProductSummary } from "@/types/ecommerce.type";
 
@@ -19,8 +21,11 @@ type ProductCardProps = {
 export function ProductCard({ product, badge = "NEW", className = "" }: ProductCardProps) {
   const imageRef = useRef<HTMLImageElement>(null);
   const { addItem } = useCart();
+  const { isWishlisted, toggle, togglingProductId } = useWishlist();
   const [adding, setAdding] = useState(false);
   const productUrl = `/products/${product.slug || product.productId}`;
+  const wishlisted = isWishlisted(product.productId);
+  const togglingWishlist = togglingProductId === product.productId;
 
   const hasDiscount =
     product.compareAtPrice != null &&
@@ -110,14 +115,23 @@ export function ProductCard({ product, badge = "NEW", className = "" }: ProductC
 
       <button
         type="button"
-        className="absolute right-3 top-3 z-10 cursor-pointer rounded-full bg-white p-2 shadow-sm transition hover:scale-105 hover:text-accent"
-        aria-label="Yêu thích"
+        className={cn(
+          "absolute right-3 top-3 z-10 cursor-pointer rounded-full bg-white p-2 shadow-sm transition hover:scale-105",
+          wishlisted ? "text-[#E53935]" : "hover:text-accent"
+        )}
+        aria-label={wishlisted ? "Bỏ yêu thích" : "Yêu thích"}
+        disabled={togglingWishlist}
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
+          void toggle(product.productId);
         }}
       >
-        <Heart className="h-4 w-4" />
+        {togglingWishlist ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Heart className={cn("h-4 w-4", wishlisted && "fill-current")} />
+        )}
       </button>
 
       <button

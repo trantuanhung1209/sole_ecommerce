@@ -20,6 +20,18 @@ import www.util.PageUtils;
 public class ProductReviewController {
     private final ProductReviewService reviewService;
 
+    @GetMapping("/reviews")
+    public ResponseEntity<ApiResponse<PageResponse<PublicReviewView>>> browse(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            @RequestParam(required = false) Integer rating,
+            @RequestParam(required = false) String productId,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "NEWEST") String sort) {
+        return ResponseEntity.ok(ApiResponse.success(PageUtils.toPageResponse(
+                reviewService.browsePublic(rating, productId, search, sort, PageRequest.of(page, size)))));
+    }
+
     @GetMapping("/reviews/home")
     public ResponseEntity<ApiResponse<HomeReviewsResponse>> homeReviews(
             @RequestParam(defaultValue = "4") int limit) {
@@ -80,6 +92,20 @@ public class ProductReviewController {
             @PathVariable String reviewId,
             @AuthenticationPrincipal UserPrincipal user) {
         return ResponseEntity.ok(ApiResponse.success(reviewService.vote(reviewId, user.getId())));
+    }
+
+    @PreAuthorize("hasAnyRole('STAFF','SHOP_MANAGER','ADMIN','SUPER_ADMIN') and @perm.has(authentication, 'REVIEW_MODERATE')")
+    @GetMapping("/admin/reviews")
+    public ResponseEntity<ApiResponse<PageResponse<PublicReviewView>>> adminBrowse(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Integer rating,
+            @RequestParam(required = false) String productId,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean visible,
+            @RequestParam(defaultValue = "NEWEST") String sort) {
+        return ResponseEntity.ok(ApiResponse.success(PageUtils.toPageResponse(
+                reviewService.browseAdmin(rating, productId, search, visible, sort, PageRequest.of(page, size)))));
     }
 
     @PreAuthorize("hasAnyRole('STAFF','SHOP_MANAGER','ADMIN','SUPER_ADMIN') and @perm.has(authentication, 'REVIEW_MODERATE')")

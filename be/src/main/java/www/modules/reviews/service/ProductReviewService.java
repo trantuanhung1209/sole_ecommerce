@@ -20,17 +20,77 @@ import www.modules.search.service.SearchIndexService;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import www.modules.catalog.model.Product;
 
 @Service
 @RequiredArgsConstructor
 public class ProductReviewService {
     private final ProductReviewRepository reviewRepository;
+    private final ProductReviewQueryService reviewQueryService;
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final SearchIndexService searchIndexService;
 
     public Page<ProductReview> productReviews(String productId, Pageable pageable) {
         return reviewRepository.findByProductIdAndVisibleTrueOrderByCreatedAtDesc(productId, pageable);
+    }
+
+    public Page<PublicReviewView> browsePublic(
+            Integer rating,
+            String productId,
+            String search,
+            String sort,
+            Pageable pageable) {
+        var filter = new ProductReviewQueryService.ReviewBrowseFilter(true, null, rating, productId, search, sort);
+        return mapPublicViews(reviewQueryService.findReviews(filter, pageable));
+    }
+
+    public Page<PublicReviewView> browseAdmin(
+            Integer rating,
+            String productId,
+            String search,
+            Boolean visible,
+            String sort,
+            Pageable pageable) {
+        var filter = new ProductReviewQueryService.ReviewBrowseFilter(false, visible, rating, productId, search, sort);
+        return mapPublicViews(reviewQueryService.findReviews(filter, pageable));
+    }
+
+    private Page<PublicReviewView> mapPublicViews(Page<ProductReview> page) {
+        Set<String> productIds = page.getContent().stream()
+                .map(ProductReview::getProductId)
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toSet());
+        Map<String, Product> products = productRepository.findAllById(productIds).stream()
+                .collect(Collectors.toMap(Product::getProductId, product -> product));
+
+        List<PublicReviewView> views = page.getContent().stream()
+                .map(review -> toPublicReviewView(review, products.get(review.getProductId())))
+                .toList();
+        return new org.springframework.data.domain.PageImpl<>(views, page.getPageable(), page.getTotalElements());
+    }
+
+    private PublicReviewView toPublicReviewView(ProductReview review, Product product) {
+        return PublicReviewView.builder()
+                .reviewId(review.getReviewId())
+                .productId(review.getProductId())
+                .productName(product != null ? product.getName() : null)
+                .productSlug(product != null ? product.getSlug() : null)
+                .userId(review.getUserId())
+                .rating(review.getRating())
+                .title(review.getTitle())
+                .content(review.getContent())
+                .imageUrls(review.getImageUrls())
+                .helpfulCount(review.getHelpfulCount())
+                .verifiedPurchase(review.getVerifiedPurchase())
+                .visible(review.getVisible())
+                .staffReply(review.getStaffReply())
+                .createdAt(review.getCreatedAt())
+                .build();
     }
 
     public Page<ProductReview> myReviews(String userId, Pageable pageable) {

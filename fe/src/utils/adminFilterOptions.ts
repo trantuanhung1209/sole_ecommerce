@@ -65,6 +65,14 @@ export const reviewVisibilityFilterOptions = (): FilterSelectOption[] => [
   { value: "HIDDEN", label: "Đang ẩn" },
 ];
 
+export const reviewSortFilterOptions = (): FilterSelectOption[] => [
+  { value: "NEWEST", label: "Mới nhất" },
+  { value: "OLDEST", label: "Cũ nhất" },
+  { value: "RATING_DESC", label: "Số sao cao → thấp" },
+  { value: "RATING_ASC", label: "Số sao thấp → cao" },
+  { value: "HELPFUL", label: "Hữu ích nhất" },
+];
+
 export const reviewRatingFilterOptions = (): FilterSelectOption[] => [
   ALL_OPTION,
   { value: "5", label: "5 sao" },

@@ -42,6 +42,9 @@ export function HomeReviewsSection({ data, loading }: HomeReviewsSectionProps) {
                 <span className="text-sm font-bold">
                   {averageRating.toFixed(1)}/5 · {totalReviews} đánh giá
                 </span>
+                <Link to="/reviews" className="text-sm font-bold text-[#E53935] hover:underline">
+                  Xem tất cả →
+                </Link>
               </div>
             ) : (
               <p className="mt-5 text-sm font-semibold text-[#6B7280]">Chưa có đánh giá công khai</p>

@@ -188,6 +188,23 @@ export interface ProductReview {
   createdAt: string;
 }
 
+export interface PublicReviewItem {
+  reviewId: string;
+  productId: string;
+  productName?: string;
+  productSlug?: string;
+  userId: string;
+  rating: number;
+  title?: string;
+  content: string;
+  imageUrls?: string[];
+  helpfulCount?: number;
+  verifiedPurchase?: boolean;
+  visible?: boolean;
+  staffReply?: string;
+  createdAt: string;
+}
+
 export interface HomeReviewItem {
   reviewId: string;
   productId: string;

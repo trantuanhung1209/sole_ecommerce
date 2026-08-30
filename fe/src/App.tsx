@@ -18,6 +18,7 @@ import BrandsPage from "./pages/Public/Brands/BrandsPage";
 import NewArrivalsPage from "./pages/Public/NewArrivals/NewArrivalsPage";
 import AboutPage from "./pages/Public/About/AboutPage";
 import ContactPage from "./pages/Public/Contact/ContactPage";
+import ReviewsPage from "./pages/Public/Reviews/ReviewsPage";
 import Register from "./pages/auth/Register";
 import Login from "./pages/auth/Login";
 import ForgotPassword from "./pages/auth/ForgotPassword";
@@ -77,6 +78,7 @@ const router = createBrowserRouter([
           { path: "new-arrivals", element: <NewArrivalsPage /> },
           { path: "about", element: <AboutPage /> },
           { path: "contact", element: <ContactPage /> },
+          { path: "reviews", element: <ReviewsPage /> },
           { path: "products/:idOrSlug", element: <ProductDetailPage /> },
           {
             path: "profile",
@@ -139,7 +141,7 @@ const router = createBrowserRouter([
             ),
           },
           {
-            path: "reviews",
+            path: "my-reviews",
             element: (
               <ProtectedRoute>
                 <MyReviewsPage />

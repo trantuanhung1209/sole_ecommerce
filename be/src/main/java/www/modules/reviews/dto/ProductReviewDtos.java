@@ -49,6 +49,25 @@ public final class ProductReviewDtos {
 
     @Data
     @lombok.Builder
+    public static class PublicReviewView {
+        private String reviewId;
+        private String productId;
+        private String productName;
+        private String productSlug;
+        private String userId;
+        private Integer rating;
+        private String title;
+        private String content;
+        private List<String> imageUrls;
+        private Integer helpfulCount;
+        private Boolean verifiedPurchase;
+        private Boolean visible;
+        private String staffReply;
+        private LocalDateTime createdAt;
+    }
+
+    @Data
+    @lombok.Builder
     public static class HomeReviewView {
         private String reviewId;
         private String productId;

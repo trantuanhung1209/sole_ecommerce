@@ -14,8 +14,9 @@ import type {
   PermissionMatrix,
   Product,
   ProductSummary,
-  ProductReview,
   HomeReviewsSummary,
+  PublicReviewItem,
+  ProductReview,
   ProductStatus,
   ProductVariant,
   PublicStatus,
@@ -405,6 +406,27 @@ export const reviewApi = {
     });
     return res.data.data;
   },
+  list: async (params: {
+    page?: number;
+    size?: number;
+    rating?: number;
+    productId?: string;
+    search?: string;
+    sort?: string;
+  } = {}) => {
+    const { page = 0, size = 12, rating, productId, search, sort = "NEWEST" } = params;
+    const res = await publicAxios.get<ApiResponse<PageResponse<PublicReviewItem>>>("/reviews", {
+      params: {
+        page,
+        size,
+        rating: rating || undefined,
+        productId: productId || undefined,
+        search: search || undefined,
+        sort,
+      },
+    });
+    return res.data.data;
+  },
   listByProduct: async (productId: string, page = 0, size = 10) => {
     const res = await publicAxios.get<ApiResponse<PageResponse<ProductReview>>>(
       `/reviews/products/${productId}`,
@@ -421,6 +443,29 @@ export const reviewApi = {
     imageUrls?: string[];
   }) => {
     const res = await authorizedAxios.post<ApiResponse<ProductReview>>("/reviews/products", data);
+    return res.data.data;
+  },
+  adminList: async (params: {
+    page?: number;
+    size?: number;
+    rating?: number;
+    productId?: string;
+    search?: string;
+    visible?: boolean;
+    sort?: string;
+  } = {}) => {
+    const { page = 0, size = 10, rating, productId, search, visible, sort = "NEWEST" } = params;
+    const res = await authorizedAxios.get<ApiResponse<PageResponse<PublicReviewItem>>>("/admin/reviews", {
+      params: {
+        page,
+        size,
+        rating: rating || undefined,
+        productId: productId || undefined,
+        search: search || undefined,
+        visible: visible ?? undefined,
+        sort,
+      },
+    });
     return res.data.data;
   },
   adminReply: async (reviewId: string, reply: string) => {
