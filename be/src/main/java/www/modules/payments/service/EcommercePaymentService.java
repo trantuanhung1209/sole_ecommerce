@@ -213,8 +213,34 @@ public class EcommercePaymentService {
     }
 
     public EcommercePayment markRefunded(String orderId) {
+        return markRefundCompleted(orderId, null, null, null, null, null);
+    }
+
+    public EcommercePayment markRefundPending(String orderId) {
+        EcommercePayment payment = byOrder(orderId);
+        payment.setRefundStatus(www.modules.common.EcommerceEnums.RefundStatus.PENDING);
+        payment.setUpdatedAt(LocalDateTime.now());
+        return paymentRepository.save(payment);
+    }
+
+    public EcommercePayment markRefundCompleted(
+            String orderId,
+            Double amount,
+            www.modules.common.EcommerceEnums.RefundMethod method,
+            String transactionRef,
+            String proofUrl,
+            String note) {
         EcommercePayment payment = byOrder(orderId);
         payment.setStatus(EcommercePaymentStatus.REFUNDED);
+        payment.setRefundStatus(www.modules.common.EcommerceEnums.RefundStatus.COMPLETED);
+        if (amount != null) {
+            payment.setRefundedAmount(amount);
+        }
+        payment.setRefundMethod(method);
+        payment.setRefundTransactionRef(transactionRef);
+        payment.setRefundProofUrl(proofUrl);
+        payment.setRefundNote(note);
+        payment.setRefundedAt(LocalDateTime.now());
         payment.setUpdatedAt(LocalDateTime.now());
         return paymentRepository.save(payment);
     }

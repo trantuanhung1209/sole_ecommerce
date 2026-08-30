@@ -16,6 +16,7 @@ public class EcommerceScheduler {
     private final EcommercePaymentService paymentService;
     private final NotificationSseHub notificationSseHub;
     private final OrderService orderService;
+    private final www.modules.returns.service.ReturnService returnService;
 
     @Scheduled(cron = "0 */5 * * * *")
     public void expireCheckoutResources() {
@@ -31,6 +32,10 @@ public class EcommerceScheduler {
         int completed = orderService.autoCompleteDeliveredOrders(7);
         if (completed > 0) {
             log.info("Auto-completed {} delivered orders", completed);
+        }
+        int expiredReturns = returnService.expireOverdueShipBackReturns();
+        if (expiredReturns > 0) {
+            log.info("Auto-rejected {} overdue return ship-back requests", expiredReturns);
         }
     }
 

@@ -299,11 +299,19 @@ Order snapshot địa chỉ và từng dòng hàng tại thời điểm mua.
 
 ### 5.8. Return Request (RMA)
 
+> Spec đầy đủ: [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md)
+
 ```text
-returnRequestId, orderId, orderItemId, userId, reason, customerNote, imageUrls[]
-status: PENDING | STAFF_CONFIRMED | APPROVED | REJECTED | RECEIVED | REFUNDED | CLOSED
-refundAmount, manualRefundRequired, staffNote, managerNote, rejectedReason
+returnId, orderId, orderItemId, userId, reason, customerNote, imageUrls[]
+status: PENDING | STAFF_CONFIRMED | APPROVED | REJECTED | RECEIVED | REFUND_PENDING | REFUNDED | CLOSED
+itemCondition: GOOD | DAMAGED | INCOMPLETE
+maxRefundAmount, shipBackDeadlineAt, receiveNote
+refundAmount, refundStatus, refundMethod, refundTransactionRef, refundProofUrl
+refundRequestedBy, refundedBy, staffNote, managerNote, rejectedReason
+milestones: staffConfirmedAt, approvedAt, receivedAt, refundRequestedAt, refundCompletedAt, ...
 ```
+
+**Chính sách shop:** cửa sổ trả 7 ngày · hạn gửi hàng 7 ngày sau duyệt · trần hoàn 100%/50%/30% theo tình trạng hàng · restock chỉ khi GOOD · hoàn tiền 2 bước (REFUND_PENDING → REFUNDED sau chuyển khoản thực tế).
 
 ### 5.9. Review, Wishlist, Address, Notification
 
@@ -440,26 +448,34 @@ Guest thêm SP → Cart(guestSessionId=guest-xxx)
 | **Admin order detail** | ✅ | `/admin/orders/:orderId`, `/staff/orders/:orderId` — snapshot items, payment, return panel |
 | Email vận chuyển | ✅ | Shipped, delivered templates |
 
-### 6.8. Đổi / trả / hoàn tiền (Returns) — ✅ / ⚠️
+### 6.8. Đổi / trả / hoàn tiền (Returns) — ✅
+
+> Chi tiết: [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md) · Runbook: [`RUNBOOK_REFUND.md`](./RUNBOOK_REFUND.md)
 
 **Workflow thực tế:**
 
 ```text
 PENDING
-  → STAFF_CONFIRMED (Staff xác nhận) hoặc REJECTED
-  → APPROVED (Manager duyệt trả)
-  → RECEIVED (Staff xác nhận đã nhận hàng → restock tồn kho)
-  → REFUNDED (Manager hoàn tiền → manualRefundRequired nếu cần SePay thủ công)
+  → STAFF_CONFIRMED (Staff) hoặc REJECTED (lý do ≥ 10 ký tự)
+  → APPROVED (Manager — set shipBackDeadlineAt +7 ngày)
+  → RECEIVED (Staff — itemCondition → maxRefundAmount, restock nếu GOOD)
+  → REFUND_PENDING (Manager — chấp nhận hoàn, chưa REFUNDED order)
+  → REFUNDED (Manager confirm sau chuyển khoản thực tế + mã GD)
 ```
 
 | Hạng mục | Trạng thái |
 |----------|:----------:|
 | Cửa sổ 7 ngày sau `deliveredAt` | ✅ |
-| Upload ảnh minh chứng | ✅ |
-| Admin workflow từng bước | ✅ |
-| Hoàn tiền SePay API | ❌ `manualRefundRequired=true` |
-| Restock | ✅ Khi `RECEIVED` |
-| FE customer MyReturns | ✅ | Hiển thị `orderCode` thay orderId thô |
+| Hạn gửi hàng 7 ngày + auto-reject quá hạn | ✅ Scheduler |
+| Kiểm tra tình trạng hàng & trần hoàn | ✅ GOOD/DAMAGED/INCOMPLETE |
+| Hoàn tiền 2 bước REFUND_PENDING → REFUNDED | ✅ |
+| Validate số tiền ≤ min(maxRefund, payment) | ✅ |
+| Upload ảnh minh chứng (customer media API) | ✅ |
+| Dashboard cảnh báo overdue / stale refund | ✅ |
+| Hoàn tiền SePay API tự động | ❌ Manual CK + confirm |
+| Restock | ✅ Chỉ khi itemCondition = GOOD |
+| FE admin MarkReceivedDialog + ConfirmRefundDialog | ✅ |
+| FE customer MyReturns + stepper | ✅ |
 
 ### 6.9. Đánh giá (Reviews) — ✅ / ⚠️
 
@@ -670,8 +686,10 @@ GET/POST/PUT/DELETE /addresses/...
 POST /admin/returns/{id}/staff-confirm
 POST /admin/returns/{id}/reject
 POST /admin/returns/{id}/approve
-POST /admin/returns/{id}/mark-received
-POST /admin/returns/{id}/refund
+POST /admin/returns/{id}/mark-received     # body: itemCondition, receiveNote, note
+POST /admin/returns/{id}/request-refund
+POST /admin/returns/{id}/confirm-refund  # body: amount, transactionRef, method, proofUrl
+POST /admin/returns/{id}/refund          # deprecated → request-refund
 ```
 
 ### 7.9. Notifications, Reports, AI, Search
@@ -942,12 +960,15 @@ Không hard-delete nếu đã có order item (soft delete)
 
 ### 12.3. Return admin
 
-UI nút theo trạng thái:
+UI nút theo trạng thái (xem [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md)):
 
 - `PENDING`: Xác nhận / Từ chối
-- `STAFF_CONFIRMED`: Duyệt trả hàng
-- `APPROVED`: Đã nhận hàng
-- `RECEIVED`: Hoàn tiền
+- `STAFF_CONFIRMED`: Duyệt trả hàng / Từ chối
+- `APPROVED`: Đã nhận hàng → dialog chọn tình trạng hàng
+- `RECEIVED`: Yêu cầu hoàn tiền
+- `REFUND_PENDING`: Xác nhận đã hoàn (số tiền, mã GD, phương thức)
+
+Banner cảnh báo khi có return quá hạn gửi hoặc REFUND_PENDING > 3 ngày.
 
 ### 12.4. RBAC UI — ✅
 

@@ -105,16 +105,39 @@ public class ReturnController {
     @PostMapping("/admin/returns/{returnId}/mark-received")
     public ResponseEntity<ApiResponse<ReturnRequest>> markReceived(
             @PathVariable String returnId,
-            @RequestBody(required = false) UpdateReturnStatusRequest request) {
+            @Valid @RequestBody MarkReceivedRequest request) {
         return ResponseEntity.ok(ApiResponse.success(returnService.markReceived(returnId, request)));
     }
 
     @PreAuthorize("hasAnyRole('SHOP_MANAGER','ADMIN','SUPER_ADMIN') or @perm.has(authentication, 'RETURN_PROCESS')")
+    @PostMapping("/admin/returns/{returnId}/request-refund")
+    public ResponseEntity<ApiResponse<ReturnRequest>> requestRefund(
+            @PathVariable String returnId,
+            @AuthenticationPrincipal UserPrincipal user,
+            @RequestBody(required = false) UpdateReturnStatusRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                returnService.requestRefund(returnId, user.getId(), request)));
+    }
+
+    @PreAuthorize("hasAnyRole('SHOP_MANAGER','ADMIN','SUPER_ADMIN') or @perm.has(authentication, 'RETURN_PROCESS')")
+    @PostMapping("/admin/returns/{returnId}/confirm-refund")
+    public ResponseEntity<ApiResponse<ReturnRequest>> confirmRefund(
+            @PathVariable String returnId,
+            @AuthenticationPrincipal UserPrincipal user,
+            @Valid @RequestBody ConfirmRefundRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                returnService.confirmRefund(returnId, user.getId(), request)));
+    }
+
+    /** @deprecated use request-refund */
+    @PreAuthorize("hasAnyRole('SHOP_MANAGER','ADMIN','SUPER_ADMIN') or @perm.has(authentication, 'RETURN_PROCESS')")
     @PostMapping("/admin/returns/{returnId}/refund")
     public ResponseEntity<ApiResponse<ReturnRequest>> refund(
             @PathVariable String returnId,
+            @AuthenticationPrincipal UserPrincipal user,
             @RequestBody(required = false) UpdateReturnStatusRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(returnService.refund(returnId, request)));
+        return ResponseEntity.ok(ApiResponse.success(
+                returnService.requestRefund(returnId, user.getId(), request)));
     }
 
     private static PageRequest pageable(int page, int size) {

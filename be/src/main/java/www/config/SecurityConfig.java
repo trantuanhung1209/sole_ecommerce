@@ -88,7 +88,7 @@ public class SecurityConfig {
                 authz.requestMatchers(HttpMethod.POST, "/payments/sepay/callback").permitAll();
                 authz.requestMatchers("/checkout/**", "/orders/**", "/payments/order/**",
                     "/payments/*", "/ai/conversations/**", "/wishlist/**", "/returns/**", "/addresses/**",
-                    "/auth/sessions/**", "/notifications/**", "/promotions/validate").authenticated();
+                    "/auth/sessions/**", "/notifications/**", "/promotions/validate", "/media/**").authenticated();
                 authz.requestMatchers(HttpMethod.POST, "/reviews/products").authenticated();
                 authz.requestMatchers(HttpMethod.PUT, "/reviews/**").authenticated();
                 authz.requestMatchers(HttpMethod.DELETE, "/reviews/**").authenticated();

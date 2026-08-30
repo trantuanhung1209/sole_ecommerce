@@ -18,6 +18,9 @@ public final class ReportDtos {
         private long publishedProducts;
         private long lowStockVariants;
         private long pendingReturns;
+        private long refundPendingReturns;
+        private long overdueApprovedReturns;
+        private long staleRefundPendingReturns;
         private long totalUsers;
     }
 }

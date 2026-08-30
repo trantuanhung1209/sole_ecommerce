@@ -21,6 +21,8 @@ import type {
   ProductVariant,
   PublicStatus,
   ReturnRequest,
+  RefundMethod,
+  ReturnItemCondition,
   VariantView,
   WishlistItem,
   AuditLogEntry,
@@ -45,6 +47,16 @@ export const catalogApi = {
   uploadImages: async (files: File[]) => {
     const images = await Promise.all(files.map(fileToBase64));
     const res = await authorizedAxios.post<ApiResponse<string[]>>("/admin/catalog/images", { images });
+    return res.data.data;
+  },
+};
+
+export const mediaApi = {
+  uploadImages: async (files: File[], folder: "reviews" | "returns" = "reviews") => {
+    const images = await Promise.all(files.map(fileToBase64));
+    const res = await authorizedAxios.post<ApiResponse<string[]>>("/media/images", { images }, {
+      params: { folder },
+    });
     return res.data.data;
   },
 };
@@ -345,6 +357,9 @@ export interface DashboardReport {
   publishedProducts: number;
   lowStockVariants: number;
   pendingReturns: number;
+  refundPendingReturns: number;
+  overdueApprovedReturns: number;
+  staleRefundPendingReturns: number;
   totalUsers: number;
 }
 
@@ -526,16 +541,41 @@ export const returnApi = {
     const res = await authorizedAxios.post<ApiResponse<ReturnRequest>>(`/admin/returns/${returnId}/approve`, { note });
     return res.data.data;
   },
-  markReceived: async (returnId: string, note?: string) => {
+  markReceived: async (
+    returnId: string,
+    data: { itemCondition: ReturnItemCondition; receiveNote?: string; note?: string }
+  ) => {
     const res = await authorizedAxios.post<ApiResponse<ReturnRequest>>(
       `/admin/returns/${returnId}/mark-received`,
+      data
+    );
+    return res.data.data;
+  },
+  requestRefund: async (returnId: string, note?: string) => {
+    const res = await authorizedAxios.post<ApiResponse<ReturnRequest>>(
+      `/admin/returns/${returnId}/request-refund`,
       { note }
     );
     return res.data.data;
   },
-  refund: async (returnId: string, note?: string) => {
-    const res = await authorizedAxios.post<ApiResponse<ReturnRequest>>(`/admin/returns/${returnId}/refund`, { note });
+  confirmRefund: async (
+    returnId: string,
+    data: {
+      amount: number;
+      transactionRef: string;
+      method: RefundMethod;
+      proofUrl?: string;
+      note?: string;
+    }
+  ) => {
+    const res = await authorizedAxios.post<ApiResponse<ReturnRequest>>(
+      `/admin/returns/${returnId}/confirm-refund`,
+      data
+    );
     return res.data.data;
+  },
+  refund: async (returnId: string, note?: string) => {
+    return returnApi.requestRefund(returnId, note);
   },
   updateStatus: async (returnId: string, status: string, note?: string) => {
     const res = await authorizedAxios.put<ApiResponse<ReturnRequest>>(`/admin/returns/${returnId}/status`, {

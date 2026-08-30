@@ -12,6 +12,7 @@ import { getOrderStatusLabel } from "@/utils/displayLabels";
 import { orderStatusFilterOptions } from "@/utils/adminFilterOptions";
 import { getPaymentStatusLabel, orderItemCount, orderItemImage } from "@/utils/orderDisplay";
 import type { Order, OrderStatus } from "@/types/ecommerce.type";
+import { TrackingCodeDialog } from "@/components/orders/TrackingCodeDialog";
 
 const PAGE_SIZE = 10;
 
@@ -34,6 +35,8 @@ export default function OrderManagementPage() {
   const [totalElements, setTotalElements] = useState(0);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [shipTarget, setShipTarget] = useState<Order | null>(null);
+  const [submittingShip, setSubmittingShip] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
   const load = useCallback(async () => {
@@ -63,23 +66,34 @@ export default function OrderManagementPage() {
     setPage(0);
   }, [debouncedSearch, statusFilter]);
 
-  const advance = async (order: Order) => {
-    const next = NEXT_STATUS[order.status];
-    if (!next) return;
+  const submitStatusUpdate = async (order: Order, next: OrderStatus, trackingCode?: string) => {
     try {
-      let trackingCode: string | undefined;
-      if (next === "SHIPPED") {
-        trackingCode = window.prompt("Nhập mã vận đơn (tracking code):") || undefined;
-        if (!trackingCode?.trim()) {
-          toast.error("Cần mã vận đơn khi giao cho shipper");
-          return;
-        }
-      }
       await orderApi.updateStatus(order.orderId, next, trackingCode);
       toast.success("Cập nhật trạng thái thành công");
       load();
     } catch {
       toast.error("Không thể cập nhật trạng thái");
+    }
+  };
+
+  const advance = async (order: Order) => {
+    const next = NEXT_STATUS[order.status];
+    if (!next) return;
+    if (next === "SHIPPED") {
+      setShipTarget(order);
+      return;
+    }
+    await submitStatusUpdate(order, next);
+  };
+
+  const confirmShip = async (trackingCode: string) => {
+    if (!shipTarget) return;
+    setSubmittingShip(true);
+    try {
+      await submitStatusUpdate(shipTarget, "SHIPPED", trackingCode);
+      setShipTarget(null);
+    } finally {
+      setSubmittingShip(false);
     }
   };
 
@@ -196,6 +210,14 @@ export default function OrderManagementPage() {
         totalPages={totalPages}
         totalElements={totalElements}
         onPageChange={setPage}
+      />
+
+      <TrackingCodeDialog
+        open={shipTarget != null}
+        onOpenChange={(open) => !open && setShipTarget(null)}
+        orderCode={shipTarget?.orderCode}
+        submitting={submittingShip}
+        onSubmit={confirmShip}
       />
     </div>
   );

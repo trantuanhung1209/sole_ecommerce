@@ -41,7 +41,19 @@ public final class EcommerceEnums {
     }
 
     public enum ReturnStatus {
-        PENDING, CONFIRMED, STAFF_CONFIRMED, REJECTED, APPROVED, RECEIVED, REFUNDED, CLOSED
+        PENDING, CONFIRMED, STAFF_CONFIRMED, REJECTED, APPROVED, RECEIVED, REFUND_PENDING, REFUNDED, CLOSED
+    }
+
+    public enum RefundStatus {
+        NOT_REQUIRED, PENDING, PROCESSING, COMPLETED, FAILED
+    }
+
+    public enum RefundMethod {
+        BANK_TRANSFER, SEPAY, CASH, OTHER
+    }
+
+    public enum ReturnItemCondition {
+        GOOD, DAMAGED, INCOMPLETE
     }
 
     public enum PermissionGroup {
@@ -63,6 +75,7 @@ public final class EcommerceEnums {
         RETURN_REQUESTED,
         RETURN_APPROVED,
         RETURN_REJECTED,
+        REFUND_PENDING,
         REFUND_COMPLETED,
         STAFF_NEW_ORDER,
         STAFF_NEW_RETURN,

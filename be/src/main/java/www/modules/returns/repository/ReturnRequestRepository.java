@@ -6,6 +6,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import www.modules.common.EcommerceEnums.ReturnStatus;
 import www.modules.returns.model.ReturnRequest;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,4 +19,6 @@ public interface ReturnRequestRepository extends MongoRepository<ReturnRequest, 
     Optional<ReturnRequest> findByOrderIdAndOrderItemId(String orderId, String orderItemId);
     List<ReturnRequest> findByOrderId(String orderId);
     long countByStatus(ReturnStatus status);
+    List<ReturnRequest> findByStatusAndShipBackDeadlineAtBefore(ReturnStatus status, LocalDateTime deadline);
+    List<ReturnRequest> findByStatusAndRefundRequestedAtBefore(ReturnStatus status, LocalDateTime deadline);
 }

@@ -39,6 +39,13 @@ public class EcommercePayment {
     private LocalDateTime failedAt;
     private LocalDateTime cancelledAt;
     private LocalDateTime expiredAt;
+    private www.modules.common.EcommerceEnums.RefundStatus refundStatus;
+    private www.modules.common.EcommerceEnums.RefundMethod refundMethod;
+    private Double refundedAmount;
+    private String refundTransactionRef;
+    private String refundProofUrl;
+    private String refundNote;
+    private LocalDateTime refundedAt;
     @Field("created_at")
     private LocalDateTime createdAt;
     @Field("updated_at")

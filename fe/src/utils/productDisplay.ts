@@ -10,9 +10,13 @@ export function formatOrderItemNames(items: OrderItem[]) {
   return items.map((item) => item.productNameSnapshot).filter(Boolean).join(" · ");
 }
 
-export function resolveReturnProductName(item: ReturnRequest, ordersById: Record<string, Order>) {
+export function resolveReturnOrderItem(item: ReturnRequest, ordersById: Record<string, Order>) {
   const order = ordersById[item.orderId];
-  const orderItem = order?.items.find((entry) => entry.orderItemId === item.orderItemId);
+  return order?.items.find((entry) => entry.orderItemId === item.orderItemId) ?? null;
+}
+
+export function resolveReturnProductName(item: ReturnRequest, ordersById: Record<string, Order>) {
+  const orderItem = resolveReturnOrderItem(item, ordersById);
   return orderItem?.productNameSnapshot ?? "Sản phẩm";
 }
 

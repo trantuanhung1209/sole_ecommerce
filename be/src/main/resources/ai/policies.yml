@@ -6,8 +6,9 @@ policies:
       Khách hàng có thể yêu cầu đổi/trả trong vòng 7 ngày kể từ khi giao hàng thành công.
       Chỉ áp dụng cho đơn ở trạng thái DELIVERED hoặc COMPLETED.
       Mỗi sản phẩm trong đơn chỉ được yêu cầu đổi/trả một lần.
-      Quy trình: PENDING → STAFF_CONFIRMED → APPROVED → RECEIVED → REFUNDED (hoặc REJECTED/CLOSED).
-      Hoàn tiền có thể cần xử lý thủ công qua SePay sau khi hàng được nhận lại.
+      Quy trình bảo vệ 2 bên:
+      Khách gửi yêu cầu → NV xác nhận → QL duyệt → NV nhận hàng (restock) → QL yêu cầu hoàn (REFUND_PENDING) → chuyển tiền thực tế → QL xác nhận (REFUNDED).
+      Khách chỉ được thông báo "hoàn tiền thành công" sau bước xác nhận cuối.
   payment:
     key: payment
     title: "Chính sách thanh toán"

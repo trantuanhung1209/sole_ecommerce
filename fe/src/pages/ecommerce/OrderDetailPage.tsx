@@ -8,15 +8,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { OrderItemRow } from "@/components/orders/OrderItemRow";
 import { OrderTotals } from "@/components/orders/OrderTotals";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { catalogApi, orderApi, reviewApi } from "@/services/ecommerceServices";
-import type { Order, OrderItem } from "@/types/ecommerce.type";
+import { mediaApi, orderApi, returnApi, reviewApi } from "@/services/ecommerceServices";
+import type { Order, OrderItem, ReturnRequest } from "@/types/ecommerce.type";
 import {
   formatShippingAddress,
   getPaymentStatusLabel,
   orderItemCount,
   parseShippingAddress,
 } from "@/utils/orderDisplay";
-import { getOrderStatusLabel } from "@/utils/displayLabels";
+import { getOrderStatusLabel, getReturnStatusLabel } from "@/utils/displayLabels";
+import { isReturnTerminal } from "@/utils/returnFlow";
 
 function OrderItemReviewForm({ order, item, onReviewed }: { order: Order; item: OrderItem; onReviewed: () => void }) {
   const [rating, setRating] = useState(5);
@@ -42,7 +43,7 @@ function OrderItemReviewForm({ order, item, onReviewed }: { order: Order; item: 
     try {
       let imageUrls: string[] = [];
       if (images.length > 0) {
-        imageUrls = await catalogApi.uploadImages(images);
+        imageUrls = await mediaApi.uploadImages(images, "reviews");
       }
       await reviewApi.create({
         orderId: order.orderId,
@@ -84,9 +85,12 @@ function OrderItemReviewForm({ order, item, onReviewed }: { order: Order; item: 
 export default function OrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const [order, setOrder] = useState<Order | null>(null);
+  const [returns, setReturns] = useState<ReturnRequest[]>([]);
 
   const reload = () => {
-    if (orderId) orderApi.detail(orderId).then(setOrder);
+    if (!orderId) return;
+    orderApi.detail(orderId).then(setOrder);
+    returnApi.mine().then((items) => setReturns(items.filter((item) => item.orderId === orderId)));
   };
 
   useEffect(() => {
@@ -95,7 +99,13 @@ export default function OrderDetailPage() {
 
   if (!order) return <div className="p-8">Đang tải...</div>;
 
-  const canReturn = ["DELIVERED", "COMPLETED"].includes(order.status);
+  const returnsByItemId = Object.fromEntries(returns.map((item) => [item.orderItemId, item]));
+  const returnableStatuses = ["DELIVERED", "COMPLETED", "RETURN_REQUESTED"];
+  const withinReturnWindow =
+    order.deliveredAt &&
+    Date.now() - new Date(order.deliveredAt).getTime() <= 7 * 24 * 60 * 60 * 1000;
+  const hasReturnableItem = order.items.some((item) => !returnsByItemId[item.orderItemId]);
+  const canReturn = returnableStatuses.includes(order.status) && !!withinReturnWindow && hasReturnableItem;
   const shipping = parseShippingAddress(order.shippingAddressSnapshot);
 
   return (
@@ -179,13 +189,22 @@ export default function OrderDetailPage() {
         <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
           <h2 className="font-bold">Sản phẩm ({order.items.length})</h2>
           <div className="mt-4 space-y-5 divide-y divide-[#F1F1EF]">
-            {order.items.map((item) => (
+            {order.items.map((item) => {
+              const itemReturn = returnsByItemId[item.orderItemId];
+              return (
               <div key={item.orderItemId} className="pb-5 last:pb-0">
                 <OrderItemRow item={item}>
+                  {itemReturn ? (
+                    <p className="mt-2 text-xs font-medium text-[#6B7280]">
+                      Trả hàng: {getReturnStatusLabel(itemReturn.status)}
+                      {!isReturnTerminal(itemReturn.status) ? " — xem tiến trình tại Yêu cầu trả hàng" : ""}
+                    </p>
+                  ) : null}
                   <OrderItemReviewForm order={order} item={item} onReviewed={reload} />
                 </OrderItemRow>
               </div>
-            ))}
+            );
+            })}
           </div>
           <div className="mt-6 border-t border-[#E5E7EB] pt-5">
             <OrderTotals order={order} />

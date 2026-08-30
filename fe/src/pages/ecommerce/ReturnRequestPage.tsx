@@ -4,7 +4,9 @@ import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { catalogApi, orderApi, returnApi } from "@/services/ecommerceServices";
+import { ReturnFlowStepper } from "@/components/returns/ReturnFlowStepper";
+import { mediaApi, orderApi, returnApi } from "@/services/ecommerceServices";
+import { RETURN_POLICY_SUMMARY } from "@/utils/returnFlow";
 import type { Order, OrderItem } from "@/types/ecommerce.type";
 
 function formatOrderItemOption(item: OrderItem): string {
@@ -36,7 +38,7 @@ export default function ReturnRequestPage() {
     try {
       let imageUrls: string[] = [];
       if (images.length > 0) {
-        imageUrls = await catalogApi.uploadImages(images);
+        imageUrls = await mediaApi.uploadImages(images, "returns");
       }
       await returnApi.create({ orderId, orderItemId, reason, customerNote: description, imageUrls });
       toast.success("Đã gửi yêu cầu trả hàng");
@@ -49,7 +51,16 @@ export default function ReturnRequestPage() {
   return (
     <main className="mx-auto max-w-[600px] px-4 py-8 space-y-4">
       <h1 className="text-2xl font-bold">Yêu cầu trả hàng</h1>
-      <p className="text-sm text-[#6B7280]">Chỉ chấp nhận trong vòng 7 ngày kể từ khi giao hàng.</p>
+
+      <div className="rounded-xl border border-[#E5E7EB] bg-white p-4 space-y-3">
+        <p className="text-sm font-semibold">Quy trình xử lý</p>
+        <ReturnFlowStepper status="PENDING" variant="customer" />
+        <ul className="list-disc space-y-1 pl-5 text-sm text-[#6B7280]">
+          {RETURN_POLICY_SUMMARY.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </div>
       {items.length > 1 ? (
         <div className="space-y-2">
           <label className="text-sm font-medium">Sản phẩm cần trả</label>

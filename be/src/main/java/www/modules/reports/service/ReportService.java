@@ -53,6 +53,15 @@ public class ReportService {
                         ProductStatus.PUBLISHED, PublicStatus.PUBLISHED))
                 .lowStockVariants(inventoryRepository.countByAvailableLessThanEqual(LOW_STOCK_THRESHOLD))
                 .pendingReturns(returnRepository.countByStatus(ReturnStatus.PENDING))
+                .refundPendingReturns(returnRepository.countByStatus(ReturnStatus.REFUND_PENDING))
+                .overdueApprovedReturns(returnRepository
+                        .findByStatusAndShipBackDeadlineAtBefore(ReturnStatus.APPROVED, LocalDateTime.now())
+                        .size())
+                .staleRefundPendingReturns(returnRepository
+                        .findByStatusAndRefundRequestedAtBefore(
+                                ReturnStatus.REFUND_PENDING,
+                                LocalDateTime.now().minusDays(www.modules.returns.service.ReturnRefundPolicy.STALE_REFUND_PENDING_DAYS))
+                        .size())
                 .totalUsers(userRepository.count())
                 .build();
     }

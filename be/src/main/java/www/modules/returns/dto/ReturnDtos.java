@@ -31,4 +31,24 @@ public final class ReturnDtos {
         private String rejectedReason;
         private Double refundAmount;
     }
+
+    @Data
+    public static class MarkReceivedRequest {
+        @NotNull
+        private www.modules.common.EcommerceEnums.ReturnItemCondition itemCondition;
+        private String receiveNote;
+        private String note;
+    }
+
+    @Data
+    public static class ConfirmRefundRequest {
+        @NotNull
+        private Double amount;
+        @NotBlank
+        private String transactionRef;
+        @NotNull
+        private www.modules.common.EcommerceEnums.RefundMethod method;
+        private String proofUrl;
+        private String note;
+    }
 }

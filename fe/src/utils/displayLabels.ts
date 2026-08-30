@@ -21,8 +21,12 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 export const RETURN_STATUS_LABELS: Record<string, string> = {
   PENDING: "Chờ xử lý",
   STAFF_CONFIRMED: "NV đã xác nhận",
-  APPROVED: "Đã duyệt hoàn tiền",
+  APPROVED: "Đã duyệt — chờ gửi hàng",
+  RECEIVED: "Đã nhận hàng trả",
+  REFUND_PENDING: "Đang xử lý hoàn tiền",
+  REFUNDED: "Đã hoàn tiền",
   REJECTED: "Đã từ chối",
+  CLOSED: "Đã đóng",
 };
 
 export const PRODUCT_STATUS_LABELS: Record<ProductStatus, string> = {
@@ -88,7 +92,11 @@ const RETURN_STATUS_VARIANTS: Record<string, BadgeVariant> = {
   PENDING: "warning",
   STAFF_CONFIRMED: "info",
   APPROVED: "success",
+  RECEIVED: "info",
+  REFUND_PENDING: "warning",
+  REFUNDED: "success",
   REJECTED: "destructive",
+  CLOSED: "outline",
 };
 
 const PRODUCT_STATUS_VARIANTS: Partial<Record<ProductStatus, BadgeVariant>> = {

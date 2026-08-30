@@ -224,20 +224,45 @@ export interface HomeReviewsSummary {
   recent: HomeReviewItem[];
 }
 
+export type RefundStatus = "NOT_REQUIRED" | "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+export type RefundMethod = "BANK_TRANSFER" | "SEPAY" | "CASH" | "OTHER";
+
+export type ReturnItemCondition = "GOOD" | "DAMAGED" | "INCOMPLETE";
+
 export interface ReturnRequest {
   returnId: string;
   orderId: string;
   orderItemId: string;
   userId: string;
   reason: string;
-  description?: string;
+  customerNote?: string;
+  imageUrls?: string[];
   status: string;
   staffNote?: string;
   managerNote?: string;
   rejectedReason?: string;
   refundAmount?: number;
-  manualRefundRequired?: boolean;
+  refundStatus?: RefundStatus;
+  refundMethod?: RefundMethod;
+  refundTransactionRef?: string;
+  refundNote?: string;
+  refundProofUrl?: string;
+  itemCondition?: ReturnItemCondition;
+  receiveNote?: string;
+  maxRefundAmount?: number;
+  shipBackDeadlineAt?: string;
+  refundRequestedBy?: string;
+  refundedBy?: string;
   createdAt: string;
+  updatedAt?: string;
+  staffConfirmedAt?: string;
+  approvedAt?: string;
+  receivedAt?: string;
+  refundRequestedAt?: string;
+  refundCompletedAt?: string;
+  refundedAt?: string;
+  rejectedAt?: string;
+  closedAt?: string;
 }
 
 export interface Address {

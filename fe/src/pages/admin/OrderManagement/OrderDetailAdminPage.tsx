@@ -15,6 +15,7 @@ import {
   parseShippingAddress,
 } from "@/utils/orderDisplay";
 import type { Order, OrderStatus } from "@/types/ecommerce.type";
+import { TrackingCodeDialog } from "@/components/orders/TrackingCodeDialog";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -31,6 +32,8 @@ export default function OrderDetailAdminPage() {
   const { access } = useRoleAccess();
   const [order, setOrder] = useState<Order | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [shipDialogOpen, setShipDialogOpen] = useState(false);
+  const [submittingShip, setSubmittingShip] = useState(false);
 
   const reload = async () => {
     if (!orderId) return;
@@ -48,24 +51,35 @@ export default function OrderDetailAdminPage() {
     void reload();
   }, [orderId]);
 
-  const advance = async () => {
+  const submitStatusUpdate = async (next: OrderStatus, trackingCode?: string) => {
     if (!order) return;
-    const next = NEXT_STATUS[order.status];
-    if (!next) return;
     try {
-      let trackingCode: string | undefined;
-      if (next === "SHIPPED") {
-        trackingCode = window.prompt("Nhập mã vận đơn:") || undefined;
-        if (!trackingCode?.trim()) {
-          toast.error("Cần mã vận đơn");
-          return;
-        }
-      }
       await orderApi.updateStatus(order.orderId, next, trackingCode);
       toast.success("Cập nhật trạng thái thành công");
       reload();
     } catch {
       toast.error("Không thể cập nhật");
+    }
+  };
+
+  const advance = async () => {
+    if (!order) return;
+    const next = NEXT_STATUS[order.status];
+    if (!next) return;
+    if (next === "SHIPPED") {
+      setShipDialogOpen(true);
+      return;
+    }
+    await submitStatusUpdate(next);
+  };
+
+  const confirmShip = async (trackingCode: string) => {
+    setSubmittingShip(true);
+    try {
+      await submitStatusUpdate("SHIPPED", trackingCode);
+      setShipDialogOpen(false);
+    } finally {
+      setSubmittingShip(false);
     }
   };
 
@@ -172,6 +186,14 @@ export default function OrderDetailAdminPage() {
           <Link to={`${basePath}/returns`}>Xem trả hàng</Link>
         </Button>
       </div>
+
+      <TrackingCodeDialog
+        open={shipDialogOpen}
+        onOpenChange={setShipDialogOpen}
+        orderCode={order.orderCode}
+        submitting={submittingShip}
+        onSubmit={confirmShip}
+      />
     </div>
   );
 }

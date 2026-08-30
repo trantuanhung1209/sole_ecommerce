@@ -9,6 +9,7 @@ import www.model.entity.User;
 import www.modules.common.EcommerceEnums.OrderStatus;
 import www.modules.common.EcommerceEnums.ReturnStatus;
 import www.modules.orders.model.Order;
+import www.modules.orders.model.OrderItem;
 import www.modules.orders.service.OrderService;
 import www.modules.returns.dto.ReturnDtos.UpdateReturnStatusRequest;
 import www.modules.returns.model.ReturnRequest;
@@ -129,14 +130,22 @@ class ReturnServiceMailIntegrationTest {
         ReturnRequest returnRequest = ReturnRequest.builder()
                 .returnId("r1")
                 .orderId("o1")
-                .status(ReturnStatus.PENDING)
+                .orderItemId("oi1")
+                .status(ReturnStatus.STAFF_CONFIRMED)
                 .refundAmount(100000.0)
                 .build();
-        Order order = Order.builder().orderId("o1").orderCode("SO-001").userId("u1").build();
+        Order order = Order.builder()
+                .orderId("o1")
+                .orderCode("SO-001")
+                .userId("u1")
+                .items(new java.util.ArrayList<>(java.util.List.of(
+                        OrderItem.builder().orderItemId("oi1").build())))
+                .build();
 
         when(returnRepository.findById("r1")).thenReturn(Optional.of(returnRequest));
         when(returnRepository.save(any(ReturnRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         UpdateReturnStatusRequest request = new UpdateReturnStatusRequest();
         request.setStatus(ReturnStatus.APPROVED);
