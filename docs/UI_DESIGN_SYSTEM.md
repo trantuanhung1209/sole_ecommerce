@@ -1,6 +1,7 @@
 # UI DESIGN SYSTEM — WEBSITE BÁN GIÀY DÉP
 
-> Tài liệu chuẩn hóa giao diện cho toàn bộ hệ thống Website bán giày dép trực tuyến.
+> Tài liệu chuẩn hóa giao diện cho toàn bộ hệ thống Website bán giày dép trực tuyến.  
+> **Bàn giao:** spec [§20](./SHOE_ECOMMERCE_SPECIFICATION.md#20-handover--bàn-giao-khách-hàng) · luồng FE [`FUNCTIONAL_FLOWS.md`](./FUNCTIONAL_FLOWS.md) · chạy demo [`README.md`](../README.md)
 > Mục tiêu: đảm bảo các thành viên Frontend triển khai UI đồng nhất về màu sắc, typography, spacing, component, layout và trạng thái giao diện.
 
 ---

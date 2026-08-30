@@ -1,6 +1,6 @@
 # Đặc tả hệ thống SOLE — E-commerce giày dép
 
-> **Phiên bản tài liệu:** cập nhật sau return/refund 2 bước + shop guards + flow docs (08/2026).  
+> **Phiên bản tài liệu:** handover khách hàng + return detail pages + catalog Cloudinary seed (08/2026).  
 > **Trạng thái hệ thống:** MVP+ (~93%) — luồng mua hàng end-to-end, return/refund bảo vệ 2 bên, guest cart, AI RAG.
 
 **Sơ đồ luồng trực quan:** [`FUNCTIONAL_FLOWS.md`](./FUNCTIONAL_FLOWS.md)  
@@ -29,6 +29,7 @@
 17. [Biến môi trường](#17-biến-môi-trường)
 18. [Phạm vi chưa triển khai / hoãn](#18-phạm-vi-chưa-triển-khai--hoãn)
 19. [Tiêu chí hoàn thành (Definition of Done)](#19-tiêu-chí-hoàn-thành-definition-of-done)
+20. [Handover — bàn giao khách hàng](#20-handover--bàn-giao-khách-hàng) — gồm [§20.10 SePay + ngrok](#2010-cấu-hình-sepay--ngrok-tài-khoản-riêng)
 
 **Tài liệu liên quan:**
 
@@ -488,7 +489,8 @@ PENDING
 | Hoàn tiền SePay API tự động | ❌ Manual CK + confirm |
 | Restock | ✅ Chỉ khi itemCondition = GOOD |
 | FE admin MarkReceivedDialog + ConfirmRefundDialog | ✅ |
-| FE customer MyReturns + stepper | ✅ |
+| FE customer MyReturns + detail `/returns/:returnId` | ✅ |
+| FE admin ReturnManagement + detail `/admin/returns/:returnId` | ✅ |
 
 ### 6.9. Đánh giá (Reviews) — ✅ / ⚠️
 
@@ -944,7 +946,8 @@ Cập nhật atomic qua MongoTemplate (`updateFirst` với điều kiện `avail
 | `/checkout` | Địa chỉ, **coupon**, preview, customerNote, submit SePay |
 | `/payment/success\|error\|cancel` | Kết quả thanh toán — success poll BE |
 | `/orders`, `/orders/:id` | Lịch sử, chi tiết, hủy, review, return |
-| `/returns` | Yêu cầu trả của tôi |
+| `/returns` | Danh sách yêu cầu trả |
+| `/returns/:returnId` | Chi tiết yêu cầu trả (timeline, TK hoàn, ảnh) |
 | `/reviews` | Đánh giá của tôi |
 | `/wishlist` | Danh sách yêu thích |
 | `/addresses` | Sổ địa chỉ |
@@ -961,7 +964,9 @@ Cập nhật atomic qua MongoTemplate (`updateFirst` với điều kiện `avail
 | `/admin/orders` | List + **OrderDetailAdminPage** (`/admin/orders/:orderId`) |
 | `/admin/promotions` | Quản lý coupon — `PromotionManagementPage` |
 | `/admin/inventory` | Tồn kho, adjust, import CSV |
-| `/admin/returns` | Workflow return từng bước |
+| `/admin/returns` | Danh sách return — lọc trạng thái, cảnh báo overdue |
+| `/admin/returns/:returnId` | Chi tiết return + thao tác workflow |
+| `/staff/returns/:returnId` | Chi tiết return (staff) |
 | `/admin/reviews` | Kiểm duyệt |
 | `/admin/role-permissions` | Ma trận RBAC (SUPER_ADMIN) |
 | `/staff/orders/:orderId` | Chi tiết đơn cho staff |
@@ -1246,4 +1251,292 @@ VITE_CLOUDINARY_UPLOAD_PRESET
 
 ---
 
-*Tài liệu này phản ánh codebase SOLE tại nhánh `main` (commit `99f8b08`, 08/2026). Khi thêm tính năng mới, cập nhật mục 6 (trạng thái triển khai), mục 15 (AI), và mục 18 (phạm vi hoãn).*
+## 20. Handover — bàn giao khách hàng
+
+> Mục này dành cho đội vận hành / khách nhận bàn giao. Luồng chi tiết: [`FUNCTIONAL_FLOWS.md`](./FUNCTIONAL_FLOWS.md) · Chạy nhanh: [`README.md`](../README.md).
+
+### 20.1. Bộ tài liệu & cấu trúc repo
+
+| Thành phần | Đường dẫn |
+|------------|-----------|
+| Spec tổng hợp (tài liệu này) | `docs/SHOE_ECOMMERCE_SPECIFICATION.md` |
+| Sơ đồ luồng Mermaid | `docs/FUNCTIONAL_FLOWS.md` |
+| Design system FE | `docs/UI_DESIGN_SYSTEM.md` |
+| Backend API | `be/src/main/java/www/modules/` |
+| Frontend pages | `fe/src/pages/` |
+| Seed catalog demo | `be/src/main/java/www/config/CatalogSeedService.java` |
+| Script vận hành | `scripts/` |
+
+### 20.2. Chạy hệ thống
+
+**Demo một lệnh (Docker full stack):**
+
+```bash
+cp .env.example .env
+./scripts/demo-up.sh
+```
+
+**Dev local (hot reload):**
+
+```bash
+docker compose up -d          # MongoDB + Redis
+cd be && ./gradlew bootRun
+cd fe && npm run dev
+```
+
+**Cổng mặc định:** FE `3000` · BE `3001` · Mongo `27017` · Redis `6379` · Redis Commander `8082`.
+
+### 20.3. URL & tài khoản demo
+
+| URL | Vai trò test |
+|-----|--------------|
+| http://localhost:3000 | Storefront |
+| http://localhost:3000/admin | Admin portal |
+| http://localhost:3000/staff | Staff portal |
+| http://localhost:3001/swagger-ui.html | API docs (dev) |
+
+| Email | Role | Mật khẩu mặc định |
+|-------|------|-------------------|
+| `customer@sole.test` | CUSTOMER | `Sole@123` |
+| `staff@sole.test` | STAFF | `Sole@123` |
+| `manager@sole.test` | SHOP_MANAGER | `Sole@123` |
+| `admin@sole.test` | ADMIN | `Sole@123` |
+| `superadmin@sole.test` | SUPER_ADMIN | `Sole@123` |
+
+Mật khẩu cấu hình qua `USER_SEED_PASSWORD`. **Tắt seed user trên production:** `USER_SEED_ENABLED=false`.
+
+### 20.4. Checklist staging / go-live
+
+**Hạ tầng & bảo mật**
+
+- [ ] MongoDB + Redis production (backup tự động)
+- [ ] `JWT_SECRET` unique, ≥ 32 ký tự
+- [ ] `COOKIE_SECURE=true`, `COOKIE_DOMAIN` đúng domain
+- [ ] `CORS_ALLOWED_ORIGINS`, `FRONTEND_BASE_URL` trỏ FE production
+- [ ] `permission.enforcement=true`
+- [ ] `SPRING_PROFILES_ACTIVE=prod` (Swagger tắt)
+- [ ] HTTPS end-to-end; không commit `.env`
+
+**Tích hợp bên thứ ba**
+
+- [ ] Cloudinary: upload catalog / return / review / refund proof
+- [ ] Resend: OTP, email đơn hàng, shipped/delivered
+- [ ] SePay: merchant production, IPN URL HTTPS, `SEPAY_IPN_VERIFY=true`
+- [ ] Google OAuth (tuỳ chọn): `GOOGLE_CLIENT_ID` + FE `VITE_GOOGLE_CLIENT_ID`
+- [ ] OpenAI (tuỳ chọn): AI chat
+
+**Smoke test nghiệp vụ**
+
+- [ ] Duyệt SP → filter → PDP → thêm giỏ (guest + user)
+- [ ] Checkout → SePay sandbox/production → IPN cập nhật đơn
+- [ ] Staff ship đơn (tracking) → delivered → customer review
+- [ ] Customer tạo return (TK ngân hàng + ảnh) → staff/manager workflow → hoàn tiền 2 bước
+- [ ] Admin dashboard: stats, low stock, return alerts
+- [ ] `./gradlew test` + `npm run test` + `npm run build` pass
+
+### 20.5. Vận hành catalog & ảnh sản phẩm
+
+**Upload ảnh mới (admin):** Admin → Products → sửa SP → upload qua Cloudinary (`POST /admin/catalog/images`).
+
+**Đồng bộ seed file sau khi đổi ảnh trên DB:**
+
+```bash
+# Export slug → URL từ MongoDB
+docker exec sole-mongodb mongosh sole_ecommerce --quiet --file scripts/pull-catalog-seed-from-db.js
+
+# Cập nhật URL trong CatalogSeedService.java + scripts/sync-catalog-images-to-db.js
+# Push ảnh vào DB (product + toàn bộ variant cùng slug):
+docker exec -i sole-mongodb mongosh sole_ecommerce --quiet < scripts/sync-catalog-images-to-db.js
+```
+
+**Refresh từ seed khi restart BE:**
+
+```bash
+CATALOG_SEED_FORCE=true ./gradlew bootRun
+```
+
+Chỉ cập nhật `imageUrls` — không xóa đơn hàng hay tồn kho.
+
+### 20.6. Vận hành đổi / trả / hoàn tiền (runbook)
+
+Luồng 6 bước — sơ đồ: [`FUNCTIONAL_FLOWS.md` §6](./FUNCTIONAL_FLOWS.md#6-đổi--trả--hoàn-tiền).
+
+| Bước | Actor | Hành động |
+|------|-------|-----------|
+| 1 | Customer | Tạo return (DELIVERED/COMPLETED, ≤ 7 ngày) — **bắt buộc** TK ngân hàng + ảnh tuỳ chọn |
+| 2 | Staff | Xác nhận hoặc từ chối (lý do ≥ 10 ký tự) |
+| 3 | Manager | Duyệt trả — set hạn gửi hàng 7 ngày |
+| 4 | Staff | Đã nhận hàng — chọn tình trạng (GOOD/DAMAGED/INCOMPLETE) → trần hoàn + restock nếu GOOD |
+| 5 | Manager | **Yêu cầu hoàn tiền** → `REFUND_PENDING` (chưa REFUNDED order) |
+| 6 | Manager | Chuyển khoản thực tế → **Xác nhận đã hoàn** (số tiền, mã GD, upload chứng từ ≤ 5MB) |
+
+**Trang vận hành:** `/admin/returns`, `/admin/returns/:returnId` (staff: `/staff/returns/...`).
+
+**Cảnh báo dashboard:** return quá hạn gửi hàng; `REFUND_PENDING` > 3 ngày chưa xác nhận.
+
+**Lưu ý:** Hoàn tiền **thủ công qua ngân hàng** — hệ thống không tự hoàn qua SePay API.
+
+### 20.7. Tìm kiếm sản phẩm
+
+Storefront search dùng **MongoDB `$text` index** (`ProductTextSearchService`) — không cần Elasticsearch.
+
+AI RAG (`AiIndexService`) dùng embedding riêng — không phụ thuộc storefront search.
+
+### 20.8. Kiểm thử & build
+
+| Lệnh | Kỳ vọng |
+|------|---------|
+| `cd be && ./gradlew test` | ~93 tests pass |
+| `cd fe && npm run test` | ~28 tests pass |
+| `cd fe && npm run build` | TypeScript + Vite build OK |
+
+E2E Playwright: smoke home/products/cart — flow checkout/return dài chưa cover đầy đủ.
+
+### 20.9. Phạm vi đã giao vs. mở rộng sau
+
+**Đã giao (MVP+):** mua hàng end-to-end, SePay, guest cart, return/refund 2 bước, RBAC, báo cáo admin, AI chat cơ bản, coupon/VAT.
+
+**Chưa giao / phase sau:** hoàn tiền SePay tự động, guest checkout, E2E đầy đủ, PDF hóa đơn, tích hợp vận chuyển API, multi-warehouse — xem [§18](#18-phạm-vi-chưa-triển-khai--hoãn).
+
+### 20.10. Cấu hình SePay + ngrok (tài khoản riêng)
+
+Mỗi dev / khách triển khai cần **tài khoản SePay riêng** (sandbox khi dev, production khi go-live). Backend **không** embed merchant của ai — chỉ đọc từ `.env`.
+
+#### 20.10.1. Luồng thanh toán (tóm tắt)
+
+```text
+Customer checkout → BE tạo EcommercePayment + formData ký HMAC
+→ FE POST form tới pay-sandbox.sepay.vn (SePayRedirectForm)
+→ Khách thanh toán trên SePay
+→ SePay POST IPN → https://<api-host>/api/payments/sepay/callback
+→ BE verify X-Secret-Key / chữ ký → cập nhật order PAID (idempotent)
+→ Browser redirect → FRONTEND_BASE_URL/payment/success (poll BE)
+```
+
+Endpoint IPN trong code: `POST /api/payments/sepay/callback` (public, không JWT).
+
+#### 20.10.2. Bước 1 — Tạo tài khoản SePay sandbox
+
+1. Đăng ký / đăng nhập tại [https://sepay.vn](https://sepay.vn).
+2. Vào **Cổng thanh toán** (sandbox) → **Cấu hình** / **Thông tin merchant**.
+3. Ghi lại:
+   - **Merchant ID** → `SEPAY_MERCHANT_ID`
+   - **Secret Key** → `SEPAY_SECRET_KEY` (giữ bí mật, không commit Git)
+4. Giữ môi trường sandbox: `SEPAY_ENVIRONMENT=sandbox`, `SEPAY_API_URL=https://pay-sandbox.sepay.vn/v1/checkout/init`.
+
+#### 20.10.3. Bước 2 — Điền `.env` (project root)
+
+```bash
+cp .env.example .env
+```
+
+```env
+SEPAY_MERCHANT_ID=<merchant-id-cua-ban>
+SEPAY_SECRET_KEY=<secret-key-cua-ban>
+SEPAY_API_URL=https://pay-sandbox.sepay.vn/v1/checkout/init
+SEPAY_ENVIRONMENT=sandbox
+SEPAY_IPN_VERIFY=true
+FRONTEND_BASE_URL=http://localhost:3000
+CORS_ALLOWED_ORIGINS=http://localhost:3000
+```
+
+Restart backend sau khi sửa `.env`: `cd be && ./gradlew bootRun`.
+
+#### 20.10.4. Bước 3 — Cài ngrok (dev local)
+
+SePay gửi IPN từ internet → máy dev `localhost` **không nhận được** trừ khi có tunnel HTTPS.
+
+1. Tạo tài khoản [https://ngrok.com](https://ngrok.com) (free tier đủ dev).
+2. Lấy **Authtoken** tại Dashboard → *Your Authtoken*.
+3. Cài và đăng ký token:
+
+```bash
+brew install ngrok
+ngrok config add-authtoken <AUTHTOKEN_CUA_BAN>
+chmod +x scripts/ngrok-sepay.sh
+```
+
+4. **Terminal 1** — chạy backend (port mặc định `3001`):
+
+```bash
+cd be && ./gradlew bootRun
+```
+
+5. **Terminal 2** — mở tunnel:
+
+```bash
+./scripts/ngrok-sepay.sh
+```
+
+6. **Terminal 3** — lấy URL IPN:
+
+```bash
+./scripts/ngrok-sepay.sh --url
+```
+
+Script in URL dạng:
+
+```text
+https://<random>.ngrok-free.app/api/payments/sepay/callback
+```
+
+Dashboard ngrok local: http://127.0.0.1:4040 (xem request IPN).
+
+> **Lưu ý:** URL ngrok free **đổi mỗi lần restart ngrok** → phải cập nhật lại SePay Dashboard.
+
+#### 20.10.5. Bước 4 — Cấu hình IPN trên SePay Dashboard
+
+Trên SePay (sandbox) → **Cổng thanh toán** → **Cấu hình** → **IPN / Webhook**:
+
+| Trường | Giá trị |
+|--------|---------|
+| IPN URL | `https://<subdomain>.ngrok-free.app/api/payments/sepay/callback` |
+| Method | `POST` |
+| Xác thực | **SECRET_KEY** (Secret Key) |
+
+**Secret Key trên Dashboard phải trùng** `SEPAY_SECRET_KEY` trong `.env`. Backend kiểm tra header `X-Secret-Key` (`SePayIpnVerifier`).
+
+(Tuỳ chọn) Cập nhật tham chiếu trong `.env`:
+
+```env
+SEPAY_IPN_URL=https://<subdomain>.ngrok-free.app/api/payments/sepay/callback
+```
+
+#### 20.10.6. Bước 5 — Test end-to-end
+
+1. Mở http://localhost:3000 — đăng nhập `customer@sole.test` / `Sole@123`.
+2. Thêm sản phẩm → **Checkout** → chọn địa chỉ → thanh toán.
+3. Trang SePay sandbox mở (POST form) — hoàn tất thanh toán test.
+4. Kiểm tra:
+   - Tab ngrok http://127.0.0.1:4040 có `POST .../sepay/callback` → **200**
+   - Log BE: payment COMPLETED, order `PAID`
+   - FE `/payment/success` hiển thị đơn đã thanh toán
+5. Swagger (dev): `GET /api/payments/order/{orderId}` (cần login owner).
+
+#### 20.10.7. Production (không dùng ngrok)
+
+| Biến | Sandbox (dev) | Production |
+|------|---------------|------------|
+| `SEPAY_API_URL` | `https://pay-sandbox.sepay.vn/v1/checkout/init` | `https://pay.sepay.vn/v1/checkout/init` |
+| `SEPAY_ENVIRONMENT` | `sandbox` | `production` |
+| IPN URL | ngrok HTTPS (dev) | `https://api.<domain-cua-ban>/api/payments/sepay/callback` |
+| `SEPAY_IPN_VERIFY` | `true` (khuyến nghị) | **`true` bắt buộc** |
+| `FRONTEND_BASE_URL` | `http://localhost:3000` | `https://shop.<domain-cua-ban>` |
+
+IPN production phải là HTTPS public, firewall mở `POST` tới BE. **Không** dùng `SEPAY_IPN_VERIFY=false` trên production.
+
+#### 20.10.8. Xử lý sự cố thường gặp
+
+| Triệu chứng | Nguyên nhân | Cách xử lý |
+|-------------|-------------|------------|
+| Checkout báo thiếu `SEPAY_MERCHANT_ID` | Chưa điền `.env` | Thêm merchant + secret, restart BE |
+| Đơn vẫn `PENDING_PAYMENT` sau khi trả tiền | IPN không tới BE | Kiểm tra ngrok đang chạy, URL Dashboard đúng path `/api/payments/sepay/callback` |
+| IPN **403 Forbidden** | Secret không khớp | Đối chiếu `SEPAY_SECRET_KEY` ↔ SePay Dashboard IPN auth |
+| IPN 403 chữ ký HMAC | Lệch timestamp / body | Bật SECRET_KEY auth; đảm bảo `SEPAY_IPN_VERIFY=true` và secret đúng |
+| URL ngrok đổi | Restart ngrok free | Chạy lại `./scripts/ngrok-sepay.sh --url`, sửa Dashboard |
+| Redirect success nhưng đơn chưa PAID | Chỉ GET redirect, chưa IPN | Chờ POST IPN; success page poll BE — IPN mới là nguồn sự thật |
+| Debug tạm IPN | — | `SEPAY_IPN_VERIFY=false` **chỉ local**, tắt trước khi deploy |
+
+---
+
+*Tài liệu này phản ánh codebase SOLE tại nhánh `main` (08/2026). Khi thêm tính năng: cập nhật mục 6, 11, 18 và §20 handover.*

@@ -2,7 +2,8 @@
 
 > Tài liệu trực quan mô tả **luồng nghiệp vụ thực tế** (đối chiếu code tại `main`, 08/2026).  
 > Chi tiết API/model: [`SHOE_ECOMMERCE_SPECIFICATION.md`](./SHOE_ECOMMERCE_SPECIFICATION.md)  
-> Return/refund: [`SHOE_ECOMMERCE_SPECIFICATION.md` §8.7](./SHOE_ECOMMERCE_SPECIFICATION.md#87-đổi--trả--hoàn-tiền) · UI: [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md)
+> **Bàn giao / vận hành:** [`SHOE_ECOMMERCE_SPECIFICATION.md` §20](./SHOE_ECOMMERCE_SPECIFICATION.md#20-handover--bàn-giao-khách-hàng) · [`README.md`](../README.md)  
+> Return/refund: [§8.7 spec](./SHOE_ECOMMERCE_SPECIFICATION.md#87-đổi--trả--hoàn-tiền) · UI: [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md)
 
 ---
 
@@ -137,6 +138,8 @@ flowchart LR
 ---
 
 ## 4. Checkout & thanh toán SePay
+
+> **Cấu hình tài khoản SePay + ngrok (dev):** [`SHOE_ECOMMERCE_SPECIFICATION.md` §20.10](./SHOE_ECOMMERCE_SPECIFICATION.md#2010-cấu-hình-sepay--ngrok-tài-khoản-riêng) · [`README.md`](../README.md#sepay--ngrok-tài-khoản-riêng--dev-local)
 
 ### 4.1. Checkout
 
@@ -533,5 +536,6 @@ flowchart TD
 
 | File | Nội dung |
 |------|----------|
-| [`SHOE_ECOMMERCE_SPECIFICATION.md`](./SHOE_ECOMMERCE_SPECIFICATION.md) | Spec tổng hợp API, model, RBAC |
+| [`SHOE_ECOMMERCE_SPECIFICATION.md`](./SHOE_ECOMMERCE_SPECIFICATION.md) | Spec tổng hợp API, model, RBAC, **§20 handover** |
 | [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) | Design tokens / components |
+| [`README.md`](../README.md) | Chạy demo, env, script catalog |
