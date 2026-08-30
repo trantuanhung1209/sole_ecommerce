@@ -28,6 +28,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final SessionService sessionService;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return PublicApiPaths.isPublic(request);
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                   FilterChain filterChain) throws ServletException, IOException {
         try {

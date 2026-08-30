@@ -80,10 +80,14 @@ public class SecurityConfig {
                 if (swaggerPublic) {
                     authz.requestMatchers(HttpMethod.GET, "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
                 }
-                authz.requestMatchers(HttpMethod.GET, "/products/**", "/brands/**", "/categories/**").permitAll();
-                authz.requestMatchers(HttpMethod.GET, "/reviews/**").permitAll();
+                // Exact paths + /** — PathPattern "/products/**" does not match "/products" alone
+                authz.requestMatchers(HttpMethod.GET,
+                        "/products", "/products/**",
+                        "/brands", "/brands/**",
+                        "/categories", "/categories/**").permitAll();
+                authz.requestMatchers(HttpMethod.GET, "/reviews", "/reviews/**").permitAll();
                 authz.requestMatchers(HttpMethod.POST, "/ai/chat").permitAll();
-                authz.requestMatchers("/cart/**").permitAll();
+                authz.requestMatchers("/cart", "/cart/**").permitAll();
                 authz.requestMatchers(HttpMethod.GET, "/payments/sepay/callback").permitAll();
                 authz.requestMatchers(HttpMethod.POST, "/payments/sepay/callback").permitAll();
                 authz.requestMatchers("/checkout/**", "/orders/**", "/payments/order/**",
