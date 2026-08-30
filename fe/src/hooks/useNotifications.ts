@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { notificationApi } from "@/services/notificationServices";
 import { subscribeNotificationStream } from "@/utils/notificationStream";
+import { isNetworkError } from "@/utils/networkError";
 import type { AppNotification, NotificationCounts } from "@/types/notification.type";
 
 const defaultCounts: NotificationCounts = {
@@ -46,19 +47,39 @@ export function useNotifications(enabled: boolean) {
   }, [fetchInitial]);
 
   const markRead = useCallback(async (notificationId: string) => {
-    await notificationApi.markRead(notificationId);
     setItems((prev) =>
       prev.map((item) => (item.notificationId === notificationId ? { ...item, read: true } : item))
     );
-    const countData = await notificationApi.unreadCount();
-    applyCounts(countData);
-  }, [applyCounts]);
+    setCounts((prev) => ({
+      ...prev,
+      total: Math.max(0, prev.total - 1),
+    }));
+
+    try {
+      await notificationApi.markRead(notificationId);
+      const countData = await notificationApi.unreadCount();
+      applyCounts(countData);
+    } catch (error) {
+      void fetchInitial();
+      if (isNetworkError(error)) {
+        toast.warn("Không kết nối được máy chủ. Thử lại sau vài giây.");
+      }
+    }
+  }, [applyCounts, fetchInitial]);
 
   const markAllRead = useCallback(async () => {
-    await notificationApi.markAllRead();
     setItems((prev) => prev.map((item) => ({ ...item, read: true })));
     applyCounts({ total: 0, pendingOrders: 0, pendingReturns: 0 });
-  }, [applyCounts]);
+
+    try {
+      await notificationApi.markAllRead();
+    } catch (error) {
+      void fetchInitial();
+      if (isNetworkError(error)) {
+        toast.warn("Không kết nối được máy chủ. Thử lại sau vài giây.");
+      }
+    }
+  }, [applyCounts, fetchInitial]);
 
   useEffect(() => {
     void fetchInitial();

@@ -10,7 +10,7 @@ import { TablePagination } from "@/components/shared/TablePagination";
 import { useDebounce } from "@/hooks/useDebounce";
 import { getOrderStatusLabel } from "@/utils/displayLabels";
 import { orderStatusFilterOptions } from "@/utils/adminFilterOptions";
-import { formatOrderItemNames } from "@/utils/productDisplay";
+import { getPaymentStatusLabel, orderItemCount, orderItemImage } from "@/utils/orderDisplay";
 import type { Order, OrderStatus } from "@/types/ecommerce.type";
 
 const PAGE_SIZE = 10;
@@ -123,26 +123,70 @@ export default function OrderManagementPage() {
               Không có đơn hàng phù hợp bộ lọc.
             </p>
           ) : (
-            orders.map((order) => (
-              <div key={order.orderId} className="flex items-center justify-between rounded-lg border p-4">
-                <div>
-                  <Link to={`${basePath}/orders/${order.orderId}`} className="font-semibold hover:underline">
-                    {order.orderCode}
-                  </Link>
-                  <p className="text-sm text-muted-foreground">
-                    {formatOrderItemNames(order.items)} · {money(order.grandTotal)}
-                  </p>
+            orders.map((order) => {
+              const previewItems = order.items.slice(0, 3);
+              const extraCount = Math.max(0, order.items.length - previewItems.length);
+
+              return (
+                <div
+                  key={order.orderId}
+                  className="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex min-w-0 flex-1 gap-4">
+                    <div className="flex shrink-0 items-center -space-x-2">
+                      {previewItems.map((item) => (
+                        <div
+                          key={item.orderItemId}
+                          className="h-12 w-12 overflow-hidden rounded-lg border-2 border-white bg-muted shadow-sm"
+                        >
+                          <img
+                            src={orderItemImage(item)}
+                            alt=""
+                            className="h-full w-full object-contain p-1"
+                          />
+                        </div>
+                      ))}
+                      {extraCount > 0 ? (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-lg border-2 border-white bg-foreground text-xs font-bold text-background shadow-sm">
+                          +{extraCount}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          to={`${basePath}/orders/${order.orderId}`}
+                          className="font-semibold hover:underline"
+                        >
+                          {order.orderCode}
+                        </Link>
+                        <StatusBadge kind="order" status={order.status} />
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {new Date(order.createdAt).toLocaleString("vi-VN")} · {orderItemCount(order)} sản phẩm
+                      </p>
+                      <p className="mt-1 line-clamp-1 text-sm">
+                        {order.items.map((item) => item.productNameSnapshot).join(", ")}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Thanh toán: {getPaymentStatusLabel(order.paymentStatus)}
+                        {order.trackingCode ? ` · Vận đơn ${order.trackingCode}` : ""}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end">
+                    <p className="text-lg font-bold">{money(order.grandTotal)}</p>
+                    {access.manageOrders && NEXT_STATUS[order.status] && (
+                      <Button size="sm" onClick={() => advance(order)}>
+                        → {getOrderStatusLabel(NEXT_STATUS[order.status]!)}
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <StatusBadge kind="order" status={order.status} />
-                  {access.manageOrders && NEXT_STATUS[order.status] && (
-                    <Button size="sm" onClick={() => advance(order)}>
-                      → {getOrderStatusLabel(NEXT_STATUS[order.status]!)}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}

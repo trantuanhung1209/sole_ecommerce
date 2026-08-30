@@ -1,10 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { MapPin, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { OrderItemRow } from "@/components/orders/OrderItemRow";
+import { OrderTotals } from "@/components/orders/OrderTotals";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { money, orderApi, paymentApi } from "@/services/ecommerceServices";
+import { orderApi, paymentApi } from "@/services/ecommerceServices";
 import { getOrderStatusLabel } from "@/utils/displayLabels";
+import {
+  formatShippingAddress,
+  getPaymentStatusLabel,
+  orderItemCount,
+  parseShippingAddress,
+} from "@/utils/orderDisplay";
 import type { Order, OrderStatus } from "@/types/ecommerce.type";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 
@@ -63,60 +72,96 @@ export default function OrderDetailAdminPage() {
   if (!order) return <div className="p-6">Đang tải...</div>;
 
   const basePath = window.location.pathname.startsWith("/staff") ? "/staff" : "/admin";
+  const shipping = parseShippingAddress(order.shippingAddressSnapshot);
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
+    <div className="max-w-4xl space-y-6 p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <Button variant="ghost" size="sm" onClick={() => navigate(`${basePath}/orders`)}>← Danh sách đơn</Button>
-          <h1 className="text-2xl font-bold mt-2">Đơn {order.orderCode}</h1>
-          <p className="text-sm text-muted-foreground">{new Date(order.createdAt).toLocaleString("vi-VN")}</p>
+          <Button variant="ghost" size="sm" onClick={() => navigate(`${basePath}/orders`)}>
+            ← Danh sách đơn
+          </Button>
+          <h1 className="mt-2 text-2xl font-bold">Đơn {order.orderCode}</h1>
+          <p className="text-sm text-muted-foreground">
+            {new Date(order.createdAt).toLocaleString("vi-VN")} · {orderItemCount(order)} sản phẩm
+          </p>
         </div>
         <StatusBadge kind="order" status={order.status} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-lg border p-4 space-y-2">
+        <div className="space-y-2 rounded-lg border p-4">
           <h2 className="font-semibold">Thanh toán</h2>
-          <p className="text-sm">Trạng thái: <strong>{paymentStatus ?? "—"}</strong></p>
-          <p className="text-sm">Tổng: <strong>{money(order.grandTotal ?? 0)}</strong></p>
+          <p className="text-sm">
+            Trạng thái: <strong>{getPaymentStatusLabel(paymentStatus ?? order.paymentStatus)}</strong>
+          </p>
+          {order.paidAt ? (
+            <p className="text-xs text-muted-foreground">
+              Thanh toán lúc: {new Date(order.paidAt).toLocaleString("vi-VN")}
+            </p>
+          ) : null}
           {order.couponCode ? <p className="text-sm">Mã giảm giá: {order.couponCode}</p> : null}
         </div>
-        <div className="rounded-lg border p-4 space-y-2">
-          <h2 className="font-semibold">Vận chuyển</h2>
-          <p className="text-sm">{order.trackingCode ? `Mã vận đơn: ${order.trackingCode}` : "Chưa có tracking"}</p>
-          {order.customerNote ? <p className="text-sm text-muted-foreground">Ghi chú KH: {order.customerNote}</p> : null}
+        <div className="space-y-2 rounded-lg border p-4">
+          <h2 className="flex items-center gap-2 font-semibold">
+            <Truck className="h-4 w-4" />
+            Vận chuyển
+          </h2>
+          <p className="text-sm">
+            {order.trackingCode ? `Mã vận đơn: ${order.trackingCode}` : "Chưa có tracking"}
+          </p>
+          {order.deliveredAt ? (
+            <p className="text-xs text-muted-foreground">
+              Giao lúc: {new Date(order.deliveredAt).toLocaleString("vi-VN")}
+            </p>
+          ) : null}
+          {order.customerNote ? (
+            <p className="text-sm text-muted-foreground">Ghi chú KH: {order.customerNote}</p>
+          ) : null}
         </div>
       </div>
 
+      {shipping || order.shippingAddressSnapshot ? (
+        <div className="rounded-lg border p-4">
+          <h2 className="mb-2 flex items-center gap-2 font-semibold">
+            <MapPin className="h-4 w-4" />
+            Địa chỉ giao hàng
+          </h2>
+          {shipping ? (
+            <div className="text-sm leading-relaxed">
+              <p className="font-semibold">{shipping.recipientName}</p>
+              <p className="text-muted-foreground">{shipping.phone}</p>
+              <p className="mt-1">
+                {[shipping.line1, shipping.line2, shipping.ward, shipping.district, shipping.city]
+                  .filter(Boolean)
+                  .join(", ")}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {formatShippingAddress(order.shippingAddressSnapshot)}
+            </p>
+          )}
+        </div>
+      ) : null}
+
       <div className="rounded-lg border p-4">
-        <h2 className="font-semibold mb-3">Sản phẩm</h2>
-        <div className="space-y-3">
+        <h2 className="mb-4 font-semibold">Sản phẩm ({order.items.length})</h2>
+        <div className="space-y-5 divide-y">
           {order.items.map((item) => (
-            <div key={item.orderItemId} className="flex justify-between text-sm border-b pb-2">
-              <span>{item.productNameSnapshot} · {item.sizeSnapshot} · x{item.quantity}</span>
-              <span>{money(item.lineTotal)}</span>
+            <div key={item.orderItemId} className="pb-5 last:pb-0">
+              <OrderItemRow item={item} linkToProduct={false} />
             </div>
           ))}
         </div>
-        <div className="mt-4 space-y-1 text-sm">
-          <div className="flex justify-between"><span>Tạm tính</span><span>{money(order.subtotal ?? 0)}</span></div>
-          {(order.discountTotal ?? 0) > 0 && (
-            <div className="flex justify-between text-green-700"><span>Giảm giá</span><span>-{money(order.discountTotal!)}</span></div>
-          )}
-          <div className="flex justify-between"><span>Phí ship</span><span>{money(order.shippingFee ?? 0)}</span></div>
-          {(order.taxTotal ?? 0) > 0 && (
-            <div className="flex justify-between"><span>VAT</span><span>{money(order.taxTotal!)}</span></div>
-          )}
-          <div className="flex justify-between font-bold"><span>Tổng</span><span>{money(order.grandTotal ?? 0)}</span></div>
+        <div className="mt-6 border-t pt-4">
+          <OrderTotals order={order} />
         </div>
       </div>
 
       <div className="rounded-lg border p-4">
-        <h2 className="font-semibold mb-2">Timeline</h2>
+        <h2 className="mb-2 font-semibold">Timeline</h2>
         <p className="text-sm">{getOrderStatusLabel(order.status)}</p>
-        {order.paidAt && <p className="text-xs text-muted-foreground">Thanh toán: {new Date(order.paidAt).toLocaleString("vi-VN")}</p>}
-        {order.deliveredAt && <p className="text-xs text-muted-foreground">Giao hàng: {new Date(order.deliveredAt).toLocaleString("vi-VN")}</p>}
       </div>
 
       <div className="flex flex-wrap gap-2">

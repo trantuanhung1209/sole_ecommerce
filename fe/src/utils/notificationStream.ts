@@ -1,4 +1,5 @@
 import { connectSseStream } from "@/utils/sseClient";
+import { isNetworkError } from "@/utils/networkError";
 
 type StreamListener = (event: string, data: string) => void;
 type ConnectionListener = (connected: boolean) => void;
@@ -7,6 +8,7 @@ let abortController: AbortController | null = null;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
 let connected = false;
 let connecting = false;
+let retryAttempt = 0;
 
 const streamListeners = new Set<StreamListener>();
 const connectionListeners = new Set<ConnectionListener>();
@@ -42,6 +44,7 @@ async function runConnection() {
       "/notifications/stream",
       (event, data) => {
         if (event === "connected") {
+          retryAttempt = 0;
           setConnected(true);
           return;
         }
@@ -57,7 +60,9 @@ async function runConnection() {
   } catch (error) {
     if (!controller.signal.aborted && streamListeners.size > 0) {
       setConnected(false);
-      console.warn("SSE disconnected, retrying...", error);
+      if (retryAttempt === 0 && isNetworkError(error)) {
+        console.warn("Notification stream disconnected (backend may be restarting). Retrying...");
+      }
       scheduleReconnect();
     }
   } finally {
@@ -67,9 +72,11 @@ async function runConnection() {
 
 function scheduleReconnect() {
   clearRetry();
+  const delayMs = Math.min(5000 * 2 ** retryAttempt, 30000);
+  retryAttempt += 1;
   retryTimer = setTimeout(() => {
     void runConnection();
-  }, 5000);
+  }, delayMs);
 }
 
 function ensureConnection() {
@@ -83,6 +90,7 @@ function stopConnection() {
   abortController?.abort();
   abortController = null;
   connecting = false;
+  retryAttempt = 0;
   setConnected(false);
 }
 

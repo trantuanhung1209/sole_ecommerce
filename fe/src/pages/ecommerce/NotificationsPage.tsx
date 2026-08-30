@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { notificationApi } from "@/services/notificationServices";
+import { isNetworkError } from "@/utils/networkError";
 import type { AppNotification } from "@/types/notification.type";
 import { TablePagination } from "@/components/shared/TablePagination";
 
@@ -33,13 +35,29 @@ export default function NotificationsPage() {
   }, [load]);
 
   const markRead = async (id: string) => {
-    await notificationApi.markRead(id);
-    load();
+    try {
+      await notificationApi.markRead(id);
+      await load();
+    } catch (error) {
+      if (isNetworkError(error)) {
+        toast.warn("Không kết nối được máy chủ. Kiểm tra backend đang chạy tại port 3001.");
+      } else {
+        toast.error("Không thể đánh dấu đã đọc");
+      }
+    }
   };
 
   const markAllRead = async () => {
-    await notificationApi.markAllRead();
-    load();
+    try {
+      await notificationApi.markAllRead();
+      await load();
+    } catch (error) {
+      if (isNetworkError(error)) {
+        toast.warn("Không kết nối được máy chủ. Kiểm tra backend đang chạy tại port 3001.");
+      } else {
+        toast.error("Không thể đánh dấu tất cả đã đọc");
+      }
+    }
   };
 
   return (

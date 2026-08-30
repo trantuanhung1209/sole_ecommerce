@@ -14,6 +14,7 @@ import www.modules.cart.model.CartItem;
 import www.modules.cart.service.CartService;
 import www.modules.catalog.model.Product;
 import www.modules.catalog.model.ProductVariant;
+import www.modules.catalog.repository.BrandRepository;
 import www.modules.catalog.repository.ProductRepository;
 import www.modules.catalog.repository.ProductVariantRepository;
 import www.modules.checkout.dto.CheckoutDtos.CheckoutPreview;
@@ -42,6 +43,7 @@ public class CheckoutService {
     private final CartService cartService;
     private final ProductVariantRepository variantRepository;
     private final ProductRepository productRepository;
+    private final BrandRepository brandRepository;
     private final InventoryService inventoryService;
     private final OrderService orderService;
     private final EcommercePaymentService paymentService;
@@ -129,6 +131,12 @@ public class CheckoutService {
                         .orElseThrow(() -> new NotFoundException("Variant not found: " + cartItem.getVariantId()));
                 Product product = productRepository.findById(variant.getProductId())
                         .orElseThrow(() -> new NotFoundException("Product not found: " + variant.getProductId()));
+                String brandName = null;
+                if (product.getBrandId() != null) {
+                    brandName = brandRepository.findById(product.getBrandId())
+                            .map(brand -> brand.getName())
+                            .orElse(null);
+                }
                 double lineTotal = variant.getPrice() * cartItem.getQuantity();
                 String image = !variant.getImageUrls().isEmpty()
                         ? variant.getImageUrls().get(0)
@@ -140,7 +148,7 @@ public class CheckoutService {
                         .variantId(variant.getVariantId())
                         .skuSnapshot(variant.getSku())
                         .productNameSnapshot(product.getName())
-                        .brandNameSnapshot(product.getBrandId())
+                        .brandNameSnapshot(brandName)
                         .sizeSnapshot(variant.getSize())
                         .colorSnapshot(variant.getColorName())
                         .imageSnapshot(image)

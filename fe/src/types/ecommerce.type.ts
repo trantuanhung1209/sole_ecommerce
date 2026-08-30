@@ -149,6 +149,7 @@ export interface Order {
   couponCode?: string;
   customerNote?: string;
   trackingCode?: string;
+  shippingAddressSnapshot?: string;
   paidAt?: string;
   deliveredAt?: string;
   createdAt: string;
