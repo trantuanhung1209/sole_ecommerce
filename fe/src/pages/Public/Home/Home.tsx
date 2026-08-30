@@ -8,18 +8,16 @@ import {
   ShieldCheck,
   Sparkles,
   Truck,
-  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "@/components/home/ProductCard";
+import { HomeHero } from "@/components/home/HomeHero";
 import { HomeReviewsSection } from "@/components/home/HomeReviewsSection";
 import { brandApi, categoryApi, productApi, reviewApi } from "@/services/ecommerceServices";
 import type { Brand, Category, HomeReviewsSummary, ProductSummary } from "@/types/ecommerce.type";
 import { resolveCategoryImageUrl } from "@/utils/categoryDisplay";
 
-const heroImage =
-  "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=1600&q=80";
 const promoImage =
   "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?auto=format&fit=crop&w=1200&q=80";
 
@@ -74,56 +72,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#F7F7F5] text-[#111111]">
-      {/* Hero */}
-      <section className="mx-auto grid max-w-[1240px] gap-8 px-4 py-8 md:grid-cols-[1.05fr_.95fr] md:px-5 md:py-12">
-        <div className="flex min-h-[500px] flex-col justify-center">
-          <p className="text-xs font-bold uppercase tracking-widest text-[#E53935]">
-            Premium sneaker store
-          </p>
-          <h1 className="mt-4 max-w-3xl text-5xl font-black leading-[0.95] md:text-7xl">
-            SOLE.
-            <span className="block text-3xl font-bold text-[#6B7280] md:text-4xl">
-              Sneaker cho mọi phong cách
-            </span>
-          </h1>
-          <p className="mt-5 max-w-xl text-base text-[#6B7280] md:text-lg">
-            Khám phá bộ sưu tập Nike, Adidas, Jordan, New Balance và nhiều hơn nữa.
-            Chọn size, màu, SKU chính xác — tồn kho thật, checkout an toàn.
-          </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button asChild className="h-12 rounded-lg bg-[#111111] px-6 text-white">
-              <Link to="/products">
-                Khám phá ngay
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="h-12 rounded-lg border-[#D1D5DB] bg-white px-6">
-              <Link to="/new-arrivals">Hàng mới về</Link>
-            </Button>
-          </div>
-          <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {stats.map((stat) => (
-              <div key={stat.label} className="rounded-xl border border-[#E5E7EB] bg-white p-4">
-                <div className="text-2xl font-black">{stat.value}</div>
-                <div className="mt-1 text-xs text-[#6B7280]">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="relative min-h-[420px] overflow-hidden rounded-2xl bg-[#F1F1EF]">
-          <img src={heroImage} alt="Premium sneakers" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-          <div className="absolute bottom-5 left-5 right-5 rounded-xl bg-white/95 p-4 backdrop-blur">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#E53935]">
-              <Zap className="h-4 w-4" />
-              Drop mới tuần này
-            </div>
-            <p className="mt-2 text-lg font-bold">Nike Dunk Low Panda & Jordan 1 Retro</p>
-            <p className="mt-1 text-sm text-[#6B7280]">Số lượng giới hạn — reserve stock trước khi hết hàng.</p>
-          </div>
-        </div>
-      </section>
+      <HomeHero products={products} brands={brands} stats={stats} loading={loading} />
 
       {/* Perks bar */}
       <section className="border-y border-[#E5E7EB] bg-white">
