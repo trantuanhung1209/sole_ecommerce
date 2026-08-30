@@ -1,5 +1,6 @@
 # Runbook — Hoàn tiền trả hàng (2 bước)
 
+> Sơ đồ trực quan: [`FUNCTIONAL_FLOWS.md` §6](./FUNCTIONAL_FLOWS.md#6-đổi--trả--hoàn-tiền)  
 > Spec đầy đủ: [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md)
 
 ## Quy trình

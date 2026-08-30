@@ -1,9 +1,10 @@
 # Đặc tả hệ thống SOLE — E-commerce giày dép
 
-> **Phiên bản tài liệu:** cập nhật sau giai đoạn Release R0–R4, nâng cấp AI RAG và bộ test mở rộng (08/2026).  
-> **Trạng thái hệ thống:** MVP+ (~92%) — luồng mua hàng end-to-end, guest cart, coupon/VAT, AI grounded; còn polish vận hành và E2E production.
+> **Phiên bản tài liệu:** cập nhật sau return/refund 2 bước + shop guards + flow docs (08/2026).  
+> **Trạng thái hệ thống:** MVP+ (~93%) — luồng mua hàng end-to-end, return/refund bảo vệ 2 bên, guest cart, AI RAG.
 
-**Commit tham chiếu:** `3269aa9` (main) — test coverage + `d9800de` — AI RAG.
+**Sơ đồ luồng trực quan:** [`FUNCTIONAL_FLOWS.md`](./FUNCTIONAL_FLOWS.md)  
+**Return/refund chi tiết:** [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md)
 
 ---
 
@@ -28,6 +29,14 @@
 17. [Biến môi trường](#17-biến-môi-trường)
 18. [Phạm vi chưa triển khai / hoãn](#18-phạm-vi-chưa-triển-khai--hoãn)
 19. [Tiêu chí hoàn thành (Definition of Done)](#19-tiêu-chí-hoàn-thành-definition-of-done)
+
+**Tài liệu bổ sung:**
+
+| File | Mô tả |
+|------|-------|
+| [`FUNCTIONAL_FLOWS.md`](./FUNCTIONAL_FLOWS.md) | Sơ đồ Mermaid từng luồng chức năng |
+| [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md) | Return/refund + audit |
+| [`RUNBOOK_REFUND.md`](./RUNBOOK_REFUND.md) | Runbook hoàn tiền |
 
 **Chú thích trạng thái trong tài liệu:**
 
@@ -471,7 +480,9 @@ PENDING
 | Hoàn tiền 2 bước REFUND_PENDING → REFUNDED | ✅ |
 | Validate số tiền ≤ min(maxRefund, payment) | ✅ |
 | Upload ảnh minh chứng (customer media API) | ✅ |
-| Dashboard cảnh báo overdue / stale refund | ✅ |
+| Dashboard cảnh báo overdue / stale refund | ✅ Admin dashboard + `/admin/returns` |
+| Chặn bypass API generic updateStatus | ✅ RECEIVED/REFUND_* |
+| Unit + integration test return | ✅ ReturnServiceTest, returnFlow.test.ts |
 | Hoàn tiền SePay API tự động | ❌ Manual CK + confirm |
 | Restock | ✅ Chỉ khi itemCondition = GOOD |
 | FE admin MarkReceivedDialog + ConfirmRefundDialog | ✅ |
@@ -725,6 +736,8 @@ POST     /admin/search/reindex
 
 ## 8. Luồng nghiệp vụ chính
 
+> **Sơ đồ Mermaid đầy đủ:** [`FUNCTIONAL_FLOWS.md`](./FUNCTIONAL_FLOWS.md)
+
 ### 8.1. Duyệt và lọc sản phẩm
 
 ```text
@@ -794,14 +807,22 @@ Mỗi bước: admin/staff cập nhật status; email shipped/delivered tương 
 
 ### 8.7. Đổi / trả / hoàn tiền
 
+> Sơ đồ: [`FUNCTIONAL_FLOWS.md` §6](./FUNCTIONAL_FLOWS.md#6-đổi--trả--hoàn-tiền) · Spec: [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md)
+
 ```text
-Customer (đơn DELIVERED, trong 7 ngày)
-→ POST /returns { orderId, orderItemId, reason, images }
-→ Staff: staff-confirm / reject
-→ Manager: approve
-→ Staff: mark-received → restock inventory
-→ Manager: refund → payment REFUNDED local, manualRefundRequired nếu cần hoàn SePay thủ công
+Customer (DELIVERED/COMPLETED, ≤7 ngày sau giao)
+→ POST /returns + POST /media/images?folder=returns
+→ Staff: staff-confirm / reject (≥10 ký tự)
+→ Manager: approve (+ shipBackDeadlineAt 7 ngày)
+→ Staff: mark-received { itemCondition } → maxRefundAmount, restock nếu GOOD
+→ Manager: request-refund → REFUND_PENDING (order chưa REFUNDED)
+→ Manager: chuyển tiền thực tế (CK/SePay/tiền mặt)
+→ Manager: confirm-refund { amount, transactionRef, method } → REFUNDED
 ```
+
+**API generic `PUT .../status` bị chặn** cho `RECEIVED`, `REFUND_PENDING`, `REFUNDED` — phải dùng endpoint chuyên biệt.
+
+**Scheduler (hourly):** auto-reject APPROVED quá `shipBackDeadlineAt`.
 
 ---
 
@@ -852,10 +873,11 @@ reservation → RELEASED/EXPIRED
 reserved -= quantity; available += quantity
 ```
 
-**Trả hàng đã nhận:**
+**Trả hàng đã nhận (chỉ `itemCondition = GOOD`):**
 
 ```text
 sold -= quantity; onHand += quantity; available recalc
+(DAMAGED / INCOMPLETE: không restock; trần hoàn 50% / 30%)
 ```
 
 Cập nhật atomic qua MongoTemplate (`updateFirst` với điều kiện `available >= qty`).
@@ -889,7 +911,9 @@ Cập nhật atomic qua MongoTemplate (`updateFirst` với điều kiện `avail
 
 ### 10.5. Upload — ✅
 
-- Cloudinary; validate MIME/size; thư mục riêng catalog/review/avatar.
+- Cloudinary; validate MIME/size qua `ImageUploadValidator`.
+- **Catalog admin:** `POST /admin/catalog/images` (staff/admin).
+- **Khách hàng:** `POST /media/images?folder=reviews|returns` (authenticated, max 4 ảnh).
 
 ---
 
@@ -1108,21 +1132,22 @@ AI_REINDEX_ON_STARTUP=false
 | Layer | Tests | Mô tả |
 |-------|-------|-------|
 | BE payment | `EcommercePaymentServiceTest` | IPN idempotent, amount mismatch, expire + mail |
-| BE mail | `OrderMailNotifierTest` | Template order lifecycle |
+| BE returns | `ReturnRefundPolicyTest`, `ReturnServiceTest` | Tỷ lệ hoàn, state machine, validate refund |
+| BE mail | `OrderMailNotifierTest` | Template order lifecycle + return approved |
 | BE checkout | `CheckoutServiceTest`, `CheckoutCalculatorTest` | Reserve, invalid coupon rollback |
 | BE cart | `CartServiceTest`, `GuestCartMergeServiceTest` | Guest merge, ownership |
 | BE promotions | `CouponValidatorTest`, `PromotionServiceTest` | Validate rules, usage |
 | BE RBAC | `RbacServiceTest`, `SolePermissionEvaluatorTest` | Permission matrix |
 | BE inventory | `InventoryServiceTest` | Expire reservations |
 | BE AI | `AiRouterServiceTest`, `AiRetrievalServiceTest`, `AiChatServiceTest`, `OrderContextProviderTest`, `VectorUtilsTest` | Router, RAG, context |
-| FE | `commerce.test.ts`, `releaseFeatures.test.ts`, `aiChat.test.ts` | roleAccess, shipping, payment verify, AI types |
-| E2E | `fe/e2e/smoke.spec.ts` | Playwright smoke (cần `@playwright/test`) |
+| FE | `commerce.test.ts`, `releaseFeatures.test.ts`, `aiChat.test.ts`, `returnFlow.test.ts` | roleAccess, shipping, return flow |
+| E2E | `fe/e2e/smoke.spec.ts` | Playwright smoke (home, products, cart) |
 
 ### 16.2. Cần bổ sung — ⚠️
 
 - Integration: checkout concurrent, webhook duplicate full E2E.
+- E2E: return flow 6 bước, guest cart → checkout → payment.
 - Security regression suite: CSRF, rate limit, IDOR automated.
-- FE E2E: cart guest → login merge → checkout coupon flow.
 
 ---
 
@@ -1168,8 +1193,8 @@ VITE_CLOUDINARY_UPLOAD_PRESET
 |----------|---------|
 | Guest checkout | Guest chỉ giỏ; thanh toán vẫn login-required |
 | COD / VNPAY / MoMo | Chỉ SePay |
-| Hoàn tiền SePay tự động | Manual + `manualRefundRequired` |
-| Partial refund | Enum có, chưa flow |
+| Hoàn tiền SePay tự động | Manual chuyển khoản + `confirm-refund` (REFUND_PENDING → REFUNDED) |
+| Partial refund tuỳ chỉnh | Chỉ 3 mức condition (100/50/30%) |
 | Abandoned cart recovery | Enum `ABANDONED` chưa dùng |
 | Hóa đơn PDF | Chưa có |
 | Tích hợp đơn vị vận chuyển | Chỉ `trackingCode` text |
@@ -1195,7 +1220,7 @@ VITE_CLOUDINARY_UPLOAD_PRESET
 - [x] Lịch sử đơn, chi tiết, hủy
 - [x] Admin: product, variant, inventory, order
 - [x] Review verified purchase
-- [x] Return workflow tối thiểu + restock
+- [x] Return workflow 6 bước + restock có điều kiện + hoàn 2 bước
 - [x] Không hard-code secrets (dùng env)
 
 ### 19.2. MVP+ (Release R0–R4 + AI) — ✅ Đã đạt
@@ -1210,7 +1235,7 @@ VITE_CLOUDINARY_UPLOAD_PRESET
 - [x] Address book CRUD + ward/district
 - [x] AI RAG + suggested products + order context (login)
 - [x] ES re-index on review; correlation ID
-- [x] Unit test suite mở rộng (BE ~64+, FE ~22+)
+- [x] Unit test suite mở rộng (BE ~90, FE ~28, returnFlow + ReturnServiceTest)
 
 ### 19.3. Production-ready — ⚠️ Còn lại
 

@@ -2,6 +2,7 @@
 
 Tài liệu mô tả **cơ chế end-to-end** cho return/refund trong Sole E-commerce: state machine, chính sách bảo vệ hai bên, API, dữ liệu audit, scheduler và UI admin.
 
+> Sơ đồ trực quan: [`FUNCTIONAL_FLOWS.md` §6](./FUNCTIONAL_FLOWS.md#6-đổi--trả--hoàn-tiền)  
 > Runbook vận hành ngắn: [`RUNBOOK_REFUND.md`](./RUNBOOK_REFUND.md)
 
 ---
@@ -17,9 +18,26 @@ Tài liệu mô tả **cơ chế end-to-end** cho return/refund trong Sole E-com
 
 ## 2. State machine
 
+```mermaid
+stateDiagram-v2
+  [*] --> PENDING
+  PENDING --> STAFF_CONFIRMED: staff-confirm
+  PENDING --> REJECTED: reject
+  STAFF_CONFIRMED --> APPROVED: approve
+  STAFF_CONFIRMED --> REJECTED: reject
+  APPROVED --> RECEIVED: mark-received
+  APPROVED --> REJECTED: scheduler quá hạn gửi
+  RECEIVED --> REFUND_PENDING: request-refund
+  REFUND_PENDING --> REFUNDED: confirm-refund
+  REJECTED --> [*]
+  REFUNDED --> [*]
+```
+
+Text tóm tắt:
+
 ```
 PENDING → STAFF_CONFIRMED → APPROVED → RECEIVED → REFUND_PENDING → REFUNDED
-              ↘ REJECTED                    ↗ (terminal)
+              ↘ REJECTED
 ```
 
 ### 2.1. Trạng thái terminal
@@ -40,9 +58,15 @@ PENDING → STAFF_CONFIRMED → APPROVED → RECEIVED → REFUND_PENDING → REF
 | RECEIVED | REFUND_PENDING | Manager | `POST .../request-refund` |
 | REFUND_PENDING | REFUNDED | Manager | `POST .../confirm-refund` |
 
-**Không** dùng `PUT .../status` cho `REFUND_PENDING` / `REFUNDED` — backend từ chối.
+**Không** dùng `PUT .../status` cho:
 
-Implementation: `ReturnStatusTransition.java`
+| Status đích | Thay thế bằng |
+|-------------|---------------|
+| `RECEIVED` | `POST .../mark-received` |
+| `REFUND_PENDING` | `POST .../request-refund` |
+| `REFUNDED` | `POST .../confirm-refund` |
+
+Implementation: `ReturnStatusTransition.java`, guard trong `ReturnService.updateStatus()`.
 
 ---
 
@@ -132,7 +156,7 @@ confirm amount ≤ cap (+ epsilon 0.01)
 | `overdueApprovedReturns` | APPROVED quá `shipBackDeadlineAt` |
 | `staleRefundPendingReturns` | REFUND_PENDING > 3 ngày từ `refundRequestedAt` |
 
-FE `/admin/returns` hiển thị banner cảnh báo khi có số liệu > 0.
+FE `/admin/returns` **và** `/admin` dashboard hiển thị banner/stats khi có số liệu > 0.
 
 ---
 
@@ -141,7 +165,7 @@ FE `/admin/returns` hiển thị banner cảnh báo khi có số liệu > 0.
 - Stepper 6 bước + hint theo vai trò (customer/staff).
 - Notification tại: tạo yêu cầu, duyệt (kèm hạn gửi), từ chối, REFUND_PENDING, REFUND_COMPLETED (kèm mã GD).
 - Upload ảnh qua `/api/media/images?folder=returns` (authenticated, không dùng admin catalog API).
-- My Returns hiển thị trạng thái, lý do từ chối, tiến trình hoàn.
+- My Returns: trạng thái, **hạn gửi hàng** (APPROVED), **tình trạng hàng + trần hoàn**, lý do từ chối, REFUND_PENDING/REFUNDED + mã GD.
 
 ---
 
@@ -255,8 +279,9 @@ Khi confirm-refund: lưu amount, method, transaction ref, proof, completed times
 
 | Màn hình | Thành phần |
 |----------|-----------|
-| Customer `/returns` | Stepper, policy summary, trạng thái |
-| Admin `/admin/returns` | `ReturnFlowStepper`, `ReturnActionDialog`, `MarkReceivedDialog`, `ConfirmRefundDialog`, `ReturnRequestDetailPanel`, alert banner |
+| Customer `/returns` | Stepper, hạn gửi, trần hoàn, REFUND banners |
+| Admin `/admin/returns` | Stepper, dialogs, detail panel, alert banner |
+| Admin `/admin` dashboard | 4 stats return + banner cảnh báo + link |
 | Order detail | Link return, nút tạo return |
 
 ### 10.1. Luồng nút admin theo status
@@ -287,11 +312,13 @@ REFUND_PENDING → [Xác nhận đã hoàn] → ConfirmRefundDialog (max amount)
 |------|---------|
 | `ReturnRefundPolicy.java` | Hằng số + compute max refund + restock rule |
 | `ReturnRefundPolicyTest.java` | Unit test tỷ lệ hoàn |
+| `ReturnServiceTest.java` | State machine, mark-received, refund validate |
 | `ReturnStatusTransition.java` | State machine |
 | `ReturnService.java` | Business logic |
 | `ReturnController.java` | REST |
 | `ReportService.java` | Dashboard counters |
 | `fe/src/utils/returnFlow.ts` | Stepper + action map |
+| `fe/src/utils/returnFlow.test.ts` | Vitest luồng nút admin |
 | `fe/src/components/returns/*` | Dialogs & detail panel |
 
 ---

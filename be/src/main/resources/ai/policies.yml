@@ -7,7 +7,7 @@ policies:
       Chỉ áp dụng cho đơn ở trạng thái DELIVERED hoặc COMPLETED.
       Mỗi sản phẩm trong đơn chỉ được yêu cầu đổi/trả một lần.
       Quy trình bảo vệ 2 bên:
-      Khách gửi yêu cầu → NV xác nhận → QL duyệt → NV nhận hàng (restock) → QL yêu cầu hoàn (REFUND_PENDING) → chuyển tiền thực tế → QL xác nhận (REFUNDED).
+      Khách gửi yêu cầu → NV xác nhận → QL duyệt (7 ngày gửi hàng) → NV nhận hàng (kiểm tra tình trạng; restock chỉ hàng GOOD) → QL yêu cầu hoàn (REFUND_PENDING) → chuyển tiền thực tế → QL xác nhận (REFUNDED).
       Khách chỉ được thông báo "hoàn tiền thành công" sau bước xác nhận cuối.
   payment:
     key: payment
