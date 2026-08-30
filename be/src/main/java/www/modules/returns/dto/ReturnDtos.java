@@ -20,6 +20,12 @@ public final class ReturnDtos {
         @NotBlank
         private String reason;
         private String customerNote;
+        @NotBlank
+        private String refundBankName;
+        @NotBlank
+        private String refundAccountNumber;
+        @NotBlank
+        private String refundAccountHolder;
         private List<String> imageUrls = new ArrayList<>();
     }
 

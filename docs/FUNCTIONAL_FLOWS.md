@@ -2,7 +2,7 @@
 
 > Tài liệu trực quan mô tả **luồng nghiệp vụ thực tế** (đối chiếu code tại `main`, 08/2026).  
 > Chi tiết API/model: [`SHOE_ECOMMERCE_SPECIFICATION.md`](./SHOE_ECOMMERCE_SPECIFICATION.md)  
-> Return/refund sâu: [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md) · Runbook: [`RUNBOOK_REFUND.md`](./RUNBOOK_REFUND.md)
+> Return/refund: [`SHOE_ECOMMERCE_SPECIFICATION.md` §8.7](./SHOE_ECOMMERCE_SPECIFICATION.md#87-đổi--trả--hoàn-tiền) · UI: [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md)
 
 ---
 
@@ -246,7 +246,7 @@ flowchart LR
 
 ## 6. Đổi / trả / hoàn tiền
 
-> Spec đầy đủ: [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md)
+> Spec: [`SHOE_ECOMMERCE_SPECIFICATION.md` §5.8 / §8.7](./SHOE_ECOMMERCE_SPECIFICATION.md#87-đổi--trả--hoàn-tiền)
 
 ### 6.1. State machine return
 
@@ -276,8 +276,8 @@ sequenceDiagram
   participant Pay as PaymentService
   participant Inv as Inventory
 
-  K->>BE: POST /returns (≤7 ngày sau giao)
-  K->>BE: POST /media/images?folder=returns
+  K->>BE: POST /returns { refundBank*, reason, imageUrls }
+  K->>BE: POST /media/images?folder=returns (≤4 ảnh, ≤5MB)
   BE-->>K: PENDING + notification
 
   S->>BE: staff-confirm → STAFF_CONFIRMED
@@ -299,8 +299,9 @@ sequenceDiagram
   BE->>Pay: markRefundPending (order chưa REFUNDED)
   BE-->>K: "đang xử lý hoàn tiền"
 
-  M->>M: Chuyển khoản thực tế (CK/SePay/tiền mặt)
-  M->>BE: confirm-refund { amount, transactionRef, method }
+  M->>M: Chuyển khoản vào TK khách (hiển thị trong ConfirmRefundDialog)
+  M->>BE: POST /admin/media/images?folder=refund-proofs (tuỳ chọn)
+  M->>BE: confirm-refund { amount, transactionRef, method, proofUrl }
   BE->>BE: validate amount ≤ min(maxRefund, payment)
   BE->>Pay: markRefundCompleted
   BE-->>K: REFUNDED + mã GD
@@ -320,8 +321,9 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-  subgraph CustomerUI["Khách — /returns"]
-    C1["ReturnFlowStepper"]
+  subgraph CustomerUI["Khách — /returns & /orders/:id/return"]
+    C0["Form TK nhận hoàn + ảnh ≤5MB"]
+    C1["ReturnFlowStepper (timeline dọc)"]
     C2["Hạn gửi hàng nếu APPROVED"]
     C3["Trần hoàn sau kiểm tra hàng"]
     C4["REFUND_PENDING / REFUNDED + mã GD"]
@@ -329,9 +331,9 @@ flowchart TB
 
   subgraph AdminUI["Admin — /admin/returns"]
     A1["Filter theo status"]
-    A2["ReturnRequestDetailPanel"]
+    A2["ReturnRequestDetailPanel + TK khách"]
     A3["MarkReceivedDialog"]
-    A4["ConfirmRefundDialog"]
+    A4["ConfirmRefundDialog (TK + upload chứng từ)"]
     A5["Banner cảnh báo overdue/stale"]
   end
 ```
@@ -532,7 +534,4 @@ flowchart TD
 | File | Nội dung |
 |------|----------|
 | [`SHOE_ECOMMERCE_SPECIFICATION.md`](./SHOE_ECOMMERCE_SPECIFICATION.md) | Spec tổng hợp API, model, RBAC |
-| [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md) | Return/refund chi tiết + audit |
-| [`RUNBOOK_REFUND.md`](./RUNBOOK_REFUND.md) | Hướng dẫn vận hành hoàn tiền |
-| [`STAGING_CHECKLIST.md`](./STAGING_CHECKLIST.md) | Checklist deploy staging |
 | [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) | Design tokens / components |

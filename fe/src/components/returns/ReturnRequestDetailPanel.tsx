@@ -4,7 +4,7 @@ import { OrderItemRow } from "@/components/orders/OrderItemRow";
 import { ReturnFlowStepper } from "@/components/returns/ReturnFlowStepper";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { money } from "@/services/ecommerceServices";
-import { formatShippingAddress, getPaymentStatusLabel, parseShippingAddress } from "@/utils/orderDisplay";
+import { formatShippingAddress, parseShippingAddress } from "@/utils/orderDisplay";
 import { RETURN_ITEM_CONDITION_LABELS, REFUND_METHOD_LABELS } from "@/utils/returnFlow";
 import { resolveReturnOrderItem } from "@/utils/productDisplay";
 import type { Order, ReturnRequest } from "@/types/ecommerce.type";
@@ -14,6 +14,7 @@ type ReturnRequestDetailPanelProps = {
   order: Order | null;
   loadingOrder?: boolean;
   orderDetailPath: string;
+  embedded?: boolean;
 };
 
 function formatDateTime(value?: string) {
@@ -26,12 +27,13 @@ export function ReturnRequestDetailPanel({
   order,
   loadingOrder,
   orderDetailPath,
+  embedded = false,
 }: ReturnRequestDetailPanelProps) {
   const orderItem = order ? resolveReturnOrderItem(item, { [order.orderId]: order }) : null;
   const shipping = parseShippingAddress(order?.shippingAddressSnapshot);
 
   return (
-    <div className="space-y-4 border-t pt-4">
+    <div className={embedded ? "space-y-4" : "space-y-4 border-t pt-4"}>
       <ReturnFlowStepper status={item.status} variant="staff" />
 
       <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
@@ -77,7 +79,7 @@ export function ReturnRequestDetailPanel({
                 Trạng thái: <StatusBadge kind="order" status={order.status} />
               </p>
               <p className="text-sm">
-                Thanh toán: <strong>{getPaymentStatusLabel(order.paymentStatus)}</strong>
+                Thanh toán: <StatusBadge kind="payment" status={order.paymentStatus} />
               </p>
               <p className="text-xs text-muted-foreground">Tạo lúc: {formatDateTime(order.createdAt)}</p>
               {order.deliveredAt ? (
@@ -158,6 +160,17 @@ export function ReturnRequestDetailPanel({
 
       <section className="space-y-2 rounded-md bg-muted/50 p-4 text-sm">
         <h3 className="font-semibold">Hoàn tiền & xử lý nội bộ</h3>
+        {item.refundBankName && item.refundAccountNumber && item.refundAccountHolder ? (
+          <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-blue-950">
+            <p className="font-medium">Tài khoản nhận hoàn của khách</p>
+            <p className="mt-1">
+              {item.refundBankName} · <span className="font-mono">{item.refundAccountNumber}</span>
+            </p>
+            <p>Chủ TK: {item.refundAccountHolder}</p>
+          </div>
+        ) : (
+          <p className="text-amber-700">Chưa có thông tin tài khoản nhận hoàn (yêu cầu cũ).</p>
+        )}
         {item.refundAmount != null ? (
           <p>
             <strong>Số tiền hoàn dự kiến:</strong> {money(item.refundAmount)}
@@ -198,12 +211,21 @@ export function ReturnRequestDetailPanel({
           </p>
         ) : null}
         {item.refundProofUrl ? (
-          <p>
-            <strong>Chứng từ:</strong>{" "}
-            <a href={item.refundProofUrl} target="_blank" rel="noreferrer" className="text-primary underline">
-              Xem ảnh/chứng từ
+          <div>
+            <strong>Chứng từ hoàn tiền:</strong>
+            <a
+              href={item.refundProofUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 block overflow-hidden rounded-lg border w-fit"
+            >
+              <img
+                src={item.refundProofUrl}
+                alt="Chứng từ hoàn tiền"
+                className="max-h-48 object-cover"
+              />
             </a>
-          </p>
+          </div>
         ) : null}
         {item.refundNote ? (
           <p>

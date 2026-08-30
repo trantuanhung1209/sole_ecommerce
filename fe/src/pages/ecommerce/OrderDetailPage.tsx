@@ -12,7 +12,6 @@ import { mediaApi, orderApi, returnApi, reviewApi } from "@/services/ecommerceSe
 import type { Order, OrderItem, ReturnRequest } from "@/types/ecommerce.type";
 import {
   formatShippingAddress,
-  getPaymentStatusLabel,
   orderItemCount,
   parseShippingAddress,
 } from "@/utils/orderDisplay";
@@ -132,7 +131,9 @@ export default function OrderDetailPage() {
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-[#6B7280]">Thanh toán</dt>
-                <dd className="font-semibold">{getPaymentStatusLabel(order.paymentStatus)}</dd>
+                <dd>
+                  <StatusBadge kind="payment" status={order.paymentStatus} />
+                </dd>
               </div>
               {order.paidAt ? (
                 <div className="flex justify-between gap-4">

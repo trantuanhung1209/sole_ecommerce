@@ -104,28 +104,28 @@ function DashboardAdmin() {
             title="Return chờ xử lý"
             value={stats.pendingReturns}
             icon={RotateCcw}
-            description="Trạng thái PENDING"
+            description="Chờ xử lý"
             iconColor="text-orange-600"
           />
           <StatsCard
             title="Chờ chuyển tiền"
             value={stats.refundPendingReturns}
             icon={DollarSign}
-            description="REFUND_PENDING"
+            description="Đang xử lý hoàn tiền"
             iconColor="text-amber-600"
           />
           <StatsCard
             title="Quá hạn gửi hàng"
             value={stats.overdueApprovedReturns}
             icon={AlertTriangle}
-            description="APPROVED quá deadline"
+            description="Đã duyệt quá hạn gửi hàng"
             iconColor="text-red-600"
           />
           <StatsCard
             title="Hoàn tiền chậm"
             value={stats.staleRefundPendingReturns}
             icon={Activity}
-            description="REFUND_PENDING > 3 ngày"
+            description="Chờ chuyển tiền > 3 ngày"
             iconColor="text-yellow-700"
           />
         </div>

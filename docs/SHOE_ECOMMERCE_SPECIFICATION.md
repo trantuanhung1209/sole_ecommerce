@@ -4,7 +4,7 @@
 > **Trạng thái hệ thống:** MVP+ (~93%) — luồng mua hàng end-to-end, return/refund bảo vệ 2 bên, guest cart, AI RAG.
 
 **Sơ đồ luồng trực quan:** [`FUNCTIONAL_FLOWS.md`](./FUNCTIONAL_FLOWS.md)  
-**Return/refund chi tiết:** [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md)
+**Giao diện / design tokens:** [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md)
 
 ---
 
@@ -30,13 +30,12 @@
 18. [Phạm vi chưa triển khai / hoãn](#18-phạm-vi-chưa-triển-khai--hoãn)
 19. [Tiêu chí hoàn thành (Definition of Done)](#19-tiêu-chí-hoàn-thành-definition-of-done)
 
-**Tài liệu bổ sung:**
+**Tài liệu liên quan:**
 
 | File | Mô tả |
 |------|-------|
 | [`FUNCTIONAL_FLOWS.md`](./FUNCTIONAL_FLOWS.md) | Sơ đồ Mermaid từng luồng chức năng |
-| [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md) | Return/refund + audit |
-| [`RUNBOOK_REFUND.md`](./RUNBOOK_REFUND.md) | Runbook hoàn tiền |
+| [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) | Design tokens, component, layout |
 
 **Chú thích trạng thái trong tài liệu:**
 
@@ -307,10 +306,11 @@ Order snapshot địa chỉ và từng dòng hàng tại thời điểm mua.
 
 ### 5.8. Return Request (RMA)
 
-> Spec đầy đủ: [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md)
+> Luồng chi tiết: [§8.7](#87-đổi--trả--hoàn-tiền) · Sơ đồ: [`FUNCTIONAL_FLOWS.md` §6](./FUNCTIONAL_FLOWS.md#6-đổi--trả--hoàn-tiền)
 
 ```text
 returnId, orderId, orderItemId, userId, reason, customerNote, imageUrls[]
+refundBankName, refundAccountNumber, refundAccountHolder
 status: PENDING | STAFF_CONFIRMED | APPROVED | REJECTED | RECEIVED | REFUND_PENDING | REFUNDED | CLOSED
 itemCondition: GOOD | DAMAGED | INCOMPLETE
 maxRefundAmount, shipBackDeadlineAt, receiveNote
@@ -319,7 +319,7 @@ refundRequestedBy, refundedBy, staffNote, managerNote, rejectedReason
 milestones: staffConfirmedAt, approvedAt, receivedAt, refundRequestedAt, refundCompletedAt, ...
 ```
 
-**Chính sách shop:** cửa sổ trả 7 ngày · hạn gửi hàng 7 ngày sau duyệt · trần hoàn 100%/50%/30% theo tình trạng hàng · restock chỉ khi GOOD · hoàn tiền 2 bước (REFUND_PENDING → REFUNDED sau chuyển khoản thực tế).
+**Chính sách shop:** cửa sổ trả 7 ngày · hạn gửi hàng 7 ngày sau duyệt · **TK nhận hoàn bắt buộc lúc tạo yêu cầu** · trần hoàn 100%/50%/30% theo tình trạng hàng · restock chỉ khi GOOD · hoàn tiền 2 bước (REFUND_PENDING → REFUNDED sau chuyển khoản thực tế + chứng từ upload tuỳ chọn).
 
 ### 5.9. Review, Wishlist, Address, Notification
 
@@ -458,7 +458,7 @@ Guest thêm SP → Cart(guestSessionId=guest-xxx)
 
 ### 6.8. Đổi / trả / hoàn tiền (Returns) — ✅
 
-> Chi tiết: [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md) · Runbook: [`RUNBOOK_REFUND.md`](./RUNBOOK_REFUND.md)
+> Luồng: [§8.7](#87-đổi--trả--hoàn-tiền) · Sơ đồ: [`FUNCTIONAL_FLOWS.md` §6](./FUNCTIONAL_FLOWS.md#6-đổi--trả--hoàn-tiền)
 
 **Workflow thực tế:**
 
@@ -478,7 +478,10 @@ PENDING
 | Kiểm tra tình trạng hàng & trần hoàn | ✅ GOOD/DAMAGED/INCOMPLETE |
 | Hoàn tiền 2 bước REFUND_PENDING → REFUNDED | ✅ |
 | Validate số tiền ≤ min(maxRefund, payment) | ✅ |
-| Upload ảnh minh chứng (customer media API) | ✅ |
+| TK nhận hoàn khi tạo return (bank name / STK / chủ TK) | ✅ |
+| Upload ảnh minh chứng customer (≤ 4 × 5MB) | ✅ `/media/images?folder=returns` |
+| Upload chứng từ hoàn Manager (≤ 5MB) | ✅ `/admin/media/images?folder=refund-proofs` |
+| ConfirmRefundDialog hiển thị TK khách | ✅ |
 | Dashboard cảnh báo overdue / stale refund | ✅ Admin dashboard + `/admin/returns` |
 | Chặn bypass API generic updateStatus | ✅ RECEIVED/REFUND_* |
 | Unit + integration test return | ✅ ReturnServiceTest, returnFlow.test.ts |
@@ -699,7 +702,8 @@ POST /admin/returns/{id}/reject
 POST /admin/returns/{id}/approve
 POST /admin/returns/{id}/mark-received     # body: itemCondition, receiveNote, note
 POST /admin/returns/{id}/request-refund
-POST /admin/returns/{id}/confirm-refund  # body: amount, transactionRef, method, proofUrl
+POST /admin/returns/{id}/confirm-refund  # body: amount, transactionRef, method, proofUrl (upload qua /admin/media/images)
+POST /admin/media/images?folder=refund-proofs  # chứng từ CK, ≤ 5MB
 POST /admin/returns/{id}/refund          # deprecated → request-refund
 ```
 
@@ -806,17 +810,19 @@ Mỗi bước: admin/staff cập nhật status; email shipped/delivered tương 
 
 ### 8.7. Đổi / trả / hoàn tiền
 
-> Sơ đồ: [`FUNCTIONAL_FLOWS.md` §6](./FUNCTIONAL_FLOWS.md#6-đổi--trả--hoàn-tiền) · Spec: [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md)
+> Sơ đồ: [`FUNCTIONAL_FLOWS.md` §6](./FUNCTIONAL_FLOWS.md#6-đổi--trả--hoàn-tiền) · Model: [§5.8](#58-return-request-rma)
 
 ```text
 Customer (DELIVERED/COMPLETED, ≤7 ngày sau giao)
-→ POST /returns + POST /media/images?folder=returns
+→ POST /returns { refundBankName, refundAccountNumber, refundAccountHolder, reason, imageUrls? }
+→ POST /media/images?folder=returns (tuỳ chọn, ≤ 4 ảnh × 5MB)
 → Staff: staff-confirm / reject (≥10 ký tự)
-→ Manager: approve (+ shipBackDeadlineAt 7 ngày)
+→ Manager: approve (+ shipBackDeadlineAt 7 ngày) — thông báo dùng #orderCode
 → Staff: mark-received { itemCondition } → maxRefundAmount, restock nếu GOOD
 → Manager: request-refund → REFUND_PENDING (order chưa REFUNDED)
-→ Manager: chuyển tiền thực tế (CK/SePay/tiền mặt)
-→ Manager: confirm-refund { amount, transactionRef, method } → REFUNDED
+→ Manager: chuyển tiền vào TK khách (xem ConfirmRefundDialog / detail panel)
+→ POST /admin/media/images?folder=refund-proofs (chứng từ, tuỳ chọn, ≤ 5MB)
+→ Manager: confirm-refund { amount, transactionRef, method, proofUrl? } → REFUNDED
 ```
 
 **API generic `PUT .../status` bị chặn** cho `RECEIVED`, `REFUND_PENDING`, `REFUNDED` — phải dùng endpoint chuyên biệt.
@@ -983,7 +989,7 @@ Không hard-delete nếu đã có order item (soft delete)
 
 ### 12.3. Return admin
 
-UI nút theo trạng thái (xem [`RETURN_REFUND_SPEC.md`](./RETURN_REFUND_SPEC.md)):
+UI nút theo trạng thái:
 
 - `PENDING`: Xác nhận / Từ chối
 - `STAFF_CONFIRMED`: Duyệt trả hàng / Từ chối

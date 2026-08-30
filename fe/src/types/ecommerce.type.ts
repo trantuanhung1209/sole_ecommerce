@@ -247,6 +247,9 @@ export interface ReturnRequest {
   refundTransactionRef?: string;
   refundNote?: string;
   refundProofUrl?: string;
+  refundBankName?: string;
+  refundAccountNumber?: string;
+  refundAccountHolder?: string;
   itemCondition?: ReturnItemCondition;
   receiveNote?: string;
   maxRefundAmount?: number;

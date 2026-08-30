@@ -37,6 +37,19 @@ describe("shipping threshold", () => {
   });
 });
 
+describe("payment status labels", () => {
+  it("maps COMPLETED to Vietnamese label", async () => {
+    const { getPaymentStatusLabel } = await import("@/utils/displayLabels");
+    expect(getPaymentStatusLabel("COMPLETED")).toBe("Đã thanh toán");
+  });
+
+  it("maps EXPIRED and UNPAID", async () => {
+    const { getPaymentStatusLabel } = await import("@/utils/displayLabels");
+    expect(getPaymentStatusLabel("EXPIRED")).toBe("Hết hạn thanh toán");
+    expect(getPaymentStatusLabel("UNPAID")).toBe("Chưa thanh toán");
+  });
+});
+
 describe("payment verification states", () => {
   it("treats COMPLETED payment status as confirmed", () => {
     const paymentStatus = "COMPLETED";

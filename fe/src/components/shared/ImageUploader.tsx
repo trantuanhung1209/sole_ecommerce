@@ -29,6 +29,12 @@ export function ImageUploader({ value, onChange, maxImages = 8, disabled }: Imag
     }
 
     const selected = files.slice(0, remaining);
+    for (const file of selected) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Mỗi ảnh không được vượt quá 5MB");
+        return;
+      }
+    }
     const invalid = selected.find(
       (f) => !["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(f.type)
     );

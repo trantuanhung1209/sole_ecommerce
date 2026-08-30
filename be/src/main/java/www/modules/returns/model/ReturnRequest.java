@@ -6,8 +6,6 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import www.modules.common.EcommerceEnums.RefundMethod;
 import www.modules.common.EcommerceEnums.RefundStatus;
-import www.modules.common.EcommerceEnums.RefundMethod;
-import www.modules.common.EcommerceEnums.RefundStatus;
 import www.modules.common.EcommerceEnums.ReturnItemCondition;
 import www.modules.common.EcommerceEnums.ReturnStatus;
 
@@ -44,6 +42,9 @@ public class ReturnRequest {
     private String refundTransactionRef;
     private String refundNote;
     private String refundProofUrl;
+    private String refundBankName;
+    private String refundAccountNumber;
+    private String refundAccountHolder;
     private ReturnItemCondition itemCondition;
     private String receiveNote;
     private Double maxRefundAmount;

@@ -1,4 +1,10 @@
 import type { Address, Order, OrderItem } from "@/types/ecommerce.type";
+export {
+  getFulfillmentStatusLabel,
+  getPaymentStatusLabel,
+  getPaymentStatusVariant,
+  PAYMENT_STATUS_LABELS,
+} from "@/utils/displayLabels";
 
 export const ORDER_ITEM_PLACEHOLDER =
   "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=200&q=80";
@@ -31,17 +37,4 @@ export function formatOrderItemMeta(item: OrderItem) {
 
 export function orderItemCount(order: Pick<Order, "items">) {
   return order.items.reduce((sum, item) => sum + item.quantity, 0);
-}
-
-export const PAYMENT_STATUS_LABELS: Record<string, string> = {
-  PENDING: "Chờ thanh toán",
-  PAID: "Đã thanh toán",
-  FAILED: "Thanh toán thất bại",
-  REFUNDED: "Đã hoàn tiền",
-  CANCELLED: "Đã hủy",
-};
-
-export function getPaymentStatusLabel(status?: string) {
-  if (!status) return "—";
-  return PAYMENT_STATUS_LABELS[status] ?? status;
 }

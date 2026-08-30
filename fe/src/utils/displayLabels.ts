@@ -158,6 +158,64 @@ export function getPublicStatusVariant(status: PublicStatus | string): BadgeVari
   return PUBLIC_STATUS_VARIANTS[status as PublicStatus] ?? "outline";
 }
 
+export const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  UNPAID: "Chưa thanh toán",
+  PENDING: "Chờ thanh toán",
+  COMPLETED: "Đã thanh toán",
+  FAILED: "Thanh toán thất bại",
+  CANCELLED: "Đã hủy",
+  EXPIRED: "Hết hạn thanh toán",
+  REFUNDED: "Đã hoàn tiền",
+  PARTIALLY_REFUNDED: "Hoàn một phần",
+};
+
+export const REFUND_STATUS_LABELS: Record<string, string> = {
+  NOT_REQUIRED: "Không cần hoàn",
+  PENDING: "Chờ hoàn tiền",
+  PROCESSING: "Đang xử lý hoàn",
+  COMPLETED: "Đã hoàn tiền",
+  FAILED: "Hoàn tiền thất bại",
+};
+
+export const FULFILLMENT_STATUS_LABELS: Record<string, string> = {
+  UNFULFILLED: "Chưa giao",
+  PROCESSING: "Đang chuẩn bị",
+  SHIPPED: "Đang giao",
+  DELIVERED: "Đã giao",
+  RETURNED: "Đã trả hàng",
+};
+
+const PAYMENT_STATUS_VARIANTS: Record<string, BadgeVariant> = {
+  UNPAID: "warning",
+  PENDING: "warning",
+  COMPLETED: "success",
+  FAILED: "destructive",
+  CANCELLED: "secondary",
+  EXPIRED: "destructive",
+  REFUNDED: "secondary",
+  PARTIALLY_REFUNDED: "info",
+};
+
+export function getPaymentStatusLabel(status?: string): string {
+  if (!status) return "—";
+  return PAYMENT_STATUS_LABELS[status] ?? status;
+}
+
+export function getRefundStatusLabel(status?: string): string {
+  if (!status) return "—";
+  return REFUND_STATUS_LABELS[status] ?? status;
+}
+
+export function getFulfillmentStatusLabel(status?: string): string {
+  if (!status) return "—";
+  return FULFILLMENT_STATUS_LABELS[status] ?? status;
+}
+
+export function getPaymentStatusVariant(status?: string): BadgeVariant {
+  if (!status) return "outline";
+  return PAYMENT_STATUS_VARIANTS[status] ?? "outline";
+}
+
 export function formatCartItemLabel(item: {
   productName?: string;
   size?: string;

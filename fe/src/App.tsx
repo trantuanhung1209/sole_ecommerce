@@ -36,6 +36,7 @@ import OrderDetailPage from "./pages/ecommerce/OrderDetailPage";
 import WishlistPage from "./pages/ecommerce/WishlistPage";
 import ReturnRequestPage from "./pages/ecommerce/ReturnRequestPage";
 import MyReturnsPage from "./pages/ecommerce/MyReturnsPage";
+import MyReturnDetailPage from "./pages/ecommerce/MyReturnDetailPage";
 import MyReviewsPage from "./pages/ecommerce/MyReviewsPage";
 import AddressBookPage from "./pages/ecommerce/AddressBookPage";
 import NotificationsPage from "./pages/ecommerce/NotificationsPage";
@@ -49,6 +50,7 @@ import OrderManagementPage from "./pages/admin/OrderManagement/OrderManagementPa
 import OrderDetailAdminPage from "./pages/admin/OrderManagement/OrderDetailAdminPage";
 import PromotionManagementPage from "./pages/admin/PromotionManagement/PromotionManagementPage";
 import ReturnManagementPage from "./pages/admin/ReturnManagement/ReturnManagementPage";
+import ReturnDetailAdminPage from "./pages/admin/ReturnManagement/ReturnDetailAdminPage";
 import ReviewManagementPage from "./pages/admin/ReviewManagement/ReviewManagementPage";
 import BrandManagementPage from "./pages/admin/BrandManagement/BrandManagementPage";
 import CategoryManagementPage from "./pages/admin/CategoryManagement/CategoryManagementPage";
@@ -141,6 +143,14 @@ const router = createBrowserRouter([
             ),
           },
           {
+            path: "returns/:returnId",
+            element: (
+              <ProtectedRoute>
+                <MyReturnDetailPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
             path: "my-reviews",
             element: (
               <ProtectedRoute>
@@ -227,6 +237,7 @@ const router = createBrowserRouter([
               { path: "orders/:orderId", element: <OrderDetailAdminPage /> },
               { path: "promotions", element: <PromotionManagementPage /> },
               { path: "returns", element: <ReturnManagementPage /> },
+              { path: "returns/:returnId", element: <ReturnDetailAdminPage /> },
               { path: "reviews", element: <ReviewManagementPage /> },
             ],
           },
@@ -247,6 +258,7 @@ const router = createBrowserRouter([
               { path: "orders", element: <OrderManagementPage /> },
               { path: "orders/:orderId", element: <OrderDetailAdminPage /> },
               { path: "returns", element: <ReturnManagementPage /> },
+              { path: "returns/:returnId", element: <ReturnDetailAdminPage /> },
               { path: "reviews", element: <ReviewManagementPage /> },
             ],
           },

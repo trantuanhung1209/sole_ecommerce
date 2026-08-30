@@ -101,6 +101,7 @@ export const RETURN_POLICY_SUMMARY = [
   "Sau khi duyệt, gửi hàng về trong 7 ngày — quá hạn có thể bị từ chối.",
   "Số tiền hoàn phụ thuộc tình trạng hàng khi shop kiểm tra (100% / 50% / 30%).",
   "Hoàn tiền chỉ xác nhận sau khi cửa hàng chuyển tiền thực tế cho bạn.",
+  "Cung cấp tài khoản ngân hàng chính xác để nhận hoàn tiền.",
 ];
 
 export const REFUND_METHOD_LABELS: Record<string, string> = {

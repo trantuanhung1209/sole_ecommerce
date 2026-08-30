@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
+import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
 import {
@@ -8,15 +10,14 @@ import {
 } from "@/components/returns/ConfirmRefundDialog";
 import { MarkReceivedDialog, type MarkReceivedPayload } from "@/components/returns/MarkReceivedDialog";
 import { ReturnActionDialog } from "@/components/returns/ReturnActionDialog";
-import { ReturnRequestDetailPanel } from "@/components/returns/ReturnRequestDetailPanel";
-import { orderApi, reportApi, returnApi } from "@/services/ecommerceServices";
+import { reportApi, returnApi } from "@/services/ecommerceServices";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { TablePagination } from "@/components/shared/TablePagination";
 import { returnStatusFilterOptions } from "@/utils/adminFilterOptions";
 import { getNextReturnActions, type ReturnActionType } from "@/utils/returnFlow";
 import { resolveOrderCode, resolveReturnProductName } from "@/utils/productDisplay";
-import type { Order, ReturnRequest } from "@/types/ecommerce.type";
+import type { ReturnRequest } from "@/types/ecommerce.type";
 
 const PAGE_SIZE = 10;
 
@@ -30,15 +31,14 @@ const ACTION_SUCCESS: Record<Exclude<ReturnActionType, "receive">, string> = {
 
 export default function ReturnManagementPage() {
   const { access } = useRoleAccess();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/staff") ? "/staff" : "/admin";
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
-  const [ordersById, setOrdersById] = useState<Record<string, Order>>({});
-  const [loadingOrderId, setLoadingOrderId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogAction, setDialogAction] = useState<Exclude<ReturnActionType, "receive" | "confirmRefund"> | null>(null);
   const [confirmRefundOpen, setConfirmRefundOpen] = useState(false);
@@ -51,29 +51,7 @@ export default function ReturnManagementPage() {
     refundPending: 0,
   });
 
-  const basePath = window.location.pathname.startsWith("/staff") ? "/staff" : "/admin";
-
-  const ordersLookup = useMemo(
-    () => Object.fromEntries(Object.entries(ordersById)),
-    [ordersById]
-  );
-
   const actionTarget = returns.find((item) => item.returnId === actionTargetId) ?? null;
-
-  const ensureOrder = useCallback(async (orderId: string) => {
-    if (ordersById[orderId]) return ordersById[orderId];
-    setLoadingOrderId(orderId);
-    try {
-      const order = await orderApi.adminDetail(orderId);
-      setOrdersById((prev) => ({ ...prev, [orderId]: order }));
-      return order;
-    } catch {
-      toast.error("Không thể tải chi tiết đơn hàng");
-      return null;
-    } finally {
-      setLoadingOrderId(null);
-    }
-  }, [ordersById]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,17 +81,7 @@ export default function ReturnManagementPage() {
 
   useEffect(() => {
     setPage(0);
-    setSelectedId(null);
   }, [statusFilter]);
-
-  const toggleSelected = async (item: ReturnRequest) => {
-    if (selectedId === item.returnId) {
-      setSelectedId(null);
-      return;
-    }
-    setSelectedId(item.returnId);
-    await ensureOrder(item.orderId);
-  };
 
   const openAction = (returnId: string, action: ReturnActionType) => {
     setActionTargetId(returnId);
@@ -208,8 +176,6 @@ export default function ReturnManagementPage() {
     setPage(0);
   };
 
-  const selectedItem = returns.find((item) => item.returnId === selectedId) ?? null;
-
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -230,7 +196,7 @@ export default function ReturnManagementPage() {
           ) : null}
           {returnAlerts.staleRefundPending > 0 ? (
             <p>
-              {returnAlerts.staleRefundPending} yêu cầu REFUND_PENDING quá 3 ngày chưa xác nhận chuyển tiền
+              {returnAlerts.staleRefundPending} yêu cầu đang chờ chuyển tiền quá 3 ngày chưa xác nhận
               {returnAlerts.refundPending > 0 ? ` (tổng ${returnAlerts.refundPending} đang chờ hoàn)` : ""}.
             </p>
           ) : null}
@@ -264,26 +230,25 @@ export default function ReturnManagementPage() {
           ) : (
             returns.map((item) => {
               const actions = getNextReturnActions(item.status).filter((action) => canRunAction(item, action));
+              const detailPath = `${basePath}/returns/${item.returnId}`;
               return (
-                <div key={item.returnId} className="rounded-lg border p-4 space-y-3">
+                <div key={item.returnId} className="rounded-lg border p-4">
                   <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <button type="button" className="text-left" onClick={() => void toggleSelected(item)}>
-                        <p className="font-semibold">{resolveReturnProductName(item, ordersLookup)}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {resolveOrderCode(item.orderId, ordersLookup)} · {item.reason}
+                    <Link to={detailPath} className="min-w-0 flex-1 group">
+                      <p className="font-semibold group-hover:text-primary">{resolveReturnProductName(item, {})}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {resolveOrderCode(item.orderId, {})} · {item.reason}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(item.createdAt).toLocaleString("vi-VN")}
+                        {item.imageUrls?.length ? ` · ${item.imageUrls.length} ảnh` : ""}
+                      </p>
+                      {item.status === "REFUND_PENDING" && (
+                        <p className="text-xs text-amber-600 mt-1 font-medium">
+                          Chờ chuyển tiền thực tế — xác nhận sau khi đã chuyển khoản
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(item.createdAt).toLocaleString("vi-VN")}
-                          {item.imageUrls?.length ? ` · ${item.imageUrls.length} ảnh` : ""}
-                        </p>
-                        {item.status === "REFUND_PENDING" && (
-                          <p className="text-xs text-amber-600 mt-1 font-medium">
-                            Chờ chuyển tiền thực tế — xác nhận sau khi đã chuyển khoản
-                          </p>
-                        )}
-                      </button>
-                    </div>
+                      )}
+                    </Link>
                     <div className="flex flex-wrap items-center justify-end gap-2">
                       <StatusBadge kind="return" status={item.status} />
                       {actions.includes("confirm") && (
@@ -316,16 +281,14 @@ export default function ReturnManagementPage() {
                           Xác nhận đã hoàn
                         </Button>
                       )}
+                      <Button size="sm" variant="ghost" asChild>
+                        <Link to={detailPath}>
+                          Chi tiết
+                          <ChevronRight className="ml-1 h-4 w-4" />
+                        </Link>
+                      </Button>
                     </div>
                   </div>
-                  {selectedId === item.returnId && selectedItem ? (
-                    <ReturnRequestDetailPanel
-                      item={selectedItem}
-                      order={ordersById[item.orderId] ?? null}
-                      loadingOrder={loadingOrderId === item.orderId}
-                      orderDetailPath={basePath}
-                    />
-                  ) : null}
                 </div>
               );
             })
@@ -359,6 +322,15 @@ export default function ReturnManagementPage() {
         open={confirmRefundOpen}
         defaultAmount={actionTarget?.refundAmount}
         maxAmount={actionTarget?.maxRefundAmount ?? actionTarget?.refundAmount}
+        refundBank={
+          actionTarget
+            ? {
+                bankName: actionTarget.refundBankName,
+                accountNumber: actionTarget.refundAccountNumber,
+                accountHolder: actionTarget.refundAccountHolder,
+              }
+            : undefined
+        }
         submitting={submittingAction}
         onOpenChange={setConfirmRefundOpen}
         onSubmit={runConfirmRefund}

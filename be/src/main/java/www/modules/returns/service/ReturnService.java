@@ -75,6 +75,7 @@ public class ReturnService {
             throw new BadRequestException("Only delivered orders can be returned");
         }
         validateReturnWindow(order);
+        validateRefundBankDetails(request);
         if (returnRepository.findByOrderIdAndOrderItemId(order.getOrderId(), request.getOrderItemId()).isPresent()) {
             throw new BadRequestException("Return request already exists for this order item");
         }
@@ -93,6 +94,9 @@ public class ReturnService {
                 .reason(request.getReason())
                 .customerNote(request.getCustomerNote())
                 .imageUrls(request.getImageUrls())
+                .refundBankName(normalizeBankField(request.getRefundBankName()))
+                .refundAccountNumber(normalizeBankField(request.getRefundAccountNumber()))
+                .refundAccountHolder(normalizeBankField(request.getRefundAccountHolder()))
                 .status(ReturnStatus.PENDING)
                 .refundStatus(RefundStatus.NOT_REQUIRED)
                 .refundAmount(item.getLineTotal())
@@ -306,6 +310,7 @@ public class ReturnService {
     }
 
     private void notifyReturnStatus(ReturnRequest saved, ReturnStatus status) {
+        String orderCode = resolveOrderCode(saved.getOrderId());
         if (status == ReturnStatus.APPROVED) {
             notificationService.create(
                     saved.getUserId(),
@@ -313,8 +318,8 @@ public class ReturnService {
                     "Yêu cầu trả hàng được duyệt",
                     "Vui lòng gửi hàng về cửa hàng trong "
                             + ReturnRefundPolicy.SHIP_BACK_DEADLINE_DAYS
-                            + " ngày. Yêu cầu đơn "
-                            + saved.getOrderId()
+                            + " ngày. Đơn hàng #"
+                            + orderCode
                             + " đã được duyệt.",
                     "/returns");
         } else if (status == ReturnStatus.REJECTED) {
@@ -322,14 +327,13 @@ public class ReturnService {
                     saved.getUserId(),
                     NotificationType.RETURN_REJECTED,
                     "Yêu cầu trả hàng bị từ chối",
-                    "Yêu cầu trả hàng của bạn đã bị từ chối",
+                    "Yêu cầu trả hàng cho đơn #" + orderCode + " đã bị từ chối.",
                     "/orders/" + saved.getOrderId());
         }
     }
 
     private void notifyRefundPending(ReturnRequest saved) {
-        Order order = orderRepository.findById(saved.getOrderId()).orElse(null);
-        String orderCode = order != null ? order.getOrderCode() : saved.getOrderId();
+        String orderCode = resolveOrderCode(saved.getOrderId());
         String amount = formatMoney(saved.getRefundAmount());
         notificationService.create(
                 saved.getUserId(),
@@ -340,8 +344,7 @@ public class ReturnService {
     }
 
     private void notifyRefundCompleted(ReturnRequest saved) {
-        Order order = orderRepository.findById(saved.getOrderId()).orElse(null);
-        String orderCode = order != null ? order.getOrderCode() : saved.getOrderId();
+        String orderCode = resolveOrderCode(saved.getOrderId());
         String amount = formatMoney(saved.getRefundAmount());
         notificationService.create(
                 saved.getUserId(),
@@ -357,6 +360,28 @@ public class ReturnService {
             return "0đ";
         }
         return String.format(Locale.forLanguageTag("vi-VN"), "%,.0fđ", amount);
+    }
+
+    private String resolveOrderCode(String orderId) {
+        return orderRepository.findById(orderId)
+                .map(Order::getOrderCode)
+                .orElse(orderId);
+    }
+
+    private void validateRefundBankDetails(CreateReturnRequest request) {
+        if (request.getRefundBankName() == null || request.getRefundBankName().isBlank()) {
+            throw new BadRequestException("Vui lòng nhập tên ngân hàng nhận hoàn tiền");
+        }
+        if (request.getRefundAccountNumber() == null || !request.getRefundAccountNumber().trim().matches("\\d{6,20}")) {
+            throw new BadRequestException("Số tài khoản nhận hoàn phải gồm 6–20 chữ số");
+        }
+        if (request.getRefundAccountHolder() == null || request.getRefundAccountHolder().trim().length() < 2) {
+            throw new BadRequestException("Vui lòng nhập tên chủ tài khoản nhận hoàn");
+        }
+    }
+
+    private String normalizeBankField(String value) {
+        return value == null ? null : value.trim().replaceAll("\\s+", " ");
     }
 
     public ReturnRequest staffConfirm(String returnId, UpdateReturnStatusRequest request) {

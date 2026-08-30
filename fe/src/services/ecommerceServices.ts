@@ -61,6 +61,16 @@ export const mediaApi = {
   },
 };
 
+export const adminMediaApi = {
+  uploadRefundProof: async (file: File) => {
+    const images = [await fileToBase64(file)];
+    const res = await authorizedAxios.post<ApiResponse<string[]>>("/admin/media/images", { images }, {
+      params: { folder: "refund-proofs" },
+    });
+    return res.data.data[0];
+  },
+};
+
 export interface ProductFilterParams {
   search?: string;
   brandId?: string;
@@ -501,11 +511,18 @@ export const returnApi = {
     });
     return res.data.data.content;
   },
+  detail: async (returnId: string) => {
+    const res = await authorizedAxios.get<ApiResponse<ReturnRequest>>(`/returns/${returnId}`);
+    return res.data.data;
+  },
   create: async (data: {
     orderId: string;
     orderItemId: string;
     reason: string;
     customerNote?: string;
+    refundBankName: string;
+    refundAccountNumber: string;
+    refundAccountHolder: string;
     imageUrls?: string[];
   }) => {
     const res = await authorizedAxios.post<ApiResponse<ReturnRequest>>("/returns", data);
@@ -515,6 +532,10 @@ export const returnApi = {
     const res = await authorizedAxios.get<ApiResponse<PageResponse<ReturnRequest>>>("/admin/returns", {
       params: { page, size, status },
     });
+    return res.data.data;
+  },
+  adminDetail: async (returnId: string) => {
+    const res = await authorizedAxios.get<ApiResponse<ReturnRequest>>(`/admin/returns/${returnId}`);
     return res.data.data;
   },
   staffConfirm: async (returnId: string, note?: string) => {

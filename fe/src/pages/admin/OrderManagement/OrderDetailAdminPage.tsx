@@ -10,7 +10,6 @@ import { orderApi, paymentApi } from "@/services/ecommerceServices";
 import { getOrderStatusLabel } from "@/utils/displayLabels";
 import {
   formatShippingAddress,
-  getPaymentStatusLabel,
   orderItemCount,
   parseShippingAddress,
 } from "@/utils/orderDisplay";
@@ -107,7 +106,7 @@ export default function OrderDetailAdminPage() {
         <div className="space-y-2 rounded-lg border p-4">
           <h2 className="font-semibold">Thanh toán</h2>
           <p className="text-sm">
-            Trạng thái: <strong>{getPaymentStatusLabel(paymentStatus ?? order.paymentStatus)}</strong>
+            Trạng thái: <StatusBadge kind="payment" status={paymentStatus ?? order.paymentStatus} />
           </p>
           {order.paidAt ? (
             <p className="text-xs text-muted-foreground">
