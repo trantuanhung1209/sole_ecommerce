@@ -2,17 +2,21 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { categoryApi } from "@/services/ecommerceServices";
-import type { Category } from "@/types/ecommerce.type";
+import { categoryApi, productApi } from "@/services/ecommerceServices";
+import type { Category, ProductSummary } from "@/types/ecommerce.type";
+import { resolveCategoryImageUrl } from "@/utils/categoryDisplay";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<ProductSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    categoryApi
-      .list()
-      .then(setCategories)
+    Promise.all([categoryApi.list(), productApi.list({ page: 0, pageSize: 100 })])
+      .then(([categoryList, productPage]) => {
+        setCategories(categoryList);
+        setProducts(productPage.content);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -39,17 +43,11 @@ export default function CategoriesPage() {
                   className="group relative overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white"
                 >
                   <div className="aspect-[4/3] overflow-hidden bg-[#F1F1EF]">
-                    {category.imageUrl ? (
-                      <img
-                        src={category.imageUrl}
-                        alt={category.name}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-4xl font-black text-[#D1D5DB]">
-                        {category.name.charAt(0)}
-                      </div>
-                    )}
+                    <img
+                      src={resolveCategoryImageUrl(category, products)}
+                      alt={category.name}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
                   </div>
                   <div className="p-5">
                     <div className="flex items-center justify-between gap-3">

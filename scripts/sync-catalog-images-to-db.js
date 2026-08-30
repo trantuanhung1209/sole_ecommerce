@@ -45,3 +45,46 @@ for (const [slug, url] of Object.entries(imageBySlug)) {
 }
 
 print(`Done: ${productsUpdated} products, ${variantsUpdated} variants updated.`);
+
+// Category hero images — same product slugs as CatalogSeedService.CATEGORY_HERO_PRODUCT
+const categoryHeroProduct = {
+  running: "adidas-ultraboost-22",
+  lifestyle: "adidas-samba-og",
+  basketball: "air-jordan-1-retro-high",
+  skate: "vans-old-skool",
+  trail: "asics-gel-kayano-14",
+  kids: "converse-chuck-70-high",
+};
+
+const unsplashFallback = {
+  "nike-air-max-90":
+    "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80",
+  "vans-old-skool":
+    "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=900&q=80",
+};
+
+function resolveProductImage(slug) {
+  if (imageBySlug[slug]) return imageBySlug[slug];
+  const product = db.products.findOne({ slug }, { imageUrls: 1 });
+  if (product?.imageUrls?.[0]) return product.imageUrls[0];
+  if (unsplashFallback[slug]) return unsplashFallback[slug];
+  return null;
+}
+
+let categoriesUpdated = 0;
+for (const [categorySlug, productSlug] of Object.entries(categoryHeroProduct)) {
+  const imageUrl = resolveProductImage(productSlug);
+  if (!imageUrl) {
+    print(`skip category ${categorySlug} — no image for product ${productSlug}`);
+    continue;
+  }
+  const result = db.categories.updateOne(
+    { slug: categorySlug },
+    { $set: { imageUrl, updated_at: now } }
+  );
+  if (result.matchedCount > 0) {
+    categoriesUpdated++;
+    print(`category ${categorySlug} ← ${productSlug} (${imageUrl.substring(0, 72)}…)`);
+  }
+}
+print(`Done: ${categoriesUpdated} categories updated.`);

@@ -37,6 +37,28 @@ public class CatalogSeedService {
         return "https://images.unsplash.com/%s?auto=format&fit=crop&w=%d&q=80".formatted(photoId, width);
     }
 
+    /** Category slug → product slug whose image represents the category on Home. */
+    private static final Map<String, String> CATEGORY_HERO_PRODUCT = Map.of(
+            "running", "adidas-ultraboost-22",
+            "lifestyle", "adidas-samba-og",
+            "basketball", "air-jordan-1-retro-high",
+            "skate", "vans-old-skool",
+            "trail", "asics-gel-kayano-14",
+            "kids", "converse-chuck-70-high"
+    );
+
+    private static String categoryImageFromProduct(String categorySlug) {
+        String productSlug = CATEGORY_HERO_PRODUCT.get(categorySlug);
+        if (productSlug == null) {
+            return unsplash("photo-1549298916-b41d501d3772", 800);
+        }
+        return catalogProducts().stream()
+                .filter(p -> p.slug().equals(productSlug))
+                .map(SeedProduct::imageUrl)
+                .findFirst()
+                .orElse(unsplash("photo-1549298916-b41d501d3772", 800));
+    }
+
     private final BrandRepository brandRepository;
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
@@ -75,7 +97,7 @@ public class CatalogSeedService {
     private int refreshCatalogFromSeed() {
         LocalDateTime now = LocalDateTime.now();
         seedBrands(now);
-        seedCategories(now);
+        seedCategories(now, false);
 
         int updated = 0;
         for (SeedProduct seed : catalogProducts()) {
@@ -84,25 +106,47 @@ public class CatalogSeedService {
                 continue;
             }
             Product product = existing.get();
-            product.setImageUrls(List.of(seed.imageUrl()));
-            product.setUpdatedAt(now);
-            productRepository.save(product);
+            if (!shouldPreserveImageUrl(firstImageUrl(product.getImageUrls()))) {
+                product.setImageUrls(List.of(seed.imageUrl()));
+                product.setUpdatedAt(now);
+                productRepository.save(product);
 
-            for (ProductVariant variant : variantRepository.findByProductId(product.getProductId())) {
-                variant.setImageUrls(List.of(seed.imageUrl()));
-                variant.setUpdatedAt(now);
-                variantRepository.save(variant);
+                for (ProductVariant variant : variantRepository.findByProductId(product.getProductId())) {
+                    if (!shouldPreserveImageUrl(firstImageUrl(variant.getImageUrls()))) {
+                        variant.setImageUrls(List.of(seed.imageUrl()));
+                        variant.setUpdatedAt(now);
+                        variantRepository.save(variant);
+                    }
+                }
+                updated++;
             }
-            updated++;
         }
 
         return updated;
     }
 
+    /** Keep Cloudinary / custom CDN URLs — never downgrade to Unsplash on refresh. */
+    private static boolean shouldPreserveImageUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return false;
+        }
+        if (url.contains("res.cloudinary.com")) {
+            return true;
+        }
+        return !url.contains("images.unsplash.com");
+    }
+
+    private static String firstImageUrl(List<String> imageUrls) {
+        if (imageUrls == null || imageUrls.isEmpty()) {
+            return null;
+        }
+        return imageUrls.get(0);
+    }
+
     private int seedCatalog() {
         LocalDateTime now = LocalDateTime.now();
         Map<String, Brand> brands = seedBrands(now);
-        Map<String, Category> categories = seedCategories(now);
+        Map<String, Category> categories = seedCategories(now, true);
 
         int count = 0;
         for (SeedProduct seed : catalogProducts()) {
@@ -187,38 +231,42 @@ public class CatalogSeedService {
         return brands;
     }
 
-    private Map<String, Category> seedCategories(LocalDateTime now) {
+    private Map<String, Category> seedCategories(LocalDateTime now, boolean initialSeed) {
         List<String[]> data = List.of(
                 new String[]{"Running", "running", "Giày chạy bộ, đệm êm, hỗ trợ tốc độ.",
-                        unsplash("photo-1579338559199-fd52370f5f0b", 800)},
+                        categoryImageFromProduct("running")},
                 new String[]{"Lifestyle", "lifestyle", "Sneaker phong cách hàng ngày, dễ phối đồ.",
-                        unsplash("photo-1595950653106-6c9ebd614d3a", 800)},
+                        categoryImageFromProduct("lifestyle")},
                 new String[]{"Basketball", "basketball", "High-top và performance court shoes.",
-                        unsplash("photo-1556906781-219acccafc3d", 800)},
+                        categoryImageFromProduct("basketball")},
                 new String[]{"Skate", "skate", "Đế bền, grip tốt cho skate và street.",
-                        unsplash("photo-1549298916-b41d501d3772", 800)},
+                        categoryImageFromProduct("skate")},
                 new String[]{"Trail", "trail", "Chạy địa hình, grip và chống nước.",
-                        unsplash("photo-1552674605-db6ffd4facb5", 800)},
+                        categoryImageFromProduct("trail")},
                 new String[]{"Kids", "kids", "Size nhỏ cho trẻ em.",
-                        unsplash("photo-1514986888352-a0d648402806", 800)}
+                        categoryImageFromProduct("kids")}
         );
         Map<String, Category> categories = new LinkedHashMap<>();
         for (String[] row : data) {
-            Category category = categoryRepository.findBySlug(row[1]).map(existing -> {
-                existing.setName(row[0]);
-                existing.setDescription(row[2]);
-                existing.setImageUrl(row[3]);
-                existing.setUpdatedAt(now);
-                return categoryRepository.save(existing);
-            }).orElseGet(() -> categoryRepository.save(Category.builder()
-                    .name(row[0])
-                    .slug(row[1])
-                    .description(row[2])
-                    .imageUrl(row[3])
-                    .active(true)
-                    .createdAt(now)
-                    .updatedAt(now)
-                    .build()));
+            Category category = categoryRepository.findBySlug(row[1])
+                    .map(existing -> {
+                        existing.setName(row[0]);
+                        existing.setDescription(row[2]);
+                        if (initialSeed || !shouldPreserveImageUrl(existing.getImageUrl())) {
+                            existing.setImageUrl(row[3]);
+                        }
+                        existing.setUpdatedAt(now);
+                        return categoryRepository.save(existing);
+                    })
+                    .orElseGet(() -> categoryRepository.save(Category.builder()
+                            .name(row[0])
+                            .slug(row[1])
+                            .description(row[2])
+                            .imageUrl(row[3])
+                            .active(true)
+                            .createdAt(now)
+                            .updatedAt(now)
+                            .build()));
             categories.put(row[1], category);
         }
         return categories;

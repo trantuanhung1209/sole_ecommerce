@@ -2,6 +2,27 @@ import { describe, expect, it } from "vitest";
 import { roleAccess } from "@/config/roleAccess";
 import { UserRole } from "@/types/user.type";
 import { calculateShippingFee } from "@/utils/checkoutPricing";
+import { resolveCategoryImageUrl } from "@/utils/categoryDisplay";
+
+describe("category images", () => {
+  it("prefers hero product image over broken Unsplash category URL", () => {
+    const url = resolveCategoryImageUrl(
+      {
+        categoryId: "cat-running",
+        slug: "running",
+        imageUrl: "https://images.unsplash.com/photo-1579338559199-fd52370f5f0b?auto=format&fit=crop&w=800&q=80",
+      },
+      [
+        {
+          slug: "adidas-ultraboost-22",
+          categoryIds: ["cat-running"],
+          imageUrls: ["https://res.cloudinary.com/example/ultraboost.webp"],
+        },
+      ]
+    );
+    expect(url).toBe("https://res.cloudinary.com/example/ultraboost.webp");
+  });
+});
 
 describe("roleAccess", () => {
   it("allows SHOP_MANAGER to approve products", () => {

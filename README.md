@@ -154,9 +154,11 @@ docker exec sole-mongodb mongosh sole_ecommerce --quiet --file scripts/pull-cata
 # 2) Đồng bộ URL trong scripts/sync-catalog-images-to-db.js rồi chạy:
 docker exec -i sole-mongodb mongosh sole_ecommerce --quiet < scripts/sync-catalog-images-to-db.js
 
-# Hoặc restart BE với force refresh (product + variant theo seed file):
+# Hoặc restart BE với force refresh (chỉ ghi đè ảnh Unsplash/thiếu — giữ Cloudinary đã upload):
 CATALOG_SEED_FORCE=true ./gradlew bootRun
 ```
+
+**Lưu ý:** Restart BE bình thường (`CATALOG_SEED_FORCE=false`) **không** đụng ảnh đã có. Nếu vừa cập nhật ảnh trên admin/Cloudinary, dùng script sync ở bước 2 thay vì bật `FORCE` với seed file cũ.
 
 Tắt seed: `CATALOG_SEED_ENABLED=false`. Reset DB demo: `docker compose --profile demo down -v`.
 
@@ -165,7 +167,7 @@ Tắt seed: `CATALOG_SEED_ENABLED=false`. Reset DB demo: `docker compose --profi
 | Variable | Mặc định | Ý nghĩa |
 |----------|----------|---------|
 | `CATALOG_SEED_ENABLED` | `true` | Seed catalog khi DB trống |
-| `CATALOG_SEED_FORCE` | `false` | DB đã có SP → refresh `imageUrls` product + variant từ seed (không xóa data) |
+| `CATALOG_SEED_FORCE` | `false` | Refresh ảnh Unsplash/thiếu từ seed — **giữ nguyên Cloudinary** đã upload |
 | `REVIEW_SEED_ENABLED` | `true` | Seed review demo |
 | `REVIEW_SEED_FORCE` | `false` | Xóa review seed cũ rồi tạo lại |
 | `USER_SEED_PASSWORD` | `Sole@123` | Mật khẩu tất cả demo `@sole.test` |

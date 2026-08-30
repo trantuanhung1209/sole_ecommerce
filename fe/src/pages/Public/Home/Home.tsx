@@ -16,6 +16,7 @@ import { ProductCard } from "@/components/home/ProductCard";
 import { HomeReviewsSection } from "@/components/home/HomeReviewsSection";
 import { brandApi, categoryApi, productApi, reviewApi } from "@/services/ecommerceServices";
 import type { Brand, Category, HomeReviewsSummary, ProductSummary } from "@/types/ecommerce.type";
+import { resolveCategoryImageUrl } from "@/utils/categoryDisplay";
 
 const heroImage =
   "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=1600&q=80";
@@ -171,7 +172,7 @@ export default function Home() {
                 className="group relative aspect-[4/5] overflow-hidden rounded-2xl bg-[#F1F1EF]"
               >
                 <img
-                  src={category.imageUrl || heroImage}
+                  src={resolveCategoryImageUrl(category, products)}
                   alt={category.name}
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                 />
