@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.yaml.snakeyaml.Yaml;
 import java.io.InputStream;
@@ -78,6 +79,21 @@ public class PolicyKnowledge {
             text.append("\n").append(dynamicVatLine());
         }
         return text.toString();
+    }
+
+    @Cacheable(value = "policyCache", key = "#topic")
+    public String getPolicyForTool(String topic) {
+        String normalized = topic == null ? "order" : topic.toLowerCase();
+        return switch (normalized) {
+            case "return" -> fullText("return");
+            case "payment" -> fullText("payment");
+            case "shipping" -> fullText("shipping");
+            case "warranty" -> policies.containsKey("warranty")
+                    ? fullText("warranty")
+                    : "Chính sách bảo hành: liên hệ CSKH SOLE để được hỗ trợ.";
+            case "order" -> fullText("order");
+            default -> fullText(normalized);
+        };
     }
 
     public String allPoliciesText() {

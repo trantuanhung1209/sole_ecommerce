@@ -28,7 +28,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "/auth/verify-otp",
             "/auth/forgot-password",
             "/auth/reset-password",
-            "/checkout"
+            "/checkout",
+            "/ai/chat",
+            "/ai/chat/voice",
+            "/ai/chat/image"
     );
 
     private final StringRedisTemplate redisTemplate;
@@ -48,6 +51,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Value("${rate-limit.checkout-max:10}")
     private int checkoutMax;
+
+    @Value("${rate-limit.ai-chat-max:30}")
+    private int aiChatMax;
+
+    @Value("${rate-limit.ai-voice-max:10}")
+    private int aiVoiceMax;
+
+    @Value("${rate-limit.ai-image-max:10}")
+    private int aiImageMax;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -81,6 +93,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return switch (path) {
             case "/auth/login" -> loginMax;
             case "/checkout" -> checkoutMax;
+            case "/ai/chat" -> aiChatMax;
+            case "/ai/chat/voice" -> aiVoiceMax;
+            case "/ai/chat/image" -> aiImageMax;
             default -> otpMax;
         };
     }

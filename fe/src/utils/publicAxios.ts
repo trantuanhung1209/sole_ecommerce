@@ -2,11 +2,16 @@ import axios from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
+/** Default for catalog/auth; AI calls override per-request. */
+export const PUBLIC_API_TIMEOUT_MS = 30_000;
+/** OpenAI chat + tools + Whisper/Vision can exceed 30s. */
+export const AI_API_TIMEOUT_MS = 120_000;
+
 // Create public axios instance for login/register
 const publicAxios = axios.create({
   baseURL: `${API_BASE_URL}/api`, // Add /api prefix
   withCredentials: true, // Để nhận cookies sau khi đăng ký/đăng nhập
-  timeout: 10000,
+  timeout: PUBLIC_API_TIMEOUT_MS,
   headers: {
     "Content-Type": "application/json",
   },

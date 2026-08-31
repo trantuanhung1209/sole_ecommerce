@@ -12,6 +12,8 @@ export interface AiChatResponse {
   routeType?: string;
   suggestedProducts?: AiSuggestedProduct[];
   warnings?: string[];
+  transcript?: string;
+  sourceImageUrl?: string;
 }
 
 export interface AiChatMessage {
@@ -19,4 +21,6 @@ export interface AiChatMessage {
   content: string;
   suggestedProducts?: AiSuggestedProduct[];
   warnings?: string[];
+  transcript?: string;
+  sourceImageUrl?: string;
 }

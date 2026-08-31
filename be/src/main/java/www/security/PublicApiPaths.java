@@ -53,7 +53,8 @@ public final class PublicApiPaths {
         }
 
         if (HttpMethod.POST.matches(method)) {
-            if (path.equals("/ai/chat") || path.startsWith("/payments/sepay/callback")) {
+            if (path.equals("/ai/chat") || path.equals("/ai/chat/voice") || path.equals("/ai/chat/image")
+                    || path.startsWith("/payments/sepay/callback")) {
                 return true;
             }
             if (isAuthPost(path)) {

@@ -57,6 +57,16 @@ dependencies {
 	// Cloudinary for image upload
 	implementation 'com.cloudinary:cloudinary-http44:1.36.0'
 
+	// WebClient for OpenAI API
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+	// WebP / HEIC image conversion for AI visual search
+	implementation 'com.github.gotson.nightmonkeys:imageio-webp:0.6.3'
+	implementation 'com.github.gotson.nightmonkeys:imageio-heif:0.6.3'
+
+	// Spring Cache (policy cache)
+	implementation 'org.springframework.boot:spring-boot-starter-cache'
+
 	// Jackson Java 8 Time support
 	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 	// Jackson data bind support

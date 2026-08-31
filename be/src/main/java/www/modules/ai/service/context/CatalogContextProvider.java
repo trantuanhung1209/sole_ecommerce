@@ -31,6 +31,32 @@ public class CatalogContextProvider {
         return formatSummaries(page.getContent());
     }
 
+    public SearchResult searchWithFilters(
+            String query,
+            String size,
+            String color,
+            Double minPrice,
+            Double maxPrice,
+            String category) {
+        ProductFilter filter = new ProductFilter();
+        filter.setSearch(query == null ? "" : query.trim());
+        filter.setSize(size);
+        filter.setColor(color);
+        filter.setMinPrice(minPrice);
+        filter.setMaxPrice(maxPrice);
+        if (category != null && !category.isBlank()) {
+            filter.setSearch((filter.getSearch() + " " + category).trim());
+        }
+        filter.setSort("newest");
+        filter.setInStock(true);
+        var page = catalogService.searchPublished(filter, PageRequest.of(0, MAX_PRODUCTS));
+        SearchResult result = formatSummaries(page.getContent());
+        if (result.suggestedProducts().isEmpty() && query != null && !query.isBlank()) {
+            return searchByKeyword(query);
+        }
+        return result;
+    }
+
     public SearchResult hydrateByProductIds(List<String> productIds) {
         if (productIds == null || productIds.isEmpty()) {
             return SearchResult.empty();

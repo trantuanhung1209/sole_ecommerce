@@ -65,7 +65,7 @@ public class SecurityConfig {
                     "/payments/sepay/callback",
                     "/auth/register", "/auth/verify-otp", "/auth/login", "/auth/refresh",
                     "/auth/forgot-password", "/auth/reset-password", "/auth/google",
-                    "/ai/chat"))
+                    "/ai/chat", "/ai/chat/voice", "/ai/chat/image"))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint(jwtAuthenticationEntryPoint)
@@ -86,7 +86,7 @@ public class SecurityConfig {
                         "/brands", "/brands/**",
                         "/categories", "/categories/**").permitAll();
                 authz.requestMatchers(HttpMethod.GET, "/reviews", "/reviews/**").permitAll();
-                authz.requestMatchers(HttpMethod.POST, "/ai/chat").permitAll();
+                authz.requestMatchers(HttpMethod.POST, "/ai/chat", "/ai/chat/voice", "/ai/chat/image").permitAll();
                 authz.requestMatchers("/cart", "/cart/**").permitAll();
                 authz.requestMatchers(HttpMethod.GET, "/payments/sepay/callback").permitAll();
                 authz.requestMatchers(HttpMethod.POST, "/payments/sepay/callback").permitAll();

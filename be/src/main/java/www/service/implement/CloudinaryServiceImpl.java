@@ -85,6 +85,27 @@ public class CloudinaryServiceImpl implements CloudinaryService {
     }
 
     @Override
+    public String uploadBytes(byte[] imageBytes, String folder, String filename) {
+        try {
+            log.info("Uploading bytes to Cloudinary folder: {}", folder);
+            Map<?, ?> uploadResult = cloudinary.uploader().upload(imageBytes,
+                    ObjectUtils.asMap(
+                            "folder", folder,
+                            "resource_type", "image",
+                            "format", "webp",
+                            "tags", "ai-temp",
+                            "public_id", filename != null ? filename.replace(".webp", "") : null
+                    ));
+            String imageUrl = (String) uploadResult.get("secure_url");
+            log.info("Bytes uploaded successfully to {}: {}", folder, imageUrl);
+            return imageUrl;
+        } catch (Exception e) {
+            log.error("Error uploading bytes to Cloudinary: {}", e.getMessage());
+            throw new BadRequestException("Lỗi khi upload ảnh: " + e.getMessage());
+        }
+    }
+
+    @Override
     public boolean deleteImage(String imageUrl) {
         try {
             log.info("Deleting image from Cloudinary: {}", imageUrl);

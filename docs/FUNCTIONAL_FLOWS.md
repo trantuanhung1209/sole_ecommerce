@@ -505,19 +505,40 @@ flowchart TB
 
 ---
 
-## 13. Trợ lý AI
+## 13. Trợ lý AI (Function Calling)
 
 ```mermaid
 flowchart TD
-  U["User / Guest"] --> Chat["POST /ai/chat"]
-  Chat --> Route{"routeType"}
-  Route -->|CATALOG| R1["Embedding search sản phẩm"]
-  Route -->|POLICY| R2["policies.yml return/payment/order"]
-  Route -->|ORDER| R3["OrderService.mine nếu login"]
-  Route -->|RETURN| R4["ReturnService.mine nếu login"]
-  R1 & R2 & R3 & R4 --> Ans["answer + suggestedProducts + warnings"]
+  U["User / Guest"] --> EP{"Endpoint"}
+  EP -->|text| Chat["POST /ai/chat"]
+  EP -->|voice| Voice["POST /ai/chat/voice"]
+  EP -->|image| Image["POST /ai/chat/image\nWebP → Cloudinary → gpt-4o Vision"]
+  Chat --> Orch["AiOrchestratorService\ntool loop"]
+  Voice --> VTS["VoiceTranscriptService"]
+  VTS --> W1["Whisper + domain prompt"]
+  W1 --> W2["WhisperTranscriptFilter\nno_speech_prob / blacklist"]
+  W2 --> W3["TranscriptNormalizer\nASR correction"]
+  W3 --> Orch
+  Image --> Vision["VisionAnalysis\nbrand, model, searchQuery"]
+  Vision --> ImgSearch["ImageSearchService\nlọc relevance brand/model"]
+  ImgSearch --> ImgOrch["Orchestrator image mode\nKHÔNG search_catalog"]
+  Orch --> Tools{"OpenAI chọn tools"}
+  Tools --> T1["search_catalog"]
+  Tools --> T2["get_policy"]
+  Tools --> T3["get_order_status\n(login only)"]
+  Tools --> T4["get_return_info\n(login only)"]
+  T1 & T2 & T3 & T4 --> Struct["Structured Output JSON"]
+  ImgOrch --> Struct
+  Struct --> Ans["answer + suggestedProducts + warnings"]
+  ImgSearch -->|không khớp catalog| Empty["suggestedProducts = []\nvd. MLB Chunky không có trong shop"]
   Guest --> W["warnings: đăng nhập để xem đơn"]
 ```
+
+**Voice:** FE chặn ghi âm < 800ms; backend 3 lớp (Whisper bias → hallucination filter → ASR normalize).
+
+**Navigation:** Menu header **Trợ lý AI** (`/ai-chat`) — thay mục Đánh giá cũ.
+
+**Lịch sử:** Guest → Redis 30 phút; đã login → MongoDB `ai_conversations`.
 
 ---
 
@@ -525,7 +546,7 @@ flowchart TD
 
 | Suite | Phạm vi |
 |-------|---------|
-| BE `./gradlew test` | ~93 tests (ReturnServiceTest, ProductTextSearchServiceTest, payment, checkout, …) |
+| BE `./gradlew test` | ~105 tests (AI orchestrator, returns, payment, checkout, …) |
 | FE `npm run test` | 28 tests (returnFlow, commerce, cart, …) |
 | FE `npm run build` | TypeScript + Vite production build |
 | E2E Playwright | Smoke: home, products, cart (chưa cover return/checkout dài) |
@@ -536,6 +557,7 @@ flowchart TD
 
 | File | Nội dung |
 |------|----------|
-| [`SHOE_ECOMMERCE_SPECIFICATION.md`](./SHOE_ECOMMERCE_SPECIFICATION.md) | Spec tổng hợp API, model, RBAC, **§20 handover** |
+| [`AI_Function_Calling_Implementation.md`](./AI_Function_Calling_Implementation.md) | Chi tiết kỹ thuật AI Function Calling |
+| [`SHOE_ECOMMERCE_SPECIFICATION.md`](./SHOE_ECOMMERCE_SPECIFICATION.md) | Spec tổng hợp API, model, RBAC, **§15 AI**, **§20 handover** |
 | [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) | Design tokens / components |
 | [`README.md`](../README.md) | Chạy demo, env, script catalog |

@@ -19,6 +19,8 @@ public final class AiDtos {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class SuggestedProduct {
         private String productId;
         private String name;
@@ -29,6 +31,8 @@ public final class AiDtos {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class AiChatResponse {
         private String conversationId;
         private AiRouteType routeType;
@@ -37,5 +41,7 @@ public final class AiDtos {
         private List<SuggestedProduct> suggestedProducts = new ArrayList<>();
         @Builder.Default
         private List<String> warnings = new ArrayList<>();
+        private String transcript;
+        private String sourceImageUrl;
     }
 }

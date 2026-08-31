@@ -1,4 +1,4 @@
-import { Home, Info, Mail, ShoppingBag, Star, Tag, type LucideIcon } from "lucide-react";
+import { Bot, Home, Info, Mail, ShoppingBag, Tag, type LucideIcon } from "lucide-react";
 
 export type PublicNavItem = {
   name: string;
@@ -28,10 +28,10 @@ export const publicNavigation: PublicNavItem[] = [
     match: (pathname) => pathname === "/brands",
   },
   {
-    name: "Đánh giá",
-    href: "/reviews",
-    icon: Star,
-    match: (pathname) => pathname === "/reviews",
+    name: "Trợ lý AI",
+    href: "/ai-chat",
+    icon: Bot,
+    match: (pathname) => pathname === "/ai-chat",
   },
   {
     name: "Về SOLE",

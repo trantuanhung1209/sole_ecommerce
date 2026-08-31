@@ -1,10 +1,12 @@
-import { useState } from "react";
-import { MessageCircle, Send, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { MessageCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import AiSuggestedProducts from "@/components/AiSuggestedProducts/AiSuggestedProducts";
-import publicAxios from "@/utils/publicAxios";
-import type { ApiResponse } from "@/types/api.type";
+import AiChatComposer from "@/components/AiChatComposer/AiChatComposer";
+import { aiApi } from "@/services/ecommerceServices";
+import AiMessageContent from "@/components/AiMessageContent/AiMessageContent";
+import { useChatAutoScroll } from "@/hooks/useChatAutoScroll";
+import { getSupportedAudioFormat, isRecordingTooShort, voiceFilename } from "@/utils/audioRecording";
 import type { AiChatMessage, AiChatResponse } from "@/types/ai.type";
 
 export default function FloatingChatbot() {
@@ -12,6 +14,10 @@ export default function FloatingChatbot() {
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const recordingStartedAtRef = useRef<number | null>(null);
   const [messages, setMessages] = useState<AiChatMessage[]>([
     {
       role: "assistant",
@@ -20,36 +26,125 @@ export default function FloatingChatbot() {
     },
   ]);
 
+  const scrollAnchorRef = useChatAutoScroll(messages.length, loading);
+
+  const appendUserMessage = (content: string, extras?: Partial<AiChatMessage>) => {
+    setMessages((current) => [...current, { role: "user", content, ...extras }]);
+  };
+
+  const appendAssistantResponse = (data: AiChatResponse) => {
+    setConversationId(data.conversationId);
+    setMessages((current) => [
+      ...current,
+      {
+        role: "assistant",
+        content: data.answer,
+        suggestedProducts: data.suggestedProducts,
+        warnings: data.warnings,
+        sourceImageUrl: data.sourceImageUrl,
+      },
+    ]);
+  };
+
+  const appendAssistantError = (content: string) => {
+    setMessages((current) => [...current, { role: "assistant", content }]);
+  };
+
   const sendMessage = async () => {
     const content = message.trim();
     if (!content || loading) return;
+    appendUserMessage(content);
     setMessage("");
-    setMessages((current) => [...current, { role: "user", content }]);
     setLoading(true);
     try {
-      const response = await publicAxios.post<ApiResponse<AiChatResponse>>("/ai/chat", {
-        conversationId,
-        message: content,
-      });
-      const data = response.data.data;
-      setConversationId(data.conversationId);
-      setMessages((current) => [
-        ...current,
-        {
-          role: "assistant",
-          content: data.answer,
-          suggestedProducts: data.suggestedProducts,
-          warnings: data.warnings,
-        },
-      ]);
+      const data = await aiApi.chat(content, conversationId);
+      appendAssistantResponse(data);
+    } catch {
+      appendAssistantError("Mình chưa kết nối được AI lúc này. Bạn có thể thử lại sau vài giây.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const format = getSupportedAudioFormat();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, format.mimeType ? { mimeType: format.mimeType } : undefined);
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const durationMs = recordingStartedAtRef.current != null
+          ? Date.now() - recordingStartedAtRef.current
+          : 0;
+        recordingStartedAtRef.current = null;
+
+        if (isRecordingTooShort(durationMs)) {
+          appendAssistantError("Ghi âm quá ngắn, vui lòng giữ nút và nói rõ hơn.");
+          return;
+        }
+
+        const blob = new Blob(chunksRef.current, {
+          type: recorder.mimeType || format.mimeType || "audio/webm",
+        });
+        appendUserMessage("🎤 Đang xử lý giọng nói...");
+        setLoading(true);
+        try {
+          const res = await aiApi.chatVoice(blob, conversationId, voiceFilename(format.extension));
+          setMessages((current) => {
+            const next = [...current];
+            for (let i = next.length - 1; i >= 0; i--) {
+              if (next[i].role === "user" && next[i].content.startsWith("🎤 Đang")) {
+                next[i] = {
+                  ...next[i],
+                  content: res.transcript ? `🎤 ${res.transcript}` : "🎤 Tin nhắn thoại",
+                  transcript: res.transcript,
+                };
+                break;
+              }
+            }
+            return next;
+          });
+          appendAssistantResponse(res);
+        } catch {
+          setMessages((current) => {
+            const next = current.filter((msg) => !(msg.role === "user" && msg.content.startsWith("🎤 Đang")));
+            return next;
+          });
+          appendAssistantError("Không nghe rõ hoặc không thể xử lý giọng nói. Vui lòng thử lại gần micro hơn.");
+        } finally {
+          setLoading(false);
+        }
+      };
+      mediaRecorderRef.current = recorder;
+      recordingStartedAtRef.current = Date.now();
+      recorder.start();
+      setRecording(true);
     } catch {
       setMessages((current) => [
         ...current,
-        {
-          role: "assistant",
-          content: "Mình chưa kết nối được AI lúc này. Bạn có thể thử lại sau vài giây.",
-        },
+        { role: "assistant", content: "Không thể truy cập microphone." },
       ]);
+    }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+  };
+
+  const sendImage = async (file: File, caption?: string) => {
+    const previewUrl = URL.createObjectURL(file);
+    const userContent = caption ? `📷 ${caption}` : "📷 Đã gửi ảnh tìm kiếm";
+    appendUserMessage(userContent, { sourceImageUrl: previewUrl });
+    setLoading(true);
+    try {
+      const res = await aiApi.chatImage(file, conversationId, caption);
+      appendAssistantResponse(res);
+    } catch {
+      URL.revokeObjectURL(previewUrl);
+      appendAssistantError("Không thể xử lý ảnh.");
     } finally {
       setLoading(false);
     }
@@ -79,7 +174,10 @@ export default function FloatingChatbot() {
                     : "mr-8 border border-[#E5E7EB] bg-white text-[#111111]"
                 }`}
               >
-                {item.content}
+                {item.sourceImageUrl && item.role === "user" ? (
+                  <img src={item.sourceImageUrl} alt="Uploaded" className="mb-2 max-h-24 rounded object-cover" />
+                ) : null}
+                {item.role === "assistant" ? <AiMessageContent content={item.content} /> : item.content}
                 {item.warnings?.map((warning) => (
                   <p key={warning} className="mt-2 text-xs text-amber-700">
                     {warning}
@@ -95,26 +193,22 @@ export default function FloatingChatbot() {
                 Đang trả lời...
               </div>
             )}
+            <div ref={scrollAnchorRef} />
           </div>
 
           <footer className="border-t border-[#E5E7EB] p-3">
-            <div className="flex gap-2">
-              <Textarea
-                value={message}
-                onChange={(event) => setMessage(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    sendMessage();
-                  }
-                }}
-                placeholder="Hỏi về size, sản phẩm, đổi trả..."
-                className="min-h-11 resize-none rounded-lg"
-              />
-              <Button className="h-11 rounded-lg bg-[#111111] text-white" onClick={sendMessage}>
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
+            <AiChatComposer
+              message={message}
+              onMessageChange={setMessage}
+              loading={loading}
+              recording={recording}
+              onStartRecording={startRecording}
+              onStopRecording={stopRecording}
+              onSendText={sendMessage}
+              onSendImage={sendImage}
+              placeholder="Hỏi về size, sản phẩm, đổi trả..."
+              multiline
+            />
           </footer>
         </section>
       )}

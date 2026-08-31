@@ -13,4 +13,6 @@ public interface CloudinaryService {
     List<String> uploadMultipleImagesToFolder(List<String> base64Images, String folder);
 
     boolean deleteImage(String imageUrl);
+
+    String uploadBytes(byte[] imageBytes, String folder, String filename);
 }

@@ -17,6 +17,9 @@ class PublicApiPathsTest {
         assertTrue(isPublic("GET", "/reviews/home"));
         assertTrue(isPublic("GET", "/cart"));
         assertTrue(isPublic("POST", "/cart/items"));
+        assertTrue(isPublic("POST", "/ai/chat"));
+        assertTrue(isPublic("POST", "/ai/chat/voice"));
+        assertTrue(isPublic("POST", "/ai/chat/image"));
     }
 
     @Test

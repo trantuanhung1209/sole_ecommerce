@@ -1,5 +1,5 @@
 import authorizedAxios from "@/utils/authorizedAxios";
-import publicAxios from "@/utils/publicAxios";
+import publicAxios, { AI_API_TIMEOUT_MS } from "@/utils/publicAxios";
 import cartAxios from "@/utils/cartAxios";
 import type { ApiResponse, PageResponse } from "@/types/api.type";
 import type {
@@ -393,11 +393,46 @@ export const paymentApi = {
 
 export const aiApi = {
   chat: async (message: string, conversationId?: string) => {
-    const res = await authorizedAxios.post<
+    const res = await publicAxios.post<
       ApiResponse<import("@/types/ai.type").AiChatResponse>
-    >("/ai/chat", {
-      message,
-      conversationId,
+    >(
+      "/ai/chat",
+      {
+        message,
+        conversationId,
+      },
+      { timeout: AI_API_TIMEOUT_MS }
+    );
+    return res.data.data;
+  },
+  chatVoice: async (audio: Blob, conversationId?: string, filename = "voice.webm") => {
+    const formData = new FormData();
+    formData.append("audio", audio, filename);
+    if (conversationId) {
+      formData.append("conversationId", conversationId);
+    }
+    const res = await publicAxios.post<
+      ApiResponse<import("@/types/ai.type").AiChatResponse>
+    >("/ai/chat/voice", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: AI_API_TIMEOUT_MS,
+    });
+    return res.data.data;
+  },
+  chatImage: async (image: File, conversationId?: string, message?: string) => {
+    const formData = new FormData();
+    formData.append("image", image);
+    if (conversationId) {
+      formData.append("conversationId", conversationId);
+    }
+    if (message?.trim()) {
+      formData.append("message", message.trim());
+    }
+    const res = await publicAxios.post<
+      ApiResponse<import("@/types/ai.type").AiChatResponse>
+    >("/ai/chat/image", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: AI_API_TIMEOUT_MS,
     });
     return res.data.data;
   },

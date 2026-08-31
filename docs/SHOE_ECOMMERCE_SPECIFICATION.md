@@ -1,7 +1,7 @@
 # Đặc tả hệ thống SOLE — E-commerce giày dép
 
 > **Phiên bản tài liệu:** handover khách hàng + return detail pages + catalog Cloudinary seed (08/2026).  
-> **Trạng thái hệ thống:** MVP+ (~93%) — luồng mua hàng end-to-end, return/refund bảo vệ 2 bên, guest cart, AI RAG.
+> **Trạng thái hệ thống:** MVP+ (~95%) — luồng mua hàng end-to-end, return/refund, guest cart, **AI Function Calling** (text + voice + visual search).
 
 **Sơ đồ luồng trực quan:** [`FUNCTIONAL_FLOWS.md`](./FUNCTIONAL_FLOWS.md)  
 **Giao diện / design tokens:** [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md)
@@ -65,7 +65,7 @@
 - Giảm oversell nhờ **reserve tồn kho** trước khi tạo đơn.
 - Webhook thanh toán **an toàn, idempotent**.
 - Cổng admin/staff vận hành catalog — inventory — order — return.
-- Nền tảng mở rộng: promotion/coupon, VAT cấu hình, guest cart, AI assistant RAG (embedding + context theo route).
+- Nền tảng mở rộng: promotion/coupon, VAT cấu hình, guest cart, **AI assistant Function Calling** (tools + structured output + voice + visual search).
 
 ### 1.3. Phạm vi đã bổ sung (Release R0–R4)
 
@@ -76,7 +76,7 @@
 | **R2** | Guest cart BE (`guestSessionId` + merge khi login), route `/cart` public, FloatingChatbot |
 | **R3** | Correlation ID, Playwright smoke E2E, inventory paging |
 | **R4** | Module `promotions/` (coupon + checkout), `VatCalculator`, FE coupon checkout + admin promotions |
-| **AI** | RAG embedding, context catalog/policy/order, multi-turn, `suggestedProducts` trên FE |
+| **AI** | OpenAI Function Calling, structured JSON, **Whisper voice pipeline** (hallucination filter + ASR normalizer), **gpt-4o** vision + `ImageSearchService`, guest Redis / login MongoDB history |
 
 ### 1.4. Ngoài phạm vi MVP hiện tại
 
@@ -338,12 +338,13 @@ Coupon: code, type, value, minOrderAmount, maxDiscount
 CouponUsage: couponId, userId, orderId, discountApplied
 ```
 
-### 5.11. AI (Conversation & Embeddings)
+### 5.11. AI (Conversation, Tools & Embeddings)
 
 ```text
-AiConversation: conversationId, userId, title, messages[], timestamps
-AiMessage: role, content, routeType, timestamp
-AiEmbedding: id, entityType (PRODUCT|POLICY), entityId, text, embedding[], updatedAt
+AiConversation: conversationId, userId, title, messages[], timestamps   # login — persistent
+AiMessage: role, content, routeType (legacy), timestamp
+AiEmbedding: id, entityType (PRODUCT|POLICY), entityId, text, embedding[], updatedAt  # index startup
+Redis chat:history:{conversationId}  # guest session, TTL 30 phút
 ```
 
 ---
@@ -540,16 +541,19 @@ PENDING
 
 ### 6.15. Trợ lý AI — ✅
 
-Tóm tắt; chi tiết đầy đủ tại [mục 15](#15-trợ-lý-ai-mua-sắm).
+Tóm tắt; chi tiết kỹ thuật tại [mục 15](#15-trợ-lý-ai-mua-sắm) và [`AI_Function_Calling_Implementation.md`](./AI_Function_Calling_Implementation.md).
 
 | Thành phần | Mô tả |
 |------------|-------|
-| Entry | `POST /ai/chat` (permitAll, CSRF exempt); FloatingChatbot + `/ai-chat` |
-| RAG | `OpenAiEmbeddingAdapter` + collection `ai_embeddings`; cosine retrieval top-k |
-| Context | Catalog (giá/stock/variant), policy YAML, order/return thật khi login |
-| Multi-turn | 8 turn gần nhất gửi OpenAI Responses API |
-| Response | `answer`, `routeType`, `suggestedProducts[]`, `warnings[]` |
-| Index | Re-index product khi publish; startup index nếu collection trống |
+| Entry | `POST /ai/chat`, `/ai/chat/voice`, `/ai/chat/image` (permitAll, CSRF exempt); menu header **Trợ lý AI** → `/ai-chat`; `FloatingChatbot` |
+| Orchestration | `AiOrchestratorService` — tool loop (max 4) → Structured Output; **image mode** bỏ `search_catalog` |
+| Tools (guest) | `search_catalog`, `get_policy` (text chat); image search: chỉ `get_policy` |
+| Tools (login) | + `get_order_status`, `get_return_info` (read-only, không tạo return) |
+| History | Guest: Redis `chat:history:{id}` TTL 30 phút; Login: MongoDB `ai_conversations` |
+| Response | `answer`, `suggestedProducts[]`, `warnings[]`; optional `transcript`, `sourceImageUrl` |
+| Visual | WebP → Cloudinary → **GPT-4o** structured `VisionAnalysis` → `ImageSearchService` relevance filter |
+| Voice | `VoiceTranscriptService`: Whisper (`prompt` vocab) → `WhisperTranscriptFilter` → `TranscriptNormalizerService` |
+| Rate limit | Redis: chat 30 / voice 10 / image 10 requests / 15 phút / IP |
 
 ---
 
@@ -715,8 +719,10 @@ POST /admin/returns/{id}/refund          # deprecated → request-refund
 GET/PUT  /notifications/...
 GET      /notifications/stream           # SSE — client disconnect handled gracefully
 GET      /admin/reports/dashboard
-POST     /ai/chat                        # permitAll; response: answer, routeType, suggestedProducts, warnings
-GET      /ai/conversations/...           # auth — lịch sử hội thoại
+POST     /ai/chat                        # permitAll; text chat
+POST     /ai/chat/voice                  # permitAll; multipart audio → Whisper
+POST     /ai/chat/image                  # permitAll; multipart image → Vision
+GET      /ai/conversations/...           # auth — lịch sử hội thoại (MongoDB)
 ```
 
 **`POST /ai/chat` request:**
@@ -725,17 +731,24 @@ GET      /ai/conversations/...           # auth — lịch sử hội thoại
 { "conversationId": "optional", "message": "câu hỏi" }
 ```
 
+**`POST /ai/chat/voice`:** `multipart/form-data` — `audio` (webm/mp3/wav/m4a, ≤10MB), `conversationId?`
+
+**`POST /ai/chat/image`:** `multipart/form-data` — `image` (JPEG/PNG/WebP/HEIC/GIF/BMP/TIFF, ≤10MB), `conversationId?`, `message?` (caption)
+
 **Response `data`:**
 
 ```json
 {
   "conversationId": "...",
-  "routeType": "PRODUCT_INFO",
   "answer": "...",
   "suggestedProducts": [{ "productId", "name", "slug", "minPrice", "imageUrl" }],
-  "warnings": ["Đăng nhập để xem trạng thái đơn hàng..."]
+  "warnings": ["Đăng nhập để xem trạng thái đơn hàng..."],
+  "transcript": "optional — voice only",
+  "sourceImageUrl": "optional — image search only"
 }
 ```
+
+> `routeType` đã deprecated (không còn trong luồng Function Calling).
 
 ---
 
@@ -902,7 +915,7 @@ Cập nhật atomic qua MongoTemplate (`updateFirst` với điều kiện `avail
 ### 10.2. CSRF — ✅
 
 - Cookie auth → POST/PUT/PATCH/DELETE yêu cầu CSRF token (`X-XSRF-TOKEN`).
-- `SpaCsrfTokenRequestHandler` cho SPA; exempt: auth register/login/refresh, SePay IPN, **`POST /ai/chat`** (guest chat).
+- `SpaCsrfTokenRequestHandler` cho SPA; exempt: auth register/login/refresh, SePay IPN, **`POST /ai/chat`**, **`POST /ai/chat/voice`**, **`POST /ai/chat/image`** (guest chat).
 - `publicAxios` FE gửi CSRF khi cookie có sẵn.
 
 ### 10.3. Rate limiting — ✅
@@ -953,7 +966,7 @@ Cập nhật atomic qua MongoTemplate (`updateFirst` với điều kiện `avail
 | `/addresses` | Sổ địa chỉ |
 | `/profile` | Hồ sơ + panel phiên đăng nhập |
 | `/notifications` | Thông báo đầy đủ |
-| `/ai-chat` | Trợ lý AI — login; hiển thị **suggestedProducts**, warnings |
+| `/ai-chat` | Trợ lý AI — guest + login; mic, upload ảnh; **suggestedProducts**, warnings |
 
 ### 11.3. Admin / Staff — ✅
 
@@ -1048,9 +1061,9 @@ SSE `/notifications/stream` push realtime tới bell icon.
 - Keyword sanitize: loại `"`, `-` (negation), collapse whitespace.
 - **Lưu ý:** Mongo `$text` không segment tiếng Việt tốt như dedicated search engine; chấp nhận cho quy mô catalog demo.
 
-### 14.2. AI RAG (embedding retrieval) — ✅
+### 14.2. AI embedding index (legacy) — ✅
 
-**Phạm vi:** Hỗ trợ trợ lý AI — **không** thay thế search sản phẩm storefront.
+**Phạm vi:** Index product/policy cho startup; chat runtime dùng tool `search_catalog` + `CatalogContextProvider`, không phụ thuộc embedding retrieval trong orchestrator.
 
 | Thành phần | Mô tả |
 |------------|-------|
@@ -1064,70 +1077,101 @@ SSE `/notifications/stream` push realtime tới bell icon.
 
 ## 15. Trợ lý AI mua sắm
 
-### 15.1. Kiến trúc tổng thể — ✅
+### 15.1. Kiến trúc tổng thể — ✅ (Function Calling)
 
 ```text
-FE FloatingChatbot / AiChatPage
-  → POST /api/ai/chat { conversationId?, message }
-  → AiChatService
-       ├─ AiRouterService.route(message)           → routeType (keyword)
-       ├─ AiContextBuilder.build(userId, route, …)
-       │    ├─ AiRetrievalService (RAG embedding)
-       │    ├─ PolicyContextProvider (policies.yml + ship/VAT động)
-       │    ├─ OrderContextProvider (order thật nếu login)
-       │    └─ ReturnContextProvider (return thật nếu login)
-       ├─ OpenAiChatAdapter.answer(route, context, history, message)
-       │    → OpenAI POST /v1/responses (instructions + multi-turn input)
-       └─ Lưu AiConversation / AiMessage MongoDB
-  → Response: answer, routeType, suggestedProducts[], warnings[]
+FE AiChatComposer / FloatingChatbot / AiChatPage
+  → POST /api/ai/chat | /ai/chat/voice | /ai/chat/image
+  → AiChatService → AiOrchestratorService
+       ├─ [voice] VoiceTranscriptService
+       │    ├─ WhisperClient (prompt domain vocab, verbose_json, temperature=0)
+       │    ├─ WhisperTranscriptFilter (no_speech_prob, avg_logprob, blacklist)
+       │    └─ TranscriptNormalizerService (gpt-4o-mini ASR correction)
+       ├─ ConversationHistoryService (guest: Redis; login: MongoDB)
+       ├─ [text/voice] resolveToolsForUser → tool loop (max 4)
+       ├─ [image] ImageSearchService.resolve(VisionAnalysis) → ImageSearchContext
+       │    ├─ VisionClient.analyzeImage (gpt-4o, JSON schema)
+       │    ├─ CatalogContextProvider.searchWithFilters
+       │    └─ ImageSearchMatcher.filterExactMatches (brand/model)
+       ├─ [image] resolveToolsWithoutCatalog — KHÔNG search_catalog
+       ├─ OpenAiClient.chatWithStructuredOutput() → JSON schema
+       └─ applyImageSearchProducts / ImageSearchResponses khi không khớp catalog
+  → Response: answer, suggestedProducts[], warnings[], transcript?, sourceImageUrl?
 ```
 
-### 15.2. Intent routes (`AiRouteType`)
+**Voice:** FE `MIN_RECORDING_MS=800` → `VoiceTranscriptService` → orchestrator (text mode).  
+**Image:** `AiImageValidator` → `ImageNormalizer` (WebP) → Cloudinary → `VisionClient` (`gpt-4o`) → `ImageSearchService` → orchestrator image mode.
 
-| Route | Kích hoạt (keyword) | Context bổ sung |
-|-------|---------------------|-----------------|
-| `PRODUCT_INFO` | Mặc định | RAG product + coupon policy |
-| `SIZE_ADVICE` | size, cỡ, co giay | Variants còn hàng trong catalog context |
-| `ORDER_STATUS` | đơn, order, giao | Policy order + **3 đơn gần nhất** hoặc match `SO-*` (login) |
-| `RETURN_POLICY` | hoàn, đổi, trả | Policy return 7 ngày + returns của user |
-| `PAYMENT_REFUND_POLICY` | thanh toán, payment | SePay 15 phút, refund manual |
-| `CHITCHAT` | chào, hello, hi | Policy nhẹ + RAG tối thiểu |
+### 15.2. Tools (thay `AiRouteType` keyword routing)
 
-`WEBSEARCH` — ❌ chưa triển khai (chỉ có trong spec cũ).
+| Tool | Guest | Login | Mô tả |
+|------|-------|-------|--------|
+| `search_catalog` | ✅ | ✅ | Tìm SP theo query, size, color, giá, category |
+| `get_policy` | ✅ | ✅ | topic: return, payment, shipping, warranty, order |
+| `get_order_status` | ❌ | ✅ | Đơn gần nhất hoặc theo orderId/orderCode `SO-*` |
+| `get_return_info` | ❌ | ✅ | Yêu cầu đổi trả hiện có + eligibility; hướng `/returns` |
 
-### 15.3. Grounding & giới hạn
+Model có thể gọi **nhiều tool** trong một lượt (ví dụ: vừa tra đơn vừa tìm giày).
 
-- Prompt tiếng Việt (`AiPromptTemplates`): **chỉ** trả lời dựa trên block CONTEXT.
-- Không mutate order/payment/refund — hướng user tới `/orders`, `/returns`, `/checkout`.
-- **Guest:** `userId = "guest"`; order/return thật không inject; `warnings` nhắc đăng nhập khi hỏi đơn hàng.
-- **Logged-in:** `OrderService.mine`, `ReturnService.mine`, parse `orderCode` regex `SO-...`.
-- Fallback: thiếu `OPENAI_API_KEY` → message cấu hình; API lỗi → message tiếng Việt.
+### 15.3. Grounding & bảo mật
+
+- `userId` chỉ từ JWT — **không** nhận từ tool arguments.
+- Guest: không đưa tool order/return vào danh sách gửi OpenAI; `ToolDispatcher.requireLogin()` là lớp phòng thủ thứ 2.
+- Prompt (`AiPromptTemplates.systemPrompt`): chỉ dùng dữ liệu tool; không tạo/hủy đơn, hoàn tiền, return.
+- Guest hỏi đơn hàng → `warnings` nhắc đăng nhập.
+- Rate limit Redis trên `/ai/chat`, `/ai/chat/voice`, `/ai/chat/image`.
+- Thiếu `OPENAI_API_KEY` → message cấu hình; API lỗi → message tiếng Việt.
 
 ### 15.4. Dữ liệu lưu trữ
 
-| Collection | Trường chính |
-|------------|--------------|
-| `ai_conversations` | conversationId, userId, title, messages[], createdAt, updatedAt |
-| `ai_messages` (embedded) | role, content, routeType, timestamp |
-| `ai_embeddings` | id=`TYPE:id`, entityType, entityId, text, embedding, updatedAt |
+| Store | Dùng cho | Ghi chú |
+|-------|----------|---------|
+| Redis `chat:history:{conversationId}` | Guest session | TTL 30 phút; trim 8 turn |
+| MongoDB `ai_conversations` | User đã login | CRUD `/ai/conversations/**` |
+| Redis `policyCache` | Policy tool | Spring `@Cacheable` |
+| MongoDB `ai_embeddings` | Index startup (legacy RAG) | Vẫn index product/policy; chat dùng tool search |
 
 ### 15.5. Giao diện FE
 
 | Thành phần | Hành vi |
 |------------|---------|
-| `FloatingChatbot` | Global widget; `publicAxios`; hiển thị suggestedProducts cards |
-| `AiChatPage` | `/ai-chat` — yêu cầu login; ẩn floating widget trên route này |
-| `AiSuggestedProducts` | Link `/products/{slug}`, giá, ảnh thumbnail |
+| `FloatingChatbot` | Global widget; guest OK; `AiChatComposer` (+ menu ảnh/voice) |
+| `AiChatPage` | `/ai-chat` — full page; ẩn floating widget; link từ menu header **Trợ lý AI** |
+| `AiChatComposer` | Menu `+` → chọn ảnh / ghi âm; preview ảnh + caption; `MIN_RECORDING_MS=800` |
+| `AiMessageContent` | Render markdown nhẹ (`**bold**`, list) |
+| `AiSuggestedProducts` | Card SP; link `/products/{slug}`; fallback icon khi ảnh lỗi |
+| `aiApi` | `chat()`, `chatVoice(blob)`, `chatImage(file, conversationId?, message?)` |
 
-### 15.6. Cấu hình
+### 15.6. Cấu hình (`.env`)
 
 ```text
+# OpenAI
 OPENAI_API_KEY, OPENAI_MODEL, OPENAI_EMBEDDING_MODEL, OPENAI_TIMEOUT_MS
+OPENAI_MAX_TOOL_LOOP=4
+OPENAI_STRUCTURED_OUTPUT_MODEL=gpt-4o-mini
+OPENAI_VISION_MODEL=gpt-4o
+
+# AI image (visual search)
+AI_IMAGE_WEBP_QUALITY=85
+AI_IMAGE_MAX_INPUT_BYTES=10485760
+AI_IMAGE_MAX_DIMENSION=4096
+
+# Rate limits (15 phút / IP)
+RATE_LIMIT_AI_CHAT_MAX=30
+RATE_LIMIT_AI_VOICE_MAX=10
+RATE_LIMIT_AI_IMAGE_MAX=10
+
+# Cloudinary (bắt buộc cho /ai/chat/image)
+CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+
+# Legacy embedding index (tuỳ chọn)
 AI_RETRIEVAL_PRODUCT_TOP_K=5
 AI_RETRIEVAL_POLICY_TOP_K=2
 AI_CONVERSATION_HISTORY_TURNS=8
 AI_REINDEX_ON_STARTUP=false
 ```
+
+Chi tiết implementation: [`AI_Function_Calling_Implementation.md`](./AI_Function_Calling_Implementation.md).
 
 ---
 
@@ -1145,7 +1189,7 @@ AI_REINDEX_ON_STARTUP=false
 | BE promotions | `CouponValidatorTest`, `PromotionServiceTest` | Validate rules, usage |
 | BE RBAC | `RbacServiceTest`, `SolePermissionEvaluatorTest` | Permission matrix |
 | BE inventory | `InventoryServiceTest` | Expire reservations |
-| BE AI | `AiRouterServiceTest`, `AiRetrievalServiceTest`, `AiChatServiceTest`, `OrderContextProviderTest`, `VectorUtilsTest` | Router, RAG, context |
+| BE AI | `ToolDispatcherTest`, `AiOrchestratorServiceTest`, `WhisperTranscriptFilterTest`, `TranscriptNormalizerServiceTest`, `ImageSearchMatcherTest`, `ImageSearchServiceTest`, `ImageSearchResponsesTest`, `AiAudioValidatorTest`, `AiChatServiceTest` | Function calling, voice ASR, image relevance |
 | FE | `commerce.test.ts`, `releaseFeatures.test.ts`, `aiChat.test.ts`, `returnFlow.test.ts` | roleAccess, shipping, return flow |
 | E2E | `fe/e2e/smoke.spec.ts` | Playwright smoke (home, products, cart) |
 
@@ -1172,6 +1216,9 @@ CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
 SEPAY_API_URL, SEPAY_MERCHANT_ID, SEPAY_SECRET_KEY
 FRONTEND_BASE_URL
 OPENAI_API_KEY, OPENAI_MODEL, OPENAI_EMBEDDING_MODEL, OPENAI_TIMEOUT_MS
+OPENAI_MAX_TOOL_LOOP, OPENAI_STRUCTURED_OUTPUT_MODEL, OPENAI_VISION_MODEL
+AI_IMAGE_WEBP_QUALITY, AI_IMAGE_MAX_INPUT_BYTES, AI_IMAGE_MAX_DIMENSION
+RATE_LIMIT_AI_CHAT_MAX, RATE_LIMIT_AI_VOICE_MAX, RATE_LIMIT_AI_IMAGE_MAX
 AI_RETRIEVAL_PRODUCT_TOP_K, AI_RETRIEVAL_POLICY_TOP_K
 AI_CONVERSATION_HISTORY_TURNS, AI_REINDEX_ON_STARTUP
 permission.enforcement=true
@@ -1239,7 +1286,7 @@ VITE_CLOUDINARY_UPLOAD_PRESET
 - [x] Address book CRUD + ward/district
 - [x] AI RAG + suggested products + order context (login)
 - [x] Correlation ID
-- [x] Unit test suite mở rộng (BE ~93, FE ~28, returnFlow + ReturnServiceTest + ProductTextSearchServiceTest)
+- [x] Unit test suite mở rộng (BE ~105, FE ~28, AI orchestrator + returnFlow + ReturnServiceTest)
 
 ### 19.3. Production-ready — ⚠️ Còn lại
 
@@ -1386,7 +1433,7 @@ AI RAG (`AiIndexService`) dùng embedding riêng — không phụ thuộc storef
 
 | Lệnh | Kỳ vọng |
 |------|---------|
-| `cd be && ./gradlew test` | ~93 tests pass |
+| `cd be && ./gradlew test` | ~105 tests pass |
 | `cd fe && npm run test` | ~28 tests pass |
 | `cd fe && npm run build` | TypeScript + Vite build OK |
 

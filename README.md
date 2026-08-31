@@ -10,7 +10,8 @@ Full-stack shoe e-commerce platform.
 |------|----------|
 | [`README.md`](./README.md) | Chạy nhanh, env, tài khoản demo, script vận hành |
 | [`docs/SHOE_ECOMMERCE_SPECIFICATION.md`](./docs/SHOE_ECOMMERCE_SPECIFICATION.md) | Spec tổng hợp — **§20 Handover & vận hành** |
-| [`docs/FUNCTIONAL_FLOWS.md`](./docs/FUNCTIONAL_FLOWS.md) | Sơ đồ luồng Mermaid (mua hàng, return, payment, …) |
+| [`docs/FUNCTIONAL_FLOWS.md`](./docs/FUNCTIONAL_FLOWS.md) | Sơ đồ luồng Mermaid (mua hàng, return, payment, AI, …) |
+| [`docs/AI_Function_Calling_Implementation.md`](./docs/AI_Function_Calling_Implementation.md) | Trợ lý AI — Function Calling, voice, visual search |
 | [`docs/UI_DESIGN_SYSTEM.md`](./docs/UI_DESIGN_SYSTEM.md) | Design tokens, component, layout FE |
 
 ### URL mặc định (local)
@@ -37,7 +38,7 @@ chmod +x scripts/demo-up.sh
 ### Kiểm thử trước bàn giao
 
 ```bash
-cd be && ./gradlew test          # ~93 tests
+cd be && ./gradlew test          # ~105 tests
 cd fe && npm run test && npm run build
 ```
 
@@ -48,7 +49,7 @@ Thanh toán SePay local: [§ SePay + ngrok](#sepay--ngrok-tài-khoản-riêng--d
 
 ## Stack
 
-- **Backend:** Spring Boot 3.5, Java 17, MongoDB, Redis, SePay, Cloudinary, Resend, OpenAI (AI chat)
+- **Backend:** Spring Boot 3.5, Java 17, MongoDB, Redis, SePay, Cloudinary, Resend, OpenAI (AI chat — Function Calling, Whisper, Vision)
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS v4
 
 ## Quick start
@@ -125,7 +126,15 @@ cp .env.example .env
 | `GOOGLE_CLIENT_ID` | Backend | Google OAuth client ID |
 | `CLOUDINARY_*` | Backend | Upload ảnh catalog, return, review, refund proof |
 | `SEPAY_*` | Backend | Cổng thanh toán — **§ SePay + ngrok** bên dưới & spec §20.10 |
-| `OPENAI_API_KEY` | Backend | Trợ lý AI (tuỳ chọn) |
+| `OPENAI_API_KEY` | Backend | Trợ lý AI — text chat, voice (Whisper + ASR normalizer), visual search (Vision) |
+| `OPENAI_MAX_TOOL_LOOP` | Backend | Max vòng lặp tool (default `4`) |
+| `OPENAI_STRUCTURED_OUTPUT_MODEL` | Backend | Model cho JSON response cuối (default `gpt-4o-mini`) |
+| `OPENAI_VISION_MODEL` | Backend | Model phân tích ảnh visual search (default `gpt-4o`) |
+| `AI_IMAGE_WEBP_QUALITY` | Backend | Chất lượng WebP khi upload ảnh search (default `85`) |
+| `AI_IMAGE_MAX_INPUT_BYTES` | Backend | Max kích thước ảnh upload (default `10485760` = 10MB) |
+| `RATE_LIMIT_AI_CHAT_MAX` | Backend | Rate limit `/ai/chat` / 15 phút (default `30`) |
+| `RATE_LIMIT_AI_VOICE_MAX` | Backend | Rate limit `/ai/chat/voice` (default `10`) |
+| `RATE_LIMIT_AI_IMAGE_MAX` | Backend | Rate limit `/ai/chat/image` (default `10`) |
 | `CATALOG_SEED_*` | Backend | Seed catalog demo — xem bên dưới |
 | `USER_SEED_*` | Backend | Tài khoản demo `@sole.test` |
 | `permission.enforcement` | Backend | `true` trên staging/production |
