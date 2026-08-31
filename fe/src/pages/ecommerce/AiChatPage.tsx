@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bot, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import AiSuggestedProducts from "@/components/AiSuggestedProducts/AiSuggestedProducts";
@@ -24,6 +24,14 @@ export default function AiChatPage() {
   const chunksRef = useRef<Blob[]>([]);
   const recordingStartedAtRef = useRef<number | null>(null);
   const scrollAnchorRef = useChatAutoScroll(messages.length, loading);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
 
   const appendUserMessage = (content: string, extras?: Partial<AiChatMessage>) => {
     setMessages((prev) => [...prev, { role: "user", content, ...extras }]);
@@ -148,28 +156,30 @@ export default function AiChatPage() {
   };
 
   return (
-    <div className="container mx-auto max-w-2xl px-4 py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="w-5 h-5" />
+    <div className="fixed inset-x-0 bottom-0 top-16 z-0 mx-auto flex max-w-6xl flex-col overflow-hidden bg-background px-4 py-4 md:px-6 lg:top-[4.5rem]">
+      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <CardHeader className="shrink-0 pb-3">
+          <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
+            <Bot className="h-6 w-6" />
             Trợ lý AI SOLE
           </CardTitle>
-          <CardDescription>Gợi ý sản phẩm, tra cứu đơn hàng, chính sách đổi trả</CardDescription>
+          <CardDescription className="text-base">
+            Gợi ý sản phẩm, tra cứu đơn hàng, chính sách đổi trả
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="h-[400px] overflow-y-auto space-y-3 rounded-lg border p-4 bg-muted/30">
+        <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden pb-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto rounded-lg border bg-muted/30 p-5 md:p-6">
             {messages.map((msg, i) => (
               <div
                 key={i}
-                className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                className={`max-w-[80%] rounded-lg px-4 py-3 text-base ${
                   msg.role === "user"
                     ? "ml-auto bg-primary text-primary-foreground"
                     : "bg-background border"
                 }`}
               >
                 {msg.sourceImageUrl && msg.role === "user" ? (
-                  <img src={msg.sourceImageUrl} alt="Uploaded" className="mb-2 max-h-32 rounded object-cover" />
+                  <img src={msg.sourceImageUrl} alt="Uploaded" className="mb-2 max-h-48 rounded object-cover" />
                 ) : null}
                 {msg.role === "assistant" ? <AiMessageContent content={msg.content} /> : msg.content}
                 {msg.warnings?.map((warning) => (
@@ -183,15 +193,16 @@ export default function AiChatPage() {
               </div>
             ))}
             {loading && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
+              <div className="flex items-center gap-2 text-base text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Đang trả lời...
               </div>
             )}
             <div ref={scrollAnchorRef} />
           </div>
 
-          <AiChatComposer
+          <div className="shrink-0">
+            <AiChatComposer
             message={input}
             onMessageChange={setInput}
             loading={loading}
@@ -201,7 +212,8 @@ export default function AiChatPage() {
             onSendText={send}
             onSendImage={sendImage}
             placeholder="Nhập câu hỏi..."
-          />
+            />
+          </div>
         </CardContent>
       </Card>
     </div>
