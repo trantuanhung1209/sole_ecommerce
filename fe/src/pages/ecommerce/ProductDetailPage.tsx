@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ProductReviewsSection } from "@/components/ecommerce/ProductReviewsSection";
 import { StarRating } from "@/components/ecommerce/StarRating";
+import { ScrollReveal, ScrollStagger, ScrollStaggerItem } from "@/components/motion/ScrollReveal";
 import { useCart } from "@/contexts/CartContext";
+import { useSmoothScroll } from "@/providers/SmoothScrollProvider";
 import {
   brandApi,
   categoryApi,
@@ -31,6 +33,7 @@ export default function ProductDetailPage() {
   const { idOrSlug = "" } = useParams();
   const navigate = useNavigate();
   const { addItem } = useCart();
+  const { scrollTo } = useSmoothScroll();
   const mainImageRef = useRef<HTMLImageElement>(null);
   const [product, setProduct] = useState<Product | null>(null);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
@@ -241,7 +244,14 @@ export default function ProductDetailPage() {
           <h1 className="mt-2 text-4xl font-bold">{product.name}</h1>
 
           {reviewCount > 0 ? (
-            <a href="#reviews" className="mt-3 inline-flex items-center gap-2 text-sm text-[#6B7280] hover:text-[#111111]">
+            <a
+              href="#product-reviews"
+              onClick={(event) => {
+                event.preventDefault();
+                scrollTo("#product-reviews", { offset: -96 });
+              }}
+              className="mt-3 inline-flex items-center gap-2 text-sm text-[#6B7280] hover:text-[#111111]"
+            >
               <StarRating rating={reviewAverage} size="sm" showValue />
               <span>({reviewCount} đánh giá)</span>
             </a>
@@ -367,49 +377,60 @@ export default function ProductDetailPage() {
       </section>
 
       <section className="mx-auto max-w-[1240px] space-y-6 px-4 pb-12 md:px-5">
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 md:p-8">
-            <h2 className="text-xl font-bold">Mô tả sản phẩm</h2>
-            <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-[#374151]">
-              {product.description || product.shortDescription || "Chưa có mô tả chi tiết cho sản phẩm này."}
-            </p>
-            {product.careInstruction ? (
-              <div className="mt-6 rounded-xl bg-[#F7F7F5] p-4">
-                <h3 className="font-semibold">Hướng dẫn bảo quản</h3>
-                <p className="mt-2 whitespace-pre-line text-sm text-[#6B7280]">{product.careInstruction}</p>
-              </div>
-            ) : null}
-          </div>
+        <ScrollReveal viewport={{ once: true, amount: "some" }}>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 md:p-8">
+              <h2 className="text-xl font-bold">Mô tả sản phẩm</h2>
+              <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-[#374151]">
+                {product.description || product.shortDescription || "Chưa có mô tả chi tiết cho sản phẩm này."}
+              </p>
+              {product.careInstruction ? (
+                <div className="mt-6 rounded-xl bg-[#F7F7F5] p-4">
+                  <h3 className="font-semibold">Hướng dẫn bảo quản</h3>
+                  <p className="mt-2 whitespace-pre-line text-sm text-[#6B7280]">{product.careInstruction}</p>
+                </div>
+              ) : null}
+            </div>
 
-          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 md:p-8">
-            <h2 className="text-xl font-bold">Thông tin chi tiết</h2>
-            {specs.length > 0 ? (
-              <dl className="mt-4 divide-y divide-[#E5E7EB]">
-                {specs.map((item) => (
-                  <div key={item.label} className="grid grid-cols-[140px_1fr] gap-3 py-3 text-sm">
-                    <dt className="font-medium text-[#6B7280]">{item.label}</dt>
-                    <dd className="font-semibold text-[#111111]">{item.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : (
-              <p className="mt-4 text-sm text-[#6B7280]">Chưa có thông tin bổ sung.</p>
-            )}
+            <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 md:p-8">
+              <h2 className="text-xl font-bold">Thông tin chi tiết</h2>
+              {specs.length > 0 ? (
+                <dl className="mt-4 divide-y divide-[#E5E7EB]">
+                  {specs.map((item) => (
+                    <div key={item.label} className="grid grid-cols-[140px_1fr] gap-3 py-3 text-sm">
+                      <dt className="font-medium text-[#6B7280]">{item.label}</dt>
+                      <dd className="font-semibold text-[#111111]">{item.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <p className="mt-4 text-sm text-[#6B7280]">Chưa có thông tin bổ sung.</p>
+              )}
+            </div>
           </div>
-        </div>
+        </ScrollReveal>
 
-        <div id="reviews">
-          <ProductReviewsSection productId={product.productId} />
-        </div>
+        <ScrollReveal viewport={{ once: true, amount: "some" }}>
+          <div id="product-reviews">
+            <ProductReviewsSection productId={product.productId} />
+          </div>
+        </ScrollReveal>
 
         {relatedProducts.length > 0 ? (
           <div>
-            <h2 className="text-2xl font-bold">Sản phẩm liên quan</h2>
-            <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 lg:gap-6">
+            <ScrollReveal viewport={{ once: true, amount: "some" }}>
+              <h2 className="text-2xl font-bold">Sản phẩm liên quan</h2>
+            </ScrollReveal>
+            <ScrollStagger
+              className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 lg:gap-6"
+              viewport={{ once: true, amount: "some" }}
+            >
               {relatedProducts.map((item) => (
-                <ProductCard key={item.productId} product={item} />
+                <ScrollStaggerItem key={item.productId}>
+                  <ProductCard product={item} />
+                </ScrollStaggerItem>
               ))}
-            </div>
+            </ScrollStagger>
           </div>
         ) : null}
       </section>

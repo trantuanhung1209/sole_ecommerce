@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollStagger, ScrollStaggerItem } from "@/components/motion/ScrollReveal";
 import { brandApi } from "@/services/ecommerceServices";
 import type { Brand } from "@/types/ecommerce.type";
 
@@ -36,16 +37,22 @@ export default function BrandsPage() {
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {loading
-            ? Array.from({ length: 8 }).map((_, index) => (
-                <Skeleton key={index} className="h-44 rounded-2xl bg-[#E5E7EB]" />
-              ))
-            : brands.map((brand) => (
+        {loading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <Skeleton key={index} className="h-44 rounded-2xl bg-[#E5E7EB]" />
+            ))}
+          </div>
+        ) : (
+          <ScrollStagger
+            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            viewport={{ once: true, amount: "some" }}
+          >
+            {brands.map((brand) => (
+              <ScrollStaggerItem key={brand.brandId}>
                 <Link
-                  key={brand.brandId}
                   to={`/products?brandId=${brand.brandId}`}
-                  className="group flex flex-col rounded-2xl border border-[#E5E7EB] bg-white p-5 transition-shadow hover:shadow-md"
+                  className="group flex h-full flex-col rounded-2xl border border-[#E5E7EB] bg-white p-5 transition-shadow hover:shadow-md"
                 >
                   <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-[#111111] text-lg font-black text-white">
                     {brand.logoUrl ? (
@@ -63,8 +70,10 @@ export default function BrandsPage() {
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </span>
                 </Link>
-              ))}
-        </div>
+              </ScrollStaggerItem>
+            ))}
+          </ScrollStagger>
+        )}
       </section>
     </main>
   );

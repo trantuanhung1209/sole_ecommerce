@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollStagger, ScrollStaggerItem } from "@/components/motion/ScrollReveal";
+import { useSmoothScroll } from "@/providers/SmoothScrollProvider";
 import { productApi, reviewApi } from "@/services/ecommerceServices";
 import { useDebounce } from "@/hooks/useDebounce";
 import { reviewRatingFilterOptions, reviewSortFilterOptions } from "@/utils/adminFilterOptions";
@@ -22,6 +24,7 @@ import type { ProductSummary, PublicReviewItem } from "@/types/ecommerce.type";
 const PAGE_SIZE = 12;
 
 export default function ReviewsPage() {
+  const { scrollTo } = useSmoothScroll();
   const [reviews, setReviews] = useState<PublicReviewItem[]>([]);
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,6 +82,16 @@ export default function ReviewsPage() {
     setPage(0);
   };
 
+  const handleRatingChange = (value: string) => {
+    setRatingFilter(value);
+    scrollTo("#reviews-list", { offset: -96 });
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(nextPage);
+    scrollTo("#reviews-list", { offset: -96 });
+  };
+
   return (
     <main className="min-h-screen bg-[#F7F7F5] px-4 py-8 text-[#111111]">
       <section className="mx-auto max-w-[900px] space-y-6">
@@ -111,7 +124,7 @@ export default function ReviewsPage() {
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label>Số sao</Label>
-              <Select value={ratingFilter} onValueChange={setRatingFilter}>
+              <Select value={ratingFilter} onValueChange={handleRatingChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Tất cả sao" />
                 </SelectTrigger>
@@ -166,7 +179,7 @@ export default function ReviewsPage() {
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div id="reviews-list" className="space-y-3">
           {loading ? (
             Array.from({ length: 4 }).map((_, index) => (
               <Skeleton key={index} className="h-36 rounded-2xl bg-white" />
@@ -176,7 +189,17 @@ export default function ReviewsPage() {
               Không có đánh giá phù hợp bộ lọc.
             </p>
           ) : (
-            reviews.map((review) => <ReviewCard key={review.reviewId} review={review} />)
+            <ScrollStagger
+              key={`${page}-${ratingFilter}-${productFilter}-${sortFilter}-${debouncedSearch}`}
+              className="space-y-3"
+              viewport={{ once: true, amount: "some" }}
+            >
+              {reviews.map((review) => (
+                <ScrollStaggerItem key={review.reviewId}>
+                  <ReviewCard review={review} />
+                </ScrollStaggerItem>
+              ))}
+            </ScrollStagger>
           )}
         </div>
 
@@ -184,7 +207,7 @@ export default function ReviewsPage() {
           page={page}
           totalPages={totalPages}
           totalElements={totalElements}
-          onPageChange={setPage}
+          onPageChange={handlePageChange}
         />
       </section>
     </main>

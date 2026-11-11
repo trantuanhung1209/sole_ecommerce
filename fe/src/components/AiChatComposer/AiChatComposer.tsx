@@ -123,8 +123,8 @@ export default function AiChatComposer({
           <Button
             type="button"
             size="icon"
-            variant="secondary"
-            className="absolute -right-2 -top-2 h-6 w-6 rounded-full shadow"
+            variant="outline"
+            className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-background shadow"
             onClick={clearPendingImage}
             aria-label="Xóa ảnh"
           >

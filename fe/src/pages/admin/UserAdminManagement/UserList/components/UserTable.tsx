@@ -195,8 +195,8 @@ function UserTable({
                       <Edit className="h-4 w-4" />
                     </Button>
 
-                    {/* Toggle Status - not for ADMIN */}
-                    {user.role !== "ADMIN" && (
+                    {/* Toggle Status - not for ADMIN or SUPER_ADMIN (matches BE toggleUserStatus guard) */}
+                    {user.role !== "ADMIN" && user.role !== "SUPER_ADMIN" && (
                       <Button
                         variant="outline"
                         size="sm"

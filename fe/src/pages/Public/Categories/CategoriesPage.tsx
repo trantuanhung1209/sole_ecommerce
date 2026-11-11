@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollStagger, ScrollStaggerItem } from "@/components/motion/ScrollReveal";
 import { categoryApi, productApi } from "@/services/ecommerceServices";
 import type { Category, ProductSummary } from "@/types/ecommerce.type";
 import { resolveCategoryImageUrl } from "@/utils/categoryDisplay";
@@ -31,16 +32,22 @@ export default function CategoriesPage() {
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {loading
-            ? Array.from({ length: 6 }).map((_, index) => (
-                <Skeleton key={index} className="aspect-[4/3] rounded-2xl bg-[#E5E7EB]" />
-              ))
-            : categories.map((category) => (
+        {loading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} className="aspect-[4/3] rounded-2xl bg-[#E5E7EB]" />
+            ))}
+          </div>
+        ) : (
+          <ScrollStagger
+            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            viewport={{ once: true, amount: "some" }}
+          >
+            {categories.map((category) => (
+              <ScrollStaggerItem key={category.categoryId}>
                 <Link
-                  key={category.categoryId}
                   to={`/categories/${category.slug}`}
-                  className="group relative overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white"
+                  className="group relative block h-full overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white"
                 >
                   <div className="aspect-[4/3] overflow-hidden bg-[#F1F1EF]">
                     <img
@@ -59,8 +66,10 @@ export default function CategoriesPage() {
                     ) : null}
                   </div>
                 </Link>
-              ))}
-        </div>
+              </ScrollStaggerItem>
+            ))}
+          </ScrollStagger>
+        )}
       </section>
     </main>
   );

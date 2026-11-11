@@ -18,6 +18,7 @@ import {
   type ChangePasswordFormData,
 } from "@/schemas/changePasswordSchema";
 import { authServices } from "@/services/authServices";
+import { getApiErrorMessage } from "@/utils/getErrorMessage";
 
 interface ChangePasswordDialogProps {
   open: boolean;
@@ -49,11 +50,9 @@ export default function ChangePasswordDialog({
       toast.success("Đổi mật khẩu thành công!");
       reset();
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to change password:", error);
-      const errorMessage =
-        error.response?.data?.message || "Đổi mật khẩu thất bại. Vui lòng thử lại!";
-      toast.error(errorMessage);
+      toast.error(getApiErrorMessage(error, "Đổi mật khẩu thất bại. Vui lòng thử lại!"));
     } finally {
       setLoading(false);
     }

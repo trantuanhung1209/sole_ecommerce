@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Clock, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ScrollReveal, ScrollStagger, ScrollStaggerItem } from "@/components/motion/ScrollReveal";
 
 const contacts = [
   {
@@ -55,9 +56,9 @@ export default function ContactPage() {
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[1fr_1.1fr]">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <ScrollStagger className="grid gap-4 sm:grid-cols-2" viewport={{ once: true, amount: "some" }}>
             {contacts.map(({ icon: Icon, label, value, href }) => (
-              <div key={label} className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
+              <ScrollStaggerItem key={label} className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#FEE2E2]">
                   <Icon className="h-5 w-5 text-[#E53935]" />
                 </div>
@@ -69,10 +70,10 @@ export default function ContactPage() {
                 ) : (
                   <p className="mt-1 font-bold">{value}</p>
                 )}
-              </div>
+              </ScrollStaggerItem>
             ))}
 
-            <div className="sm:col-span-2 rounded-2xl bg-[#111111] p-6 text-white">
+            <ScrollStaggerItem className="sm:col-span-2 rounded-2xl bg-[#111111] p-6 text-white">
               <MessageCircle className="h-8 w-8 text-[#E53935]" />
               <h2 className="mt-4 text-xl font-bold">Chat với Trợ lý AI</h2>
               <p className="mt-2 text-sm text-[#D1D5DB]">
@@ -81,20 +82,22 @@ export default function ContactPage() {
               <Button asChild className="mt-5 bg-[#E53935] text-white hover:bg-[#C62828]">
                 <Link to="/ai-chat">Mở Trợ lý AI</Link>
               </Button>
-            </div>
-          </div>
+            </ScrollStaggerItem>
+          </ScrollStagger>
 
-          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 md:p-8">
-            <h2 className="text-xl font-bold">Câu hỏi thường gặp</h2>
-            <div className="mt-6 space-y-5">
-              {faqs.map((item) => (
-                <div key={item.q} className="border-b border-[#F1F1EF] pb-5 last:border-0 last:pb-0">
-                  <h3 className="font-bold">{item.q}</h3>
-                  <p className="mt-2 text-sm text-[#6B7280]">{item.a}</p>
-                </div>
-              ))}
+          <ScrollReveal delay={0.08} viewport={{ once: true, amount: "some" }}>
+            <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 md:p-8">
+              <h2 className="text-xl font-bold">Câu hỏi thường gặp</h2>
+              <div className="mt-6 space-y-5">
+                {faqs.map((item) => (
+                  <div key={item.q} className="border-b border-[#F1F1EF] pb-5 last:border-0 last:pb-0">
+                    <h3 className="font-bold">{item.q}</h3>
+                    <p className="mt-2 text-sm text-[#6B7280]">{item.a}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          </ScrollReveal>
         </div>
       </section>
     </main>

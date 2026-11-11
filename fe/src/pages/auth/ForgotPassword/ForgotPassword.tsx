@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField, PasswordField, ErrorAlert } from "./components";
 import { authServices } from "@/services/authServices";
+import { getApiErrorMessage } from "@/utils/getErrorMessage";
 import { toast } from "react-toastify";
 import { SoleLogo } from "@/components/brand/SoleLogo";
 import { AuthPageBackground } from "@/components/layouts/Public/AuthPageBackground/AuthPageBackground";
@@ -66,8 +67,8 @@ const ForgotPassword = () => {
       toast.success(response.message || "Đã gửi OTP đến email của bạn");
       setEmail(data.email);
       setStep(2);
-    } catch (error: any) {
-      const message = error?.response?.data?.message || "Gửi OTP thất bại. Vui lòng thử lại.";
+    } catch (error: unknown) {
+      const message = getApiErrorMessage(error, "Gửi OTP thất bại. Vui lòng thử lại.");
       setErrorMessage(message);
       toast.error(message);
     } finally {
@@ -85,8 +86,8 @@ const ForgotPassword = () => {
       setTimeout(() => {
         navigate("/login");
       }, 1500);
-    } catch (error: any) {
-      const message = error?.response?.data?.message || "Đặt lại mật khẩu thất bại. Vui lòng thử lại.";
+    } catch (error: unknown) {
+      const message = getApiErrorMessage(error, "Đặt lại mật khẩu thất bại. Vui lòng thử lại.");
       setErrorMessage(message);
       toast.error(message);
     } finally {

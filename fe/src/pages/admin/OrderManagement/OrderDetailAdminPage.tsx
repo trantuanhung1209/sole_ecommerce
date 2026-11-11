@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { MapPin, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
 export default function OrderDetailAdminPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { access } = useRoleAccess();
   const [order, setOrder] = useState<Order | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
@@ -84,7 +85,7 @@ export default function OrderDetailAdminPage() {
 
   if (!order) return <div className="p-6">Đang tải...</div>;
 
-  const basePath = window.location.pathname.startsWith("/staff") ? "/staff" : "/admin";
+  const basePath = location.pathname.startsWith("/staff") ? "/staff" : "/admin";
   const shipping = parseShippingAddress(order.shippingAddressSnapshot);
 
   return (

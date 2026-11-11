@@ -27,15 +27,23 @@ export const roleAccess = {
 
   canCreateProduct: (role?: UserRoleType, permissions?: string[]) =>
     role === UserRole.STAFF ||
+    role === UserRole.SHOP_MANAGER ||
     role === UserRole.ADMIN ||
     role === UserRole.SUPER_ADMIN ||
     roleAccess.hasPermission(permissions, "CATALOG_CREATE"),
 
   canEditProduct: (role?: UserRoleType, permissions?: string[]) =>
     role === UserRole.STAFF ||
+    role === UserRole.SHOP_MANAGER ||
     role === UserRole.ADMIN ||
     role === UserRole.SUPER_ADMIN ||
     roleAccess.hasPermission(permissions, "CATALOG_UPDATE"),
+
+  /** Matches BE CatalogController createVariant/updateVariant @PreAuthorize('ADMIN','STAFF','SUPER_ADMIN') */
+  canManageVariants: (role?: UserRoleType) =>
+    role === UserRole.STAFF ||
+    role === UserRole.ADMIN ||
+    role === UserRole.SUPER_ADMIN,
 
   canApproveProduct: (role?: UserRoleType, permissions?: string[]) =>
     role === UserRole.ADMIN ||
@@ -43,7 +51,7 @@ export const roleAccess = {
     role === UserRole.SHOP_MANAGER ||
     roleAccess.hasPermission(permissions, "CATALOG_APPROVE"),
 
-  canPublishProduct: (role?: UserRoleType, _permissions?: string[]) =>
+  canPublishProduct: (role?: UserRoleType) =>
     role === UserRole.SHOP_MANAGER ||
     role === UserRole.ADMIN ||
     role === UserRole.SUPER_ADMIN,
@@ -53,6 +61,11 @@ export const roleAccess = {
 
   canManageBrandsCategories: (role?: UserRoleType) =>
     role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN,
+
+  canManagePromotions: (role?: UserRoleType) =>
+    role === UserRole.SHOP_MANAGER ||
+    role === UserRole.ADMIN ||
+    role === UserRole.SUPER_ADMIN,
 
   canViewInventory: (role?: UserRoleType) =>
     role === UserRole.STAFF ||
@@ -71,6 +84,12 @@ export const roleAccess = {
     role === UserRole.SHOP_MANAGER ||
     role === UserRole.ADMIN ||
     role === UserRole.SUPER_ADMIN,
+
+  canCancelOrder: (role?: UserRoleType, permissions?: string[]) =>
+    role === UserRole.SHOP_MANAGER ||
+    role === UserRole.ADMIN ||
+    role === UserRole.SUPER_ADMIN ||
+    roleAccess.hasPermission(permissions, "ORDER_CANCEL"),
 
   canModerateReviews: (role?: UserRoleType) =>
     role === UserRole.STAFF ||

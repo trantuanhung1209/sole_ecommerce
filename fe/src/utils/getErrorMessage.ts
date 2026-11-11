@@ -9,3 +9,11 @@ export function getErrorMessage(err: unknown): string {
   }
   return "Đã xảy ra lỗi không mong muốn. Vui lòng thử lại";
 }
+
+/** Extract server `message` from an Axios error, falling back to a contextual message. */
+export function getApiErrorMessage(err: unknown, fallback: string): string {
+  if (axios.isAxiosError<{ message?: string }>(err)) {
+    return err.response?.data?.message || fallback;
+  }
+  return fallback;
+}

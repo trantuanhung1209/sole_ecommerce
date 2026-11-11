@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Loader2, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -9,6 +10,89 @@ import { cn } from "@/lib/utils";
 
 const PLACEHOLDER =
   "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=200&q=80";
+
+const DROPDOWN_EASE = [0.22, 1, 0.36, 1] as const;
+
+export type HeaderSearchDropdownProps = {
+  id: string;
+  query: string;
+  loading: boolean;
+  suggestions: ProductSummary[];
+  onSelectProduct: (product: ProductSummary) => void;
+  onViewAll: () => void;
+};
+
+export function HeaderSearchDropdown({
+  id,
+  query,
+  loading,
+  suggestions,
+  onSelectProduct,
+  onViewAll,
+}: HeaderSearchDropdownProps) {
+  const shouldReduceMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      id={id}
+      role="listbox"
+      initial={shouldReduceMotion ? false : { opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+      transition={{ duration: shouldReduceMotion ? 0 : 0.16, ease: DROPDOWN_EASE }}
+      className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-lg"
+    >
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 px-4 py-6 text-sm text-[#6B7280]">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Đang tìm...
+        </div>
+      ) : suggestions.length === 0 ? (
+        <p className="px-4 py-6 text-center text-sm text-[#6B7280]">Không có gợi ý phù hợp</p>
+      ) : (
+        <ul
+          data-lenis-prevent
+          className="max-h-[360px] overflow-y-auto overscroll-contain py-1"
+        >
+          {suggestions.map((product) => (
+            <li key={product.productId}>
+              <button
+                type="button"
+                role="option"
+                className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-[#F7F7F5]"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => onSelectProduct(product)}
+              >
+                <img
+                  src={product.imageUrls?.[0] || PLACEHOLDER}
+                  alt=""
+                  className="h-12 w-12 shrink-0 rounded-lg border border-[#E5E7EB] bg-[#F7F7F5] object-contain p-1"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{product.name}</span>
+                  <span className="mt-0.5 block truncate text-xs text-[#6B7280]">
+                    {product.brandName || "SOLE"} · {money(product.minPrice ?? 0)}
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {query.trim() ? (
+        <button
+          type="button"
+          className="w-full border-t border-[#F1F1EF] px-4 py-3 text-left text-sm font-semibold text-[#E53935] transition hover:bg-[#F7F7F5]"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={onViewAll}
+        >
+          Xem tất cả kết quả cho "{query.trim()}"
+        </button>
+      ) : null}
+    </motion.div>
+  );
+}
 
 type HeaderSearchProps = {
   className?: string;
@@ -126,59 +210,18 @@ export function HeaderSearch({ className, onNavigate }: HeaderSearchProps) {
         ) : null}
       </form>
 
-      {showDropdown ? (
-        <div
-          id={listboxId}
-          role="listbox"
-          className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-lg"
-        >
-          {loading ? (
-            <div className="flex items-center justify-center gap-2 px-4 py-6 text-sm text-[#6B7280]">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Đang tìm...
-            </div>
-          ) : suggestions.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-[#6B7280]">Không có gợi ý phù hợp</p>
-          ) : (
-            <ul className="max-h-[360px] overflow-y-auto py-1">
-              {suggestions.map((product) => (
-                <li key={product.productId}>
-                  <button
-                    type="button"
-                    role="option"
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-[#F7F7F5]"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => goToProduct(product)}
-                  >
-                    <img
-                      src={product.imageUrls?.[0] || PLACEHOLDER}
-                      alt=""
-                      className="h-12 w-12 shrink-0 rounded-lg border border-[#E5E7EB] bg-[#F7F7F5] object-contain p-1"
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">{product.name}</span>
-                      <span className="mt-0.5 block truncate text-xs text-[#6B7280]">
-                        {product.brandName || "SOLE"} · {money(product.minPrice ?? 0)}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {query.trim() ? (
-            <button
-              type="button"
-              className="w-full border-t border-[#F1F1EF] px-4 py-3 text-left text-sm font-semibold text-[#E53935] transition hover:bg-[#F7F7F5]"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={goToAllResults}
-            >
-              Xem tất cả kết quả cho "{query.trim()}"
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+      <AnimatePresence>
+        {showDropdown ? (
+          <HeaderSearchDropdown
+            id={listboxId}
+            query={query}
+            loading={loading}
+            suggestions={suggestions}
+            onSelectProduct={goToProduct}
+            onViewAll={goToAllResults}
+          />
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

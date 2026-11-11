@@ -1,15 +1,33 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { StarRating } from "@/components/ecommerce/StarRating";
+import { paginateItems, TablePagination } from "@/components/shared/TablePagination";
+import { useSmoothScroll } from "@/providers/SmoothScrollProvider";
 import { reviewApi } from "@/services/ecommerceServices";
 import type { ProductReview } from "@/types/ecommerce.type";
 
+export const MY_REVIEWS_PAGE_SIZE = 6;
+
 export default function MyReviewsPage() {
+  const { scrollToTop } = useSmoothScroll();
   const [reviews, setReviews] = useState<ProductReview[]>([]);
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
-    reviewApi.mine().then(setReviews).catch(console.error);
+    reviewApi.mine(0, 100).then(setReviews).catch(console.error);
   }, []);
+
+  const {
+    items: pagedReviews,
+    page: safePage,
+    totalPages,
+    totalElements,
+  } = useMemo(() => paginateItems(reviews, page, MY_REVIEWS_PAGE_SIZE), [reviews, page]);
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(nextPage);
+    scrollToTop();
+  };
 
   return (
     <main className="mx-auto max-w-[900px] px-4 py-8 space-y-4">
@@ -17,21 +35,29 @@ export default function MyReviewsPage() {
       {reviews.length === 0 ? (
         <p className="text-[#6B7280]">Bạn chưa viết đánh giá nào.</p>
       ) : (
-        reviews.map((review) => (
-          <article key={review.reviewId} className="rounded-xl border border-[#E5E7EB] bg-white p-4">
-            <div className="flex items-center justify-between">
-              <StarRating rating={review.rating} size="sm" showValue />
-              <span className="text-xs text-[#9CA3AF]">
-                {review.createdAt ? new Date(review.createdAt).toLocaleDateString("vi-VN") : ""}
-              </span>
-            </div>
-            {review.title ? <h2 className="mt-2 font-semibold">{review.title}</h2> : null}
-            <p className="mt-2 text-sm text-[#374151]">{review.content}</p>
-            <Link to={`/products/${review.productId}`} className="mt-3 inline-block text-sm underline">
-              Xem sản phẩm
-            </Link>
-          </article>
-        ))
+        <>
+          {pagedReviews.map((review) => (
+            <article key={review.reviewId} className="rounded-xl border border-[#E5E7EB] bg-white p-4">
+              <div className="flex items-center justify-between">
+                <StarRating rating={review.rating} size="sm" showValue />
+                <span className="text-xs text-[#9CA3AF]">
+                  {review.createdAt ? new Date(review.createdAt).toLocaleDateString("vi-VN") : ""}
+                </span>
+              </div>
+              {review.title ? <h2 className="mt-2 font-semibold">{review.title}</h2> : null}
+              <p className="mt-2 text-sm text-[#374151]">{review.content}</p>
+              <Link to={`/products/${review.productId}`} className="mt-3 inline-block text-sm underline">
+                Xem sản phẩm
+              </Link>
+            </article>
+          ))}
+          <TablePagination
+            page={safePage}
+            totalPages={totalPages}
+            totalElements={totalElements}
+            onPageChange={handlePageChange}
+          />
+        </>
       )}
     </main>
   );

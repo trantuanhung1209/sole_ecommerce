@@ -14,6 +14,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "@/components/home/ProductCard";
 import { HomeHero } from "@/components/home/HomeHero";
 import { HomeReviewsSection } from "@/components/home/HomeReviewsSection";
+import {
+  ScrollReveal,
+  ScrollStagger,
+  ScrollStaggerItem,
+} from "@/components/motion/ScrollReveal";
 import { brandApi, categoryApi, productApi, reviewApi } from "@/services/ecommerceServices";
 import type { Brand, Category, HomeReviewsSummary, ProductSummary } from "@/types/ecommerce.type";
 import { resolveCategoryImageUrl } from "@/utils/categoryDisplay";
@@ -76,9 +81,9 @@ export default function Home() {
 
       {/* Perks bar */}
       <section className="border-y border-[#E5E7EB] bg-white">
-        <div className="mx-auto grid max-w-[1240px] gap-4 px-4 py-6 md:grid-cols-4 md:px-5">
+        <ScrollStagger className="mx-auto grid max-w-[1240px] gap-4 px-4 py-6 md:grid-cols-4 md:px-5">
           {perks.map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="flex items-start gap-3">
+            <ScrollStaggerItem key={title} className="flex items-start gap-3">
               <div className="rounded-lg bg-[#F1F1EF] p-2">
                 <Icon className="h-5 w-5" />
               </div>
@@ -86,25 +91,27 @@ export default function Home() {
                 <p className="text-sm font-bold">{title}</p>
                 <p className="mt-1 text-xs text-[#6B7280]">{desc}</p>
               </div>
-            </div>
+            </ScrollStaggerItem>
           ))}
-        </div>
+        </ScrollStagger>
       </section>
 
       {/* Categories */}
       <section className="mx-auto max-w-[1240px] px-4 py-12 md:px-5">
-        <div className="mb-6 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-[#E53935]">Danh mục</p>
-            <h2 className="mt-2 text-3xl font-bold md:text-4xl">Mua theo phong cách</h2>
+        <ScrollReveal>
+          <div className="mb-6 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-[#E53935]">Danh mục</p>
+              <h2 className="mt-2 text-3xl font-bold md:text-4xl">Mua theo phong cách</h2>
+            </div>
+            <Button asChild variant="outline" className="hidden border-transparent bg-transparent md:inline-flex">
+              <Link to="/products">
+                Xem tất cả
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
           </div>
-          <Button asChild variant="outline" className="hidden border-transparent bg-transparent md:inline-flex">
-            <Link to="/products">
-              Xem tất cả
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
+        </ScrollReveal>
 
         {loading ? (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
@@ -113,40 +120,43 @@ export default function Home() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+          <ScrollStagger className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
             {topCategories.map((category) => (
-              <Link
-                key={category.categoryId}
-                to={`/categories/${category.slug}`}
-                className="group relative aspect-[4/5] overflow-hidden rounded-2xl bg-[#F1F1EF]"
-              >
-                <img
-                  src={resolveCategoryImageUrl(category, products)}
-                  alt={category.name}
-                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-                  <p className="text-sm font-bold">{category.name}</p>
-                  <p className="mt-1 line-clamp-2 text-xs text-white/80">{category.description}</p>
-                </div>
-              </Link>
+              <ScrollStaggerItem key={category.categoryId}>
+                <Link
+                  to={`/categories/${category.slug}`}
+                  className="group relative block aspect-[4/5] overflow-hidden rounded-2xl bg-[#F1F1EF]"
+                >
+                  <img
+                    src={resolveCategoryImageUrl(category, products)}
+                    alt={category.name}
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                    <p className="text-sm font-bold">{category.name}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-white/80">{category.description}</p>
+                  </div>
+                </Link>
+              </ScrollStaggerItem>
             ))}
-          </div>
+          </ScrollStagger>
         )}
       </section>
 
       {/* Featured products */}
       <section className="mx-auto max-w-[1240px] px-4 pb-12 md:px-5">
-        <div className="mb-6 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-[#E53935]">Bán chạy</p>
-            <h2 className="mt-2 text-3xl font-bold md:text-4xl">Sản phẩm nổi bật</h2>
+        <ScrollReveal>
+          <div className="mb-6 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-[#E53935]">Bán chạy</p>
+              <h2 className="mt-2 text-3xl font-bold md:text-4xl">Sản phẩm nổi bật</h2>
+            </div>
+            <Button asChild variant="outline" className="border-[#D1D5DB] bg-white">
+              <Link to="/products">Xem catalog</Link>
+            </Button>
           </div>
-          <Button asChild variant="outline" className="border-[#D1D5DB] bg-white">
-            <Link to="/products">Xem catalog</Link>
-          </Button>
-        </div>
+        </ScrollReveal>
 
         {loading ? (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
@@ -155,26 +165,30 @@ export default function Home() {
             ))}
           </div>
         ) : featuredProducts.length === 0 ? (
-          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-10 text-center">
-            <Package className="mx-auto h-8 w-8 text-[#9CA3AF]" />
-            <h3 className="mt-4 text-xl font-bold">Chưa có sản phẩm</h3>
-            <p className="mt-2 text-sm text-[#6B7280]">
-              Khởi động backend để tự động seed dữ liệu demo.
-            </p>
-          </div>
+          <ScrollReveal>
+            <div className="rounded-2xl border border-[#E5E7EB] bg-white p-10 text-center">
+              <Package className="mx-auto h-8 w-8 text-[#9CA3AF]" />
+              <h3 className="mt-4 text-xl font-bold">Chưa có sản phẩm</h3>
+              <p className="mt-2 text-sm text-[#6B7280]">
+                Khởi động backend để tự động seed dữ liệu demo.
+              </p>
+            </div>
+          </ScrollReveal>
         ) : (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+          <ScrollStagger className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
             {featuredProducts.map((product) => (
-              <ProductCard key={product.productId} product={product} badge="HOT" />
+              <ScrollStaggerItem key={product.productId}>
+                <ProductCard product={product} badge="HOT" />
+              </ScrollStaggerItem>
             ))}
-          </div>
+          </ScrollStagger>
         )}
       </section>
 
       {/* Promo split */}
       <section className="mx-auto max-w-[1240px] px-4 pb-12 md:px-5">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="relative min-h-[280px] overflow-hidden rounded-2xl bg-[#111111] p-8 text-white">
+        <ScrollStagger className="grid gap-4 md:grid-cols-2" staggerDelay={0.08}>
+          <ScrollStaggerItem className="relative min-h-[280px] overflow-hidden rounded-2xl bg-[#111111] p-8 text-white">
             <p className="text-xs font-bold uppercase tracking-widest text-[#E53935]">Sale cuối tuần</p>
             <h3 className="mt-3 max-w-sm text-3xl font-black">Giảm đến 12% compare-at price</h3>
             <p className="mt-3 max-w-md text-sm text-white/70">
@@ -183,8 +197,8 @@ export default function Home() {
             <Button asChild className="mt-6 bg-white text-[#111111] hover:bg-white/90">
               <Link to="/products">Mua ngay</Link>
             </Button>
-          </div>
-          <div className="relative min-h-[280px] overflow-hidden rounded-2xl">
+          </ScrollStaggerItem>
+          <ScrollStaggerItem className="relative min-h-[280px] overflow-hidden rounded-2xl">
             <img src={promoImage} alt="New collection" className="h-full w-full object-cover" />
             <div className="absolute inset-0 bg-black/40 p-8 text-white">
               <p className="text-xs font-bold uppercase tracking-widest">New collection</p>
@@ -196,73 +210,88 @@ export default function Home() {
                 <Link to="/products">Khám phá</Link>
               </Button>
             </div>
-          </div>
-        </div>
+          </ScrollStaggerItem>
+        </ScrollStagger>
       </section>
 
       {/* Brands */}
       <section className="border-y border-[#E5E7EB] bg-white py-12">
         <div className="mx-auto max-w-[1240px] px-4 md:px-5">
-          <p className="text-center text-xs font-bold uppercase tracking-widest text-[#E53935]">
-            Thương hiệu
-          </p>
-          <h2 className="mt-2 text-center text-3xl font-bold">Shop by brand</h2>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            {(loading ? Array.from({ length: 8 }) : brands).map((brand, index) =>
-              loading ? (
+          <ScrollReveal>
+            <p className="text-center text-xs font-bold uppercase tracking-widest text-[#E53935]">
+              Thương hiệu
+            </p>
+            <h2 className="mt-2 text-center text-3xl font-bold">Shop by brand</h2>
+          </ScrollReveal>
+          {loading ? (
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              {Array.from({ length: 8 }).map((_, index) => (
                 <Skeleton key={index} className="h-12 w-28 rounded-full bg-[#F1F1EF]" />
-              ) : (
-                <Link
-                  key={(brand as Brand).brandId}
-                  to={`/products?brand=${(brand as Brand).slug}`}
-                  className="rounded-full border border-[#E5E7EB] bg-[#F7F7F5] px-5 py-3 text-sm font-bold transition hover:border-[#111111] hover:bg-white"
-                >
-                  {(brand as Brand).name}
-                </Link>
-              )
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <ScrollStagger className="mt-8 flex flex-wrap items-center justify-center gap-3" staggerDelay={0.04}>
+              {brands.map((brand) => (
+                <ScrollStaggerItem key={brand.brandId}>
+                  <Link
+                    to={`/products?brand=${brand.slug}`}
+                    className="inline-block rounded-full border border-[#E5E7EB] bg-[#F7F7F5] px-5 py-3 text-sm font-bold transition hover:border-[#111111] hover:bg-white"
+                  >
+                    {brand.name}
+                  </Link>
+                </ScrollStaggerItem>
+              ))}
+            </ScrollStagger>
+          )}
         </div>
       </section>
 
       {/* New arrivals */}
       <section className="mx-auto max-w-[1240px] px-4 py-12 md:px-5">
-        <div className="mb-6 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-[#E53935]">Mới về</p>
-            <h2 className="mt-2 text-3xl font-bold md:text-4xl">Hàng mới nhất</h2>
+        <ScrollReveal>
+          <div className="mb-6 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-[#E53935]">Mới về</p>
+              <h2 className="mt-2 text-3xl font-bold md:text-4xl">Hàng mới nhất</h2>
+            </div>
           </div>
-        </div>
+        </ScrollReveal>
         {!loading && newArrivals.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:gap-6">
+          <ScrollStagger className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:gap-6">
             {newArrivals.map((product) => (
-              <ProductCard key={product.productId} product={product} badge="NEW" />
+              <ScrollStaggerItem key={product.productId}>
+                <ProductCard product={product} badge="NEW" />
+              </ScrollStaggerItem>
             ))}
-          </div>
+          </ScrollStagger>
         ) : null}
       </section>
 
-      <HomeReviewsSection data={homeReviews} loading={reviewsLoading} />
+      <ScrollReveal>
+        <HomeReviewsSection data={homeReviews} loading={reviewsLoading} />
+      </ScrollReveal>
 
       {/* CTA */}
       <section className="mx-auto max-w-[1240px] px-4 pb-16 md:px-5">
-        <div className="rounded-2xl bg-[#111111] px-6 py-10 text-center text-white md:px-12 md:py-14">
-          <Sparkles className="mx-auto h-6 w-6 text-[#E53935]" />
-          <h2 className="mt-4 text-3xl font-black md:text-4xl">Sẵn sàng tìm đôi sneaker tiếp theo?</h2>
-          <p className="mx-auto mt-3 max-w-xl text-sm text-white/70 md:text-base">
-            {products.length > 0
-              ? `${products.length} sản phẩm, ${brands.length} thương hiệu — dữ liệu demo sẵn sàng để test UI.`
-              : "Khởi động backend để load catalog demo tự động."}
-          </p>
-          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-            <Button asChild className="h-12 bg-white px-8 text-[#111111] hover:bg-white/90">
-              <Link to="/products">Xem toàn bộ sản phẩm</Link>
-            </Button>
-            <Button asChild variant="outline" className="h-12 border-white/30 bg-transparent px-8 text-white hover:bg-white/10">
-              <Link to="/ai-chat">Hỏi trợ lý AI</Link>
-            </Button>
+        <ScrollReveal>
+          <div className="rounded-2xl bg-[#111111] px-6 py-10 text-center text-white md:px-12 md:py-14">
+            <Sparkles className="mx-auto h-6 w-6 text-[#E53935]" />
+            <h2 className="mt-4 text-3xl font-black md:text-4xl">Sẵn sàng tìm đôi sneaker tiếp theo?</h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm text-white/70 md:text-base">
+              {products.length > 0
+                ? `${products.length} sản phẩm, ${brands.length} thương hiệu — dữ liệu demo sẵn sàng để test UI.`
+                : "Khởi động backend để load catalog demo tự động."}
+            </p>
+            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+              <Button asChild className="h-12 bg-white px-8 text-[#111111] hover:bg-white/90">
+                <Link to="/products">Xem toàn bộ sản phẩm</Link>
+              </Button>
+              <Button asChild variant="outline" className="h-12 border-white/30 bg-transparent px-8 text-white hover:bg-white/10">
+                <Link to="/ai-chat">Hỏi trợ lý AI</Link>
+              </Button>
+            </div>
           </div>
-        </div>
+        </ScrollReveal>
       </section>
     </main>
   );

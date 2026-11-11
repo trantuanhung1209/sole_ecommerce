@@ -1,5 +1,6 @@
 import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useSmoothScroll } from "@/providers/SmoothScrollProvider";
 import { userServices } from "@/services/userServices";
 import type { User, UserRole } from "@/types/user.type";
 import { useCallback, useEffect, useState } from "react";
@@ -8,8 +9,15 @@ import EditUserDialog from "./components/EditUserDialog.tsx";
 import UserTable from "./components/UserTable";
 import { TablePagination } from "@/components/shared/TablePagination";
 import { roleFilterOptions, userStatusFilterOptions } from "@/utils/adminFilterOptions";
+import {
+  ADMIN_PAGE_SIZE,
+  ADMIN_PAGE_SIZE_OPTIONS,
+  clampPage,
+  scrollPortalToTop,
+} from "../../utils/pagination";
 
 function UserList() {
+  const { scrollToTop } = useSmoothScroll();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -27,7 +35,7 @@ function UserList() {
   const [currentPage, setCurrentPage] = useState(0);
   const [sortBy] = useState("createdAt");
   const [sortDir] = useState<"asc" | "desc">("desc");
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState<number>(ADMIN_PAGE_SIZE);
 
   const fetchUsers = useCallback(
     async (isRefresh = false) => {
@@ -51,9 +59,14 @@ function UserList() {
               : statusFilter === "ACTIVE",
         });
 
+        const nextTotalPages = response.totalPages || 0;
         setUsers(response.content || []);
         setTotalElements(response.totalElements || 0);
-        setTotalPages(response.totalPages || 0);
+        setTotalPages(nextTotalPages);
+        const nextSafePage = clampPage(currentPage, nextTotalPages);
+        if (nextSafePage !== currentPage) {
+          setCurrentPage(nextSafePage);
+        }
       } catch (error) {
         console.error("Error fetching users:", error);
         const errorMessage =
@@ -65,7 +78,7 @@ function UserList() {
         setIsRefreshing(false);
       }
     },
-    [currentPage, debouncedSearchQuery, roleFilter, sortBy, sortDir, statusFilter]
+    [currentPage, debouncedSearchQuery, itemsPerPage, roleFilter, sortBy, sortDir, statusFilter]
   );
 
   useEffect(() => {
@@ -74,7 +87,7 @@ function UserList() {
 
   useEffect(() => {
     setCurrentPage(0);
-  }, [debouncedSearchQuery, roleFilter, statusFilter]);
+  }, [debouncedSearchQuery, roleFilter, statusFilter, itemsPerPage]);
 
   const handleRefresh = useCallback(() => {
     fetchUsers(true);
@@ -120,6 +133,11 @@ function UserList() {
     setCurrentPage(0);
   };
 
+  const handlePageChange = (nextPage: number) => {
+    setCurrentPage(clampPage(nextPage, totalPages));
+    scrollPortalToTop(scrollToTop);
+  };
+
   return (
     <div className="space-y-6">
       <AdminFilterBar
@@ -150,6 +168,24 @@ function UserList() {
         resultText={`Hiển thị ${totalElements > 0 ? startIndex + 1 : 0}-${endIndex} / ${totalElements} người dùng`}
       />
 
+      <div className="flex items-center justify-end gap-2 text-sm">
+        <label htmlFor="user-page-size" className="text-muted-foreground">
+          Hiển thị mỗi trang:
+        </label>
+        <select
+          id="user-page-size"
+          value={itemsPerPage}
+          onChange={(e) => setItemsPerPage(Number(e.target.value))}
+          className="rounded-md border bg-background px-2.5 py-1.5 text-sm"
+        >
+          {ADMIN_PAGE_SIZE_OPTIONS.map((size) => (
+            <option key={size} value={size}>
+              {size}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <UserTable
         users={users}
         isLoading={isLoading}
@@ -161,7 +197,7 @@ function UserList() {
         page={currentPage}
         totalPages={totalPages}
         totalElements={totalElements}
-        onPageChange={setCurrentPage}
+        onPageChange={handlePageChange}
         className="mt-6"
       />
 

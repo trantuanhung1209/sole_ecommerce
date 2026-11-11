@@ -8,17 +8,20 @@ import { reviewApi } from "@/services/ecommerceServices";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { TablePagination } from "@/components/shared/TablePagination";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useSmoothScroll } from "@/providers/SmoothScrollProvider";
 import {
   reviewRatingFilterOptions,
   reviewSortFilterOptions,
   reviewVisibilityFilterOptions,
 } from "@/utils/adminFilterOptions";
+import { ADMIN_PAGE_SIZE, clampPage, scrollPortalToTop } from "../utils/pagination";
 import type { PublicReviewItem } from "@/types/ecommerce.type";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = ADMIN_PAGE_SIZE;
 
 export default function ReviewManagementPage() {
   const { access } = useRoleAccess();
+  const { scrollToTop } = useSmoothScroll();
   const [reviews, setReviews] = useState<PublicReviewItem[]>([]);
   const [replies, setReplies] = useState<Record<string, string>>({});
   const [page, setPage] = useState(0);
@@ -46,6 +49,10 @@ export default function ReviewManagementPage() {
       setReviews(result.content);
       setTotalPages(result.totalPages);
       setTotalElements(result.totalElements);
+      const nextSafePage = clampPage(page, result.totalPages);
+      if (nextSafePage !== page) {
+        setPage(nextSafePage);
+      }
     } catch {
       toast.error("Không thể tải đánh giá");
     } finally {
@@ -79,6 +86,11 @@ export default function ReviewManagementPage() {
     setVisibilityFilter("ALL");
     setSortFilter("NEWEST");
     setPage(0);
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(clampPage(nextPage, totalPages));
+    scrollPortalToTop(scrollToTop);
   };
 
   return (
@@ -166,7 +178,7 @@ export default function ReviewManagementPage() {
           page={page}
           totalPages={totalPages}
           totalElements={totalElements}
-          onPageChange={setPage}
+          onPageChange={handlePageChange}
         />
       </div>
     </div>

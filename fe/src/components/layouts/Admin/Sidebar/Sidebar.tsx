@@ -6,6 +6,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import type { SubMenuItem } from "./types/type";
 import { menuItems as baseMenuItems } from "./data/MenuData";
 import { filterAdminMenu } from "@/config/menuAccess";
+import { roleAccess } from "@/config/roleAccess";
 import HeaderSidebar from "./components/Header/HeaderSidebar";
 import MenuSidebar from "./components/Menu/MenuSidebar";
 import { BackToHomeAdmin } from "../BackToHomeAdmin";
@@ -25,28 +26,43 @@ const Sidebar: React.FC<SidebarProps> = ({
   isOpen = false,
   onClose,
 }) => {
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const location = useLocation();
+  const [expandedItems, setExpandedItems] = useState<string[]>(() => {
+    const active = baseMenuItems.find((item) =>
+      item.subItems?.some(
+        (sub) =>
+          location.pathname === sub.href || location.pathname.startsWith(`${sub.href}/`)
+      )
+    );
+    return active ? [active.title] : [];
+  });
   const user = useAppSelector((state) => state.auth.user);
   const { counts } = useNotifications(!!user);
 
   // Cập nhật menuItems với badge counts
   const menuItems = filterAdminMenu(
-    baseMenuItems.map((item) => {
-      if (item.href === "/admin/returns") {
-        return {
-          ...item,
-          badge: counts.pendingReturns > 0 ? counts.pendingReturns : undefined,
-        };
-      }
-      if (item.href === "/admin/orders") {
-        return {
-          ...item,
-          badge: counts.pendingOrders > 0 ? counts.pendingOrders : undefined,
-        };
-      }
-      return item;
-    }),
+    baseMenuItems
+      .filter((item) => {
+        if (item.href === "/admin/promotions") {
+          return roleAccess.canManagePromotions(user?.role);
+        }
+        return true;
+      })
+      .map((item) => {
+        if (item.href === "/admin/returns") {
+          return {
+            ...item,
+            badge: counts.pendingReturns > 0 ? counts.pendingReturns : undefined,
+          };
+        }
+        if (item.href === "/admin/orders") {
+          return {
+            ...item,
+            badge: counts.pendingOrders > 0 ? counts.pendingOrders : undefined,
+          };
+        }
+        return item;
+      }),
     user?.role
   );
 
@@ -83,9 +99,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   const isActive = React.useCallback(
     (href?: string) => {
       if (!href) return false;
-
-      // Exact match cho tất cả menu items để tránh conflict
-      return location.pathname === href;
+      if (href === "/admin") return location.pathname === "/admin";
+      return location.pathname === href || location.pathname.startsWith(`${href}/`);
     },
     [location.pathname]
   );
@@ -98,19 +113,17 @@ const Sidebar: React.FC<SidebarProps> = ({
     [isActive]
   );
 
-  // Auto expand parent menu when sub-item is active
+  // Auto expand parent menu when navigating to an active sub-item
   React.useEffect(() => {
-    const activeParent = menuItems.find((item) => {
-      if (item.subItems && isParentActive(item.subItems)) {
-        return true;
-      }
-      return false;
-    });
-
-    if (activeParent && !expandedItems.includes(activeParent.title)) {
-      setExpandedItems((prev) => [...prev, activeParent.title]);
-    }
-  }, [location.pathname, expandedItems, isParentActive]);
+    const activeParent = menuItems.find(
+      (item) => item.subItems && isParentActive(item.subItems)
+    );
+    if (!activeParent) return;
+    setExpandedItems((prev) =>
+      prev.includes(activeParent.title) ? prev : [...prev, activeParent.title]
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   const sidebarClasses = `
     ${isMobile ? "fixed inset-y-0 left-0 z-50" : "relative"}
@@ -158,6 +171,9 @@ const Sidebar: React.FC<SidebarProps> = ({
             toggleExpanded={toggleExpanded}
             isActive={isActive}
             isParentActive={isParentActive}
+            onNavigate={() => {
+              if (isMobile) onClose?.();
+            }}
           />
         </div>
 

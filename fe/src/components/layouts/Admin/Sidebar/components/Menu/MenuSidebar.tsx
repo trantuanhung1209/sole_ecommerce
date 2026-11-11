@@ -25,6 +25,7 @@ function MenuSidebar({
   toggleExpanded,
   isActive,
   isParentActive,
+  onNavigate,
 }: {
   isCollapsed: boolean;
   isMobile: boolean;
@@ -33,6 +34,7 @@ function MenuSidebar({
   toggleExpanded: (title: string) => void;
   isActive: (href?: string) => boolean;
   isParentActive: (subItems?: SubMenuItem[]) => boolean;
+  onNavigate?: () => void;
 }) {
   return (
     <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-sidebar-border/90 scrollbar-track-transparent">
@@ -121,6 +123,7 @@ function MenuSidebar({
               ) : (
                 <Link
                   to={item.href || "#"}
+                  onClick={onNavigate}
                   className="flex items-center justify-between p-3 transition-all duration-200"
                 >
                   <div className="flex items-center space-x-3 flex-1">
@@ -166,6 +169,7 @@ function MenuSidebar({
                     <Link
                       key={subItem.href}
                       to={subItem.href}
+                      onClick={onNavigate}
                       className={`
                             group flex items-center space-x-3 p-3 rounded-lg transition-all duration-200
                             ${

@@ -3,13 +3,19 @@ import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { paginateItems, TablePagination } from "@/components/shared/TablePagination";
+import { useSmoothScroll } from "@/providers/SmoothScrollProvider";
 import { money, orderApi, returnApi } from "@/services/ecommerceServices";
 import { resolveOrderCode, resolveReturnProductName } from "@/utils/productDisplay";
 import type { Order, ReturnRequest } from "@/types/ecommerce.type";
 
+export const MY_RETURNS_PAGE_SIZE = 6;
+
 export default function MyReturnsPage() {
+  const { scrollToTop } = useSmoothScroll();
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
   const [ordersById, setOrdersById] = useState<Record<string, Order>>({});
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     Promise.all([returnApi.mine(), orderApi.mine(0, 100)])
@@ -21,6 +27,18 @@ export default function MyReturnsPage() {
   }, []);
 
   const ordersLookup = useMemo(() => ordersById, [ordersById]);
+
+  const {
+    items: pagedReturns,
+    page: safePage,
+    totalPages,
+    totalElements,
+  } = useMemo(() => paginateItems(returns, page, MY_RETURNS_PAGE_SIZE), [returns, page]);
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(nextPage);
+    scrollToTop();
+  };
 
   return (
     <main className="mx-auto max-w-[900px] px-4 py-8 space-y-4">
@@ -39,42 +57,52 @@ export default function MyReturnsPage() {
       {returns.length === 0 ? (
         <p className="text-[#6B7280]">Bạn chưa có yêu cầu trả hàng nào.</p>
       ) : (
-        returns.map((item) => {
-          const detailPath = `/returns/${item.returnId}`;
-          return (
-            <article key={item.returnId} className="rounded-xl border border-[#E5E7EB] bg-white p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <Link to={detailPath} className="min-w-0 flex-1 group">
-                  <p className="font-semibold group-hover:text-[#E53935]">{resolveReturnProductName(item, ordersLookup)}</p>
-                  <p className="text-sm text-[#6B7280]">
-                    {resolveOrderCode(item.orderId, ordersLookup)} · {item.reason}
-                  </p>
-                  <p className="text-xs text-[#9CA3AF]">
-                    {new Date(item.createdAt).toLocaleString("vi-VN")}
-                    {item.refundAmount != null ? ` · Hoàn dự kiến: ${money(item.refundAmount)}` : ""}
-                  </p>
-                  {item.status === "REFUND_PENDING" ? (
-                    <p className="mt-1 text-xs font-medium text-amber-600">Cửa hàng đang xử lý hoàn tiền</p>
-                  ) : null}
-                  {item.status === "APPROVED" && item.shipBackDeadlineAt ? (
-                    <p className="mt-1 text-xs font-medium text-blue-700">
-                      Gửi hàng trước {new Date(item.shipBackDeadlineAt).toLocaleDateString("vi-VN")}
+        <>
+          {pagedReturns.map((item) => {
+            const detailPath = `/returns/${item.returnId}`;
+            return (
+              <article key={item.returnId} className="rounded-xl border border-[#E5E7EB] bg-white p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <Link to={detailPath} className="min-w-0 flex-1 group">
+                    <p className="font-semibold group-hover:text-[#E53935]">
+                      {resolveReturnProductName(item, ordersLookup)}
                     </p>
-                  ) : null}
-                </Link>
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge kind="return" status={item.status} />
-                  <Button size="sm" variant="ghost" asChild>
-                    <Link to={detailPath}>
-                      Chi tiết
-                      <ChevronRight className="ml-1 h-4 w-4" />
-                    </Link>
-                  </Button>
+                    <p className="text-sm text-[#6B7280]">
+                      {resolveOrderCode(item.orderId, ordersLookup)} · {item.reason}
+                    </p>
+                    <p className="text-xs text-[#9CA3AF]">
+                      {new Date(item.createdAt).toLocaleString("vi-VN")}
+                      {item.refundAmount != null ? ` · Hoàn dự kiến: ${money(item.refundAmount)}` : ""}
+                    </p>
+                    {item.status === "REFUND_PENDING" ? (
+                      <p className="mt-1 text-xs font-medium text-amber-600">Cửa hàng đang xử lý hoàn tiền</p>
+                    ) : null}
+                    {item.status === "APPROVED" && item.shipBackDeadlineAt ? (
+                      <p className="mt-1 text-xs font-medium text-blue-700">
+                        Gửi hàng trước {new Date(item.shipBackDeadlineAt).toLocaleDateString("vi-VN")}
+                      </p>
+                    ) : null}
+                  </Link>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge kind="return" status={item.status} />
+                    <Button size="sm" variant="ghost" asChild>
+                      <Link to={detailPath}>
+                        Chi tiết
+                        <ChevronRight className="ml-1 h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </article>
-          );
-        })
+              </article>
+            );
+          })}
+          <TablePagination
+            page={safePage}
+            totalPages={totalPages}
+            totalElements={totalElements}
+            onPageChange={handlePageChange}
+          />
+        </>
       )}
     </main>
   );

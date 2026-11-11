@@ -8,13 +8,15 @@ import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { TablePagination } from "@/components/shared/TablePagination";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useSmoothScroll } from "@/providers/SmoothScrollProvider";
 import { getOrderStatusLabel } from "@/utils/displayLabels";
 import { orderStatusFilterOptions } from "@/utils/adminFilterOptions";
 import { getPaymentStatusLabel, orderItemCount, orderItemImage } from "@/utils/orderDisplay";
+import { ADMIN_PAGE_SIZE, clampPage, scrollPortalToTop } from "../utils/pagination";
 import type { Order, OrderStatus } from "@/types/ecommerce.type";
 import { TrackingCodeDialog } from "@/components/orders/TrackingCodeDialog";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = ADMIN_PAGE_SIZE;
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
   PAID: "CONFIRMED",
@@ -26,6 +28,7 @@ const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
 
 export default function OrderManagementPage() {
   const { access } = useRoleAccess();
+  const { scrollToTop } = useSmoothScroll();
   const location = useLocation();
   const basePath = location.pathname.startsWith("/staff") ? "/staff" : "/admin";
   const [orders, setOrders] = useState<Order[]>([]);
@@ -51,6 +54,10 @@ export default function OrderManagementPage() {
       setOrders(result.content);
       setTotalPages(result.totalPages);
       setTotalElements(result.totalElements);
+      const nextSafePage = clampPage(page, result.totalPages);
+      if (nextSafePage !== page) {
+        setPage(nextSafePage);
+      }
     } catch {
       toast.error("Không thể tải đơn hàng");
     } finally {
@@ -101,6 +108,11 @@ export default function OrderManagementPage() {
     setSearch("");
     setStatusFilter("ALL");
     setPage(0);
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(clampPage(nextPage, totalPages));
+    scrollPortalToTop(scrollToTop);
   };
 
   return (
@@ -209,7 +221,7 @@ export default function OrderManagementPage() {
         page={page}
         totalPages={totalPages}
         totalElements={totalElements}
-        onPageChange={setPage}
+        onPageChange={handlePageChange}
       />
 
       <TrackingCodeDialog

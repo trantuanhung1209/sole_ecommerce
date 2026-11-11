@@ -2,14 +2,17 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
+import { useSmoothScroll } from "@/providers/SmoothScrollProvider";
 import { notificationApi } from "@/services/notificationServices";
 import { isNetworkError } from "@/utils/networkError";
 import type { AppNotification } from "@/types/notification.type";
-import { TablePagination } from "@/components/shared/TablePagination";
+import { clampPage, TablePagination } from "@/components/shared/TablePagination";
 
-const PAGE_SIZE = 20;
+export const NOTIFICATIONS_PAGE_SIZE = 8;
+const PAGE_SIZE = NOTIFICATIONS_PAGE_SIZE;
 
 export default function NotificationsPage() {
+  const { scrollToTop } = useSmoothScroll();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -23,6 +26,9 @@ export default function NotificationsPage() {
       setItems(result.content);
       setTotalPages(result.totalPages);
       setTotalElements(result.totalElements);
+      if (result.totalPages > 0 && page >= result.totalPages) {
+        setPage(clampPage(page, result.totalPages));
+      }
     } catch {
       console.error("Failed to load notifications");
     } finally {
@@ -33,6 +39,11 @@ export default function NotificationsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(nextPage);
+    scrollToTop();
+  };
 
   const markRead = async (id: string) => {
     try {
@@ -115,7 +126,7 @@ export default function NotificationsPage() {
         page={page}
         totalPages={totalPages}
         totalElements={totalElements}
-        onPageChange={setPage}
+        onPageChange={handlePageChange}
       />
     </div>
   );

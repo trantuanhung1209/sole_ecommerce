@@ -25,8 +25,16 @@ const Sidebar: React.FC<SidebarProps> = ({
   isOpen = false,
   onClose,
 }) => {
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const location = useLocation();
+  const [expandedItems, setExpandedItems] = useState<string[]>(() => {
+    const active = baseMenuItems.find((item) =>
+      item.subItems?.some(
+        (sub) =>
+          location.pathname === sub.href || location.pathname.startsWith(`${sub.href}/`)
+      )
+    );
+    return active ? [active.title] : [];
+  });
   const user = useAppSelector((state) => state.auth.user);
   const { counts } = useNotifications(!!user);
 
@@ -83,9 +91,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   const isActive = React.useCallback(
     (href?: string) => {
       if (!href) return false;
-
-      // Exact match cho tất cả menu items để tránh conflict
-      return location.pathname === href;
+      if (href === "/staff") return location.pathname === "/staff";
+      return location.pathname === href || location.pathname.startsWith(`${href}/`);
     },
     [location.pathname]
   );
@@ -98,19 +105,17 @@ const Sidebar: React.FC<SidebarProps> = ({
     [isActive]
   );
 
-  // Auto expand parent menu when sub-item is active
+  // Auto expand parent menu when navigating to an active sub-item
   React.useEffect(() => {
-    const activeParent = menuItems.find((item) => {
-      if (item.subItems && isParentActive(item.subItems)) {
-        return true;
-      }
-      return false;
-    });
-
-    if (activeParent && !expandedItems.includes(activeParent.title)) {
-      setExpandedItems((prev) => [...prev, activeParent.title]);
-    }
-  }, [location.pathname, expandedItems, isParentActive]);
+    const activeParent = menuItems.find(
+      (item) => item.subItems && isParentActive(item.subItems)
+    );
+    if (!activeParent) return;
+    setExpandedItems((prev) =>
+      prev.includes(activeParent.title) ? prev : [...prev, activeParent.title]
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   const sidebarClasses = `
     ${isMobile ? "fixed inset-y-0 left-0 z-50" : "relative"}
@@ -158,6 +163,9 @@ const Sidebar: React.FC<SidebarProps> = ({
             toggleExpanded={toggleExpanded}
             isActive={isActive}
             isParentActive={isParentActive}
+            onNavigate={() => {
+              if (isMobile) onClose?.();
+            }}
           />
         </div>
 

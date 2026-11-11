@@ -1,24 +1,38 @@
 import { useEffect, useState } from "react";
 import { OrderHistoryCard } from "@/components/orders/OrderHistoryCard";
-import { TablePagination } from "@/components/shared/TablePagination";
+import { clampPage, TablePagination } from "@/components/shared/TablePagination";
+import { useSmoothScroll } from "@/providers/SmoothScrollProvider";
 import { orderApi } from "@/services/ecommerceServices";
 import type { Order } from "@/types/ecommerce.type";
 
-const PAGE_SIZE = 10;
+export const ORDER_HISTORY_PAGE_SIZE = 6;
+const PAGE_SIZE = ORDER_HISTORY_PAGE_SIZE;
 
 export default function OrderHistoryPage() {
+  const { scrollToTop } = useSmoothScroll();
   const [orders, setOrders] = useState<Order[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
 
   useEffect(() => {
-    orderApi.mine(page, PAGE_SIZE).then((result) => {
-      setOrders(result.content);
-      setTotalPages(result.totalPages);
-      setTotalElements(result.totalElements);
-    });
+    orderApi
+      .mine(page, PAGE_SIZE)
+      .then((result) => {
+        setOrders(result.content);
+        setTotalPages(result.totalPages);
+        setTotalElements(result.totalElements);
+        if (result.totalPages > 0 && page >= result.totalPages) {
+          setPage(clampPage(page, result.totalPages));
+        }
+      })
+      .catch(console.error);
   }, [page]);
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(nextPage);
+    scrollToTop();
+  };
 
   return (
     <main className="min-h-screen bg-[#F7F7F5] px-4 py-8 text-[#111111]">
@@ -41,7 +55,7 @@ export default function OrderHistoryPage() {
           page={page}
           totalPages={totalPages}
           totalElements={totalElements}
-          onPageChange={setPage}
+          onPageChange={handlePageChange}
         />
       </section>
     </main>

@@ -18,7 +18,7 @@ export function useRoleAccess() {
       createProduct: roleAccess.canCreateProduct(role, permissions),
       editProduct: roleAccess.canEditProduct(role, permissions),
       approveProduct: roleAccess.canApproveProduct(role, permissions),
-      publishProduct: roleAccess.canPublishProduct(role, permissions),
+      publishProduct: roleAccess.canPublishProduct(role),
       deleteProduct: roleAccess.canDeleteProduct(role),
       brandsCategories: roleAccess.canManageBrandsCategories(role),
       viewInventory: roleAccess.canViewInventory(role),

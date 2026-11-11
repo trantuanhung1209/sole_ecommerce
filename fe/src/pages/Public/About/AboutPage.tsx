@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowRight, ShieldCheck, Sparkles, Truck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ScrollReveal, ScrollStagger, ScrollStaggerItem } from "@/components/motion/ScrollReveal";
 
 const values = [
   {
@@ -57,34 +58,39 @@ export default function AboutPage() {
           </div>
         </div>
 
-        <div className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <ScrollStagger
+          className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          viewport={{ once: true, amount: "some" }}
+        >
           {values.map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="rounded-2xl border border-[#E5E7EB] bg-white p-6">
+            <ScrollStaggerItem key={title} className="rounded-2xl border border-[#E5E7EB] bg-white p-6">
               <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#FEE2E2]">
                 <Icon className="h-5 w-5 text-[#E53935]" />
               </div>
               <h2 className="mt-4 font-bold">{title}</h2>
               <p className="mt-2 text-sm text-[#6B7280]">{desc}</p>
-            </div>
+            </ScrollStaggerItem>
           ))}
-        </div>
+        </ScrollStagger>
 
-        <div className="mt-16 rounded-2xl border border-[#E5E7EB] bg-white p-8 md:p-10">
-          <div className="grid gap-8 md:grid-cols-3 md:divide-x md:divide-[#E5E7EB]">
-            <div className="md:px-6 md:first:pl-0">
-              <div className="text-3xl font-black">12+</div>
-              <p className="mt-1 text-sm text-[#6B7280]">Mẫu sneaker hot</p>
-            </div>
-            <div className="md:px-6">
-              <div className="text-3xl font-black">8</div>
-              <p className="mt-1 text-sm text-[#6B7280]">Thương hiệu lớn</p>
-            </div>
-            <div className="md:px-6 md:last:pr-0">
-              <div className="text-3xl font-black">200+</div>
-              <p className="mt-1 text-sm text-[#6B7280]">Biến thể size/màu</p>
+        <ScrollReveal viewport={{ once: true, amount: "some" }}>
+          <div className="mt-16 rounded-2xl border border-[#E5E7EB] bg-white p-8 md:p-10">
+            <div className="grid gap-8 md:grid-cols-3 md:divide-x md:divide-[#E5E7EB]">
+              <div className="md:px-6 md:first:pl-0">
+                <div className="text-3xl font-black">12+</div>
+                <p className="mt-1 text-sm text-[#6B7280]">Mẫu sneaker hot</p>
+              </div>
+              <div className="md:px-6">
+                <div className="text-3xl font-black">8</div>
+                <p className="mt-1 text-sm text-[#6B7280]">Thương hiệu lớn</p>
+              </div>
+              <div className="md:px-6 md:last:pr-0">
+                <div className="text-3xl font-black">200+</div>
+                <p className="mt-1 text-sm text-[#6B7280]">Biến thể size/màu</p>
+              </div>
             </div>
           </div>
-        </div>
+        </ScrollReveal>
       </section>
     </main>
   );

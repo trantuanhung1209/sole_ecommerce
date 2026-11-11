@@ -4,6 +4,7 @@ import { useAppDispatch } from "@/hooks/useRedux";
 import { authServices } from "@/services/authServices";
 import { setAuth } from "@/store/slices/authSlice";
 import { resolvePostLoginPath } from "@/utils/authRedirect";
+import { getApiErrorMessage } from "@/utils/getErrorMessage";
 import { toast } from "react-toastify";
 import type { CredentialResponse } from "@react-oauth/google";
 
@@ -37,9 +38,9 @@ export const useGoogleAuth = () => {
         toast.success("Đăng nhập với Google thành công! Chào mừng bạn 🎉");
         navigate(resolvePostLoginPath(response.data.user.role), { replace: true });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Google authentication failed:", error);
-      toast.error(error.response?.data?.message || "Đăng nhập với Google thất bại. Vui lòng thử lại");
+      toast.error(getApiErrorMessage(error, "Đăng nhập với Google thất bại. Vui lòng thử lại"));
     } finally {
       setIsLoading(false);
     }

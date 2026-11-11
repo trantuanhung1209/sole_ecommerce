@@ -13,6 +13,6 @@ test.describe("SOLE smoke", () => {
 
   test("guest can open cart page", async ({ page }) => {
     await page.goto("/cart");
-    await expect(page.getByRole("heading", { name: /Giỏ hàng/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Giỏ hàng", exact: true })).toBeVisible();
   });
 });

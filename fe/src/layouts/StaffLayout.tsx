@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 import StaffSidebar from "@/components/layouts/Staff/Sidebar/Sidebar";
 import HeaderStaff from "@/components/layouts/Staff/Header/HeaderStaff";
 
@@ -7,6 +7,8 @@ export default function StaffLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const mainRef = useRef<HTMLElement | null>(null);
+  const { pathname } = useLocation();
 
   useEffect(() => {
     const checkMobile = () => {
@@ -20,6 +22,10 @@ export default function StaffLayout() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  useEffect(() => {
+    mainRef.current?.scrollTo?.({ top: 0 });
+  }, [pathname]);
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -47,7 +53,11 @@ export default function StaffLayout() {
           />
         </div>
 
-        <main className="flex-1 overflow-y-auto bg-gradient-to-br from-background via-background/98 to-accent/5 p-6">
+        <main
+          ref={mainRef}
+          data-scroll-container="portal-main"
+          className="flex-1 overflow-y-auto bg-gradient-to-br from-background via-background/98 to-accent/5 p-6"
+        >
           <div className="max-w-7xl mx-auto">
             <Outlet />
           </div>

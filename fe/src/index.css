@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "lenis/dist/lenis.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -116,6 +117,15 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+    html.lenis,
+    html.lenis.lenis-smooth {
+      scroll-behavior: auto;
+    }
   }
 }
 

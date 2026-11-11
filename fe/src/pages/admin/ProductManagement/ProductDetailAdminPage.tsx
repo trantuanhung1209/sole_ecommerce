@@ -31,7 +31,8 @@ export default function ProductDetailAdminPage() {
   const { productId = "" } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { access } = useRoleAccess();
+  const { role, access, canManageVariants } = useRoleAccess();
+  const allowManageVariants = canManageVariants(role);
 
   const basePath = location.pathname.startsWith("/staff") ? "/staff" : "/admin";
   const listPath = `${basePath}/products`;
@@ -186,7 +187,7 @@ export default function ProductDetailAdminPage() {
     <div className="space-y-6 p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
-          <Button variant="outline" size="sm" className="px-0" onClick={() => navigate(listPath)}>
+          <Button variant="outline" size="sm" className="px-3" onClick={() => navigate(listPath)}>
             <ArrowLeft className="mr-1 h-4 w-4" />
             Quay lại danh sách
           </Button>
@@ -386,7 +387,7 @@ export default function ProductDetailAdminPage() {
             <p className="text-sm text-muted-foreground">
               {variants.filter((v) => v.status === "ACTIVE").length} biến thể đang hoạt động
             </p>
-            {access.editProduct && (
+            {allowManageVariants && (
               <Button onClick={openCreateVariant}>
                 <Plus className="mr-1 h-4 w-4" />
                 Thêm biến thể
@@ -439,11 +440,13 @@ export default function ProductDetailAdminPage() {
                       </td>
                       <td className="p-3">
                         <div className="flex gap-1">
-                          {access.editProduct && variant.status === "ACTIVE" && (
+                          {variant.status === "ACTIVE" && (
                             <>
-                              <Button size="icon" variant="outline" onClick={() => openEditVariant(variant)}>
-                                <Pencil className="h-4 w-4" />
-                              </Button>
+                              {allowManageVariants && (
+                                <Button size="icon" variant="outline" onClick={() => openEditVariant(variant)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
                               {access.deleteProduct && (
                                 <Button size="icon" variant="outline" onClick={() => deactivateVariant(variant)}>
                                   <Trash2 className="h-4 w-4 text-destructive" />

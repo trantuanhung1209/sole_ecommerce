@@ -9,14 +9,16 @@ import { TablePagination } from "@/components/shared/TablePagination";
 import { useDebounce } from "@/hooks/useDebounce";
 import { productApi } from "@/services/ecommerceServices";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { useSmoothScroll } from "@/providers/SmoothScrollProvider";
 import { getErrorMessage } from "@/utils/getErrorMessage";
 import {
   productStatusFilterOptions,
   publicStatusFilterOptions,
 } from "@/utils/adminFilterOptions";
+import { ADMIN_PAGE_SIZE, clampPage, scrollPortalToTop } from "../utils/pagination";
 import type { Product, ProductStatus, PublicStatus } from "@/types/ecommerce.type";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = ADMIN_PAGE_SIZE;
 const PLACEHOLDER =
   "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=200&q=80";
 
@@ -24,6 +26,7 @@ export default function ProductManagementPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { access } = useRoleAccess();
+  const { scrollToTop } = useSmoothScroll();
   const basePath = location.pathname.startsWith("/staff") ? "/staff" : "/admin";
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -51,6 +54,10 @@ export default function ProductManagementPage() {
       setProducts(result.content);
       setTotalPages(result.totalPages);
       setTotalElements(result.totalElements);
+      const nextSafePage = clampPage(page, result.totalPages);
+      if (nextSafePage !== page) {
+        setPage(nextSafePage);
+      }
     } catch {
       toast.error("Không thể tải sản phẩm");
     } finally {
@@ -87,6 +94,31 @@ export default function ProductManagementPage() {
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
+  };
+
+  const handleApprove = async (productId: string) => {
+    try {
+      await productApi.approve(productId);
+      toast.success("Đã duyệt sản phẩm");
+      load();
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  const handleReject = async (productId: string) => {
+    try {
+      await productApi.reject(productId, "Không đạt yêu cầu");
+      toast.success("Đã từ chối sản phẩm");
+      load();
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(clampPage(nextPage, totalPages));
+    scrollPortalToTop(scrollToTop);
   };
 
   const resetFilters = () => {
@@ -176,13 +208,13 @@ export default function ProductManagementPage() {
                     </Button>
                     {p.status === "PENDING_APPROVAL" && access.approveProduct && (
                       <>
-                        <Button size="sm" onClick={() => productApi.approve(p.productId).then(load)}>
+                        <Button size="sm" onClick={() => handleApprove(p.productId)}>
                           Duyệt
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => productApi.reject(p.productId, "Không đạt yêu cầu").then(load)}
+                          onClick={() => handleReject(p.productId)}
                         >
                           Từ chối
                         </Button>
@@ -202,7 +234,7 @@ export default function ProductManagementPage() {
             page={page}
             totalPages={totalPages}
             totalElements={totalElements}
-            onPageChange={setPage}
+            onPageChange={handlePageChange}
           />
         </>
       )}

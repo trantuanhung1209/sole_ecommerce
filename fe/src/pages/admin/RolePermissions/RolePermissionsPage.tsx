@@ -73,32 +73,40 @@ export default function RolePermissionsPage() {
       toast.error("Vui lòng nhập lý do thay đổi quyền");
       return;
     }
-    for (const [role, permissions] of Object.entries(changedByRole)) {
-      if (permissions.length > 0) {
-        await rbacApi.updateRole(role, permissions, reason.trim());
+    try {
+      for (const [role, permissions] of Object.entries(changedByRole)) {
+        if (permissions.length > 0) {
+          await rbacApi.updateRole(role, permissions, reason.trim());
+        }
       }
-    }
-    toast.success("Permissions updated");
-    setReason("");
-    await loadMatrix();
-    if (showAudit) {
-      const logs = await rbacApi.auditLogs();
-      setAuditLogs(logs);
+      toast.success("Permissions updated");
+      setReason("");
+      await loadMatrix();
+      if (showAudit) {
+        const logs = await rbacApi.auditLogs();
+        setAuditLogs(logs);
+      }
+    } catch {
+      toast.error("Không thể lưu phân quyền");
     }
   };
 
   const toggleAudit = async () => {
-    if (!showAudit) {
-      const logs = await rbacApi.auditLogs();
-      setAuditLogs(logs);
+    try {
+      if (!showAudit) {
+        const logs = await rbacApi.auditLogs();
+        setAuditLogs(logs);
+      }
+      setShowAudit((v) => !v);
+    } catch {
+      toast.error("Không thể tải lịch sử audit");
     }
-    setShowAudit((v) => !v);
   };
 
   if (!matrix) return <div className="p-6">Đang tải phân quyền...</div>;
 
   return (
-    <main className="p-6 space-y-6">
+    <div className="p-6 space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Vai trò & quyền hạn</h1>
@@ -211,6 +219,6 @@ export default function RolePermissionsPage() {
           )}
         </div>
       )}
-    </main>
+    </div>
   );
 }

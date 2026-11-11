@@ -19,6 +19,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { profileSchema, type ProfileFormData } from "@/schemas/profileSchema";
 import { Gender } from "@/types/user.type";
+import type { UpdateProfileDto } from "@/types/auth.types";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 import { SessionsPanel } from "@/components/profile/SessionsPanel";
 import { getRoleLabel } from "@/utils/displayLabels";
@@ -144,7 +145,7 @@ export default function ProfilePage() {
 
   const onSubmit = async (data: ProfileFormData) => {
     try {
-      const updateData: any = {
+      const updateData: UpdateProfileDto = {
         fullName: data.fullName?.trim() || undefined,
         phone: data.phone?.trim() || undefined,
         gender: data.gender || undefined,
@@ -157,13 +158,9 @@ export default function ProfilePage() {
       }
 
       // Remove empty values
-      Object.keys(updateData).forEach((key) => {
-        if (
-          updateData[key as keyof ProfileFormData] === undefined ||
-          updateData[key as keyof ProfileFormData] === "" ||
-          updateData[key as keyof ProfileFormData] === null
-        ) {
-          delete updateData[key as keyof ProfileFormData];
+      (Object.keys(updateData) as Array<keyof UpdateProfileDto>).forEach((key) => {
+        if (updateData[key] === undefined || updateData[key] === "") {
+          delete updateData[key];
         }
       });
 

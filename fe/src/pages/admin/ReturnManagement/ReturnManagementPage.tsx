@@ -14,12 +14,14 @@ import { reportApi, returnApi } from "@/services/ecommerceServices";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { TablePagination } from "@/components/shared/TablePagination";
+import { useSmoothScroll } from "@/providers/SmoothScrollProvider";
 import { returnStatusFilterOptions } from "@/utils/adminFilterOptions";
 import { getNextReturnActions, type ReturnActionType } from "@/utils/returnFlow";
 import { resolveOrderCode, resolveReturnProductName } from "@/utils/productDisplay";
+import { ADMIN_PAGE_SIZE, clampPage, scrollPortalToTop } from "../utils/pagination";
 import type { ReturnRequest } from "@/types/ecommerce.type";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = ADMIN_PAGE_SIZE;
 
 const ACTION_SUCCESS: Record<Exclude<ReturnActionType, "receive">, string> = {
   confirm: "Đã xác nhận yêu cầu",
@@ -31,6 +33,7 @@ const ACTION_SUCCESS: Record<Exclude<ReturnActionType, "receive">, string> = {
 
 export default function ReturnManagementPage() {
   const { access } = useRoleAccess();
+  const { scrollToTop } = useSmoothScroll();
   const location = useLocation();
   const basePath = location.pathname.startsWith("/staff") ? "/staff" : "/admin";
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
@@ -58,22 +61,28 @@ export default function ReturnManagementPage() {
     try {
       const [returnPage, dashboard] = await Promise.all([
         returnApi.adminList(page, PAGE_SIZE, statusFilter === "ALL" ? undefined : statusFilter),
-        reportApi.dashboard(),
+        access.viewReports ? reportApi.dashboard().catch(() => null) : Promise.resolve(null),
       ]);
       setReturns(returnPage.content);
       setTotalPages(returnPage.totalPages);
       setTotalElements(returnPage.totalElements);
-      setReturnAlerts({
-        overdueApproved: dashboard.overdueApprovedReturns ?? 0,
-        staleRefundPending: dashboard.staleRefundPendingReturns ?? 0,
-        refundPending: dashboard.refundPendingReturns ?? 0,
-      });
+      const nextSafePage = clampPage(page, returnPage.totalPages);
+      if (nextSafePage !== page) {
+        setPage(nextSafePage);
+      }
+      if (dashboard) {
+        setReturnAlerts({
+          overdueApproved: dashboard.overdueApprovedReturns ?? 0,
+          staleRefundPending: dashboard.staleRefundPendingReturns ?? 0,
+          refundPending: dashboard.refundPendingReturns ?? 0,
+        });
+      }
     } catch {
       toast.error("Không thể tải yêu cầu trả hàng");
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter]);
+  }, [access.viewReports, page, statusFilter]);
 
   useEffect(() => {
     void load();
@@ -174,6 +183,11 @@ export default function ReturnManagementPage() {
   const resetFilters = () => {
     setStatusFilter("ALL");
     setPage(0);
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(clampPage(nextPage, totalPages));
+    scrollPortalToTop(scrollToTop);
   };
 
   return (
@@ -300,7 +314,7 @@ export default function ReturnManagementPage() {
         page={page}
         totalPages={totalPages}
         totalElements={totalElements}
-        onPageChange={setPage}
+        onPageChange={handlePageChange}
       />
 
       <ReturnActionDialog

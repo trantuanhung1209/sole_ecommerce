@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Tag,
   FolderTree,
+  Ticket,
 } from "lucide-react";
 import type { MenuItem } from "../types/type";
 
@@ -27,6 +28,7 @@ export const menuItems: MenuItem[] = [
   { title: "Orders", href: "/admin/orders", icon: ShoppingCart },
   { title: "Returns", href: "/admin/returns", icon: RotateCcw },
   { title: "Reviews", href: "/admin/reviews", icon: Star },
+  { title: "Promotions", href: "/admin/promotions", icon: Ticket },
   {
     title: "Users",
     icon: Users,

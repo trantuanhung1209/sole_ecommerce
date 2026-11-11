@@ -7,14 +7,17 @@ import { inventoryApi } from "@/services/ecommerceServices";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { TablePagination } from "@/components/shared/TablePagination";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useSmoothScroll } from "@/providers/SmoothScrollProvider";
 import { stockFilterOptions } from "@/utils/adminFilterOptions";
 import { formatVariantLabel } from "@/utils/productDisplay";
+import { ADMIN_PAGE_SIZE, clampPage, scrollPortalToTop } from "../utils/pagination";
 import type { Inventory } from "@/types/ecommerce.type";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = ADMIN_PAGE_SIZE;
 
 export default function InventoryManagementPage() {
   const { access } = useRoleAccess();
+  const { scrollToTop } = useSmoothScroll();
   const [items, setItems] = useState<Inventory[]>([]);
   const [adjustments, setAdjustments] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -39,6 +42,10 @@ export default function InventoryManagementPage() {
       setItems(result.content);
       setTotalPages(result.totalPages);
       setTotalElements(result.totalElements);
+      const nextSafePage = clampPage(page, result.totalPages);
+      if (nextSafePage !== page) {
+        setPage(nextSafePage);
+      }
     } catch {
       toast.error("Không thể tải tồn kho");
     } finally {
@@ -103,6 +110,11 @@ export default function InventoryManagementPage() {
     setSearch("");
     setStockFilter("ALL");
     setPage(0);
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(clampPage(nextPage, totalPages));
+    scrollPortalToTop(scrollToTop);
   };
 
   return (
@@ -204,7 +216,7 @@ export default function InventoryManagementPage() {
         page={page}
         totalPages={totalPages}
         totalElements={totalElements}
-        onPageChange={setPage}
+        onPageChange={handlePageChange}
       />
     </div>
   );

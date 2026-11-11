@@ -132,7 +132,7 @@ function EditUserDialog({
             <FormField
               control={form.control}
               name="fullName"
-              render={({ field }: { field: any }) => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Họ và tên</FormLabel>
                   <FormControl>
@@ -147,7 +147,7 @@ function EditUserDialog({
             <FormField
               control={form.control}
               name="phone"
-              render={({ field }: { field: any }) => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>
                     Số điện thoại
@@ -172,7 +172,7 @@ function EditUserDialog({
             <FormField
               control={form.control}
               name="gender"
-              render={({ field }: { field: any }) => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Giới tính</FormLabel>
                   <Select
@@ -195,12 +195,12 @@ function EditUserDialog({
               )}
             />
 
-            {/* Role - Cannot change role of ADMIN users */}
-            {user.role !== "ADMIN" && (
+            {/* Role - Cannot change role of ADMIN or SUPER_ADMIN users */}
+            {user.role !== "ADMIN" && user.role !== "SUPER_ADMIN" && (
               <FormField
                 control={form.control}
                 name="role"
-                render={({ field }: { field: any }) => (
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Vai trò</FormLabel>
                     <Select
@@ -230,7 +230,7 @@ function EditUserDialog({
             <FormField
               control={form.control}
               name="dateOfBirth"
-              render={({ field }: { field: any }) => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Ngày sinh</FormLabel>
                   <FormControl>
@@ -241,12 +241,12 @@ function EditUserDialog({
               )}
             />
 
-            {/* Active Status - Only for non-ADMIN users */}
-            {user.role !== "ADMIN" && (
+            {/* Active Status - Only for non-ADMIN/SUPER_ADMIN users */}
+            {user.role !== "ADMIN" && user.role !== "SUPER_ADMIN" && (
               <FormField
                 control={form.control}
                 name="isActive"
-                render={({ field }: { field: any }) => (
+                render={({ field }) => (
                   <FormItem className="flex items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
                       <FormLabel className="text-base">
