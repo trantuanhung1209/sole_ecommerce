@@ -55,17 +55,25 @@ public class UserSeedService {
         LocalDateTime now = LocalDateTime.now();
         String encodedPassword = passwordEncoder.encode(seedPassword);
         List<SeedDefinition> definitions = List.of(
-                def("customer@sole.test", "Khách hàng Demo", UserRole.CUSTOMER,
+                def("customer@sole.test", "Khách hàng Demo", UserRole.CUSTOMER, true,
                         "Mua hàng, giỏ hàng, checkout, đơn hàng, wishlist"),
-                def("customer2@sole.test", "Khách hàng 2", UserRole.CUSTOMER,
+                def("customer2@sole.test", "Khách hàng 2", UserRole.CUSTOMER, true,
                         "Tài khoản customer thứ hai để test song song"),
-                def("staff@sole.test", "Nhân viên Demo", UserRole.STAFF,
+                def("customer3@sole.test", "Lê Thảo Vy", UserRole.CUSTOMER, true,
+                        "Tài khoản customer thứ ba cho dữ liệu đơn hàng & đánh giá"),
+                def("customer4@sole.test", "Phạm Đức Huy", UserRole.CUSTOMER, true,
+                        "Tài khoản customer thứ tư cho phân trang quản trị"),
+                def("locked@sole.test", "Tài khoản Tạm khóa", UserRole.CUSTOMER, false,
+                        "Tài khoản inactive/locked để test lọc trạng thái người dùng"),
+                def("staff@sole.test", "Nhân viên Demo", UserRole.STAFF, true,
                         "Portal /staff — sản phẩm, tồn kho, đơn hàng, trả hàng"),
-                def("manager@sole.test", "Quản lý Shop", UserRole.SHOP_MANAGER,
+                def("staff2@sole.test", "Nhân viên Kho", UserRole.STAFF, true,
+                        "Portal /staff — kiểm kho và xử lý hoàn hàng"),
+                def("manager@sole.test", "Quản lý Shop", UserRole.SHOP_MANAGER, true,
                         "Portal /staff + quyền publish sản phẩm (BE)"),
-                def("admin@sole.test", "Admin Demo", UserRole.ADMIN,
+                def("admin@sole.test", "Admin Demo", UserRole.ADMIN, true,
                         "Portal /admin — quản trị đầy đủ trừ RBAC matrix"),
-                def("superadmin@sole.test", "Super Admin", UserRole.SUPER_ADMIN,
+                def("superadmin@sole.test", "Super Admin", UserRole.SUPER_ADMIN, true,
                         "Portal /admin + phân quyền RBAC, toàn quyền hệ thống")
         );
 
@@ -80,8 +88,8 @@ public class UserSeedService {
                     .password(encodedPassword)
                     .authType(AuthProviderType.LOCAL)
                     .role(definition.role())
-                    .enabled(true)
-                    .isActive(true)
+                    .enabled(definition.active())
+                    .isActive(definition.active())
                     .isEmailVerified(true)
                     .phone(definition.phone())
                     .createdAt(now)
@@ -105,15 +113,19 @@ public class UserSeedService {
         return "*" + SEED_EMAIL_DOMAIN;
     }
 
-    private static SeedDefinition def(String email, String fullName, UserRole role, String note) {
-        return new SeedDefinition(email, fullName, role, phoneFor(email), note);
+    private static SeedDefinition def(String email, String fullName, UserRole role, boolean active, String note) {
+        return new SeedDefinition(email, fullName, role, active, phoneFor(email), note);
     }
 
     private static String phoneFor(String email) {
         return switch (email) {
             case "customer@sole.test" -> "0901000001";
             case "customer2@sole.test" -> "0901000002";
+            case "customer3@sole.test" -> "0901000003";
+            case "customer4@sole.test" -> "0901000004";
+            case "locked@sole.test" -> "0901000099";
             case "staff@sole.test" -> "0902000001";
+            case "staff2@sole.test" -> "0902000002";
             case "manager@sole.test" -> "0903000001";
             case "admin@sole.test" -> "0904000001";
             case "superadmin@sole.test" -> "0905000001";
@@ -129,6 +141,7 @@ public class UserSeedService {
             String email,
             String fullName,
             UserRole role,
+            boolean active,
             String phone,
             String note) {
     }
