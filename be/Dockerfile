@@ -1,5 +1,5 @@
 # Spring Boot Dockerfile with hot reload support
-FROM gradle:8.5-jdk17
+FROM gradle:8.14-jdk17
 
 WORKDIR /app
 

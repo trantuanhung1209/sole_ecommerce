@@ -1,0 +1,40 @@
+# --- Build Stage ---
+FROM gradle:8.14-jdk17 AS builder
+
+WORKDIR /app
+
+# Copy Gradle wrapper and build manifests first for dependency layer caching
+COPY gradlew settings.gradle build.gradle ./
+COPY gradle gradle
+RUN chmod +x ./gradlew && ./gradlew dependencies --no-daemon
+
+# Copy application source and build Spring Boot executable JAR
+COPY src src
+RUN ./gradlew bootJar --no-daemon -x test && \
+    find build/libs -maxdepth 1 -name '*.jar' ! -name '*-plain.jar' -exec cp {} /app/app.jar \;
+
+# --- Runtime Stage ---
+# Use eclipse-temurin:17-jre-noble (multi-arch amd64/arm64; 17-jre-alpine lacks arm64 manifest)
+FROM eclipse-temurin:17-jre-noble
+
+WORKDIR /app
+
+# Install curl for container healthcheck and create non-root user
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd -r appgroup && \
+    useradd -r -g appgroup -s /sbin/nologin appuser
+
+COPY --from=builder --chown=appuser:appgroup /app/app.jar /app/app.jar
+
+ENV SPRING_PROFILES_ACTIVE=prod
+
+USER appuser:appgroup
+
+EXPOSE 8081
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD curl -sf http://localhost:${BACKEND_PORT:-8081}/api/actuator/health || exit 1
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

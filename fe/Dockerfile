@@ -3,19 +3,19 @@ FROM node:22
 
 WORKDIR /app
 
-# Copy package files first for better caching
-COPY package*.json ./
+# Copy package manifests first for better caching
+COPY package.json pnpm-lock.yaml ./
 
-# Clear npm cache and install dependencies
-RUN npm cache clean --force && npm install
+# Enable corepack and install dependencies via pnpm (pinned in package.json)
+RUN corepack enable && pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
-# Expose Vite dev server port5
+# Expose Vite dev server port
 EXPOSE 5173
 
-# Run Vite dev server with hot reload
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Run Vite dev server with hot reload on port 5173
+CMD ["pnpm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
 
 
