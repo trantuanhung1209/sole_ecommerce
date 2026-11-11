@@ -2,9 +2,12 @@ package www.modules.payments.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import www.config.SePayProperties;
 import www.exception.ForbiddenException;
@@ -13,15 +16,51 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.Arrays;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class SePayIpnVerifier {
     private static final long MAX_TIMESTAMP_SKEW_SECONDS = 300;
 
     private final SePayProperties sepayProperties;
     private final ObjectMapper objectMapper;
+    private final Environment environment;
+
+    public SePayIpnVerifier(SePayProperties sepayProperties, ObjectMapper objectMapper) {
+        this(sepayProperties, objectMapper, null);
+    }
+
+    @Autowired
+    public SePayIpnVerifier(
+            SePayProperties sepayProperties,
+            ObjectMapper objectMapper,
+            @Nullable Environment environment) {
+        this.sepayProperties = sepayProperties;
+        this.objectMapper = objectMapper;
+        this.environment = environment;
+    }
+
+    @PostConstruct
+    public void validateProductionConfiguration() {
+        if (environment == null) {
+            return;
+        }
+        boolean isProdProfile = Arrays.stream(environment.getActiveProfiles())
+                .anyMatch(profile -> "prod".equalsIgnoreCase(profile));
+        if (!isProdProfile) {
+            return;
+        }
+        if (!sepayProperties.isIpnVerify()) {
+            throw new IllegalStateException("sepay.ipn-verify must be true when prod profile is active");
+        }
+        if (isSandbox()) {
+            throw new IllegalStateException("sepay.environment must not be sandbox when prod profile is active");
+        }
+        if (normalizeSecret(sepayProperties.getSecretKey()) == null) {
+            throw new IllegalStateException("sepay.secret-key must not be blank when prod profile is active");
+        }
+    }
 
     public void verify(HttpServletRequest request, String rawBody) {
         if (!sepayProperties.isIpnVerify()) {
@@ -31,7 +70,11 @@ public class SePayIpnVerifier {
 
         String secret = normalizeSecret(sepayProperties.getSecretKey());
         if (secret == null) {
-            log.warn("SEPAY_SECRET_KEY is empty — accepting IPN without authentication");
+            if (!isSandbox()) {
+                throw new ForbiddenException(
+                        "Invalid SePay IPN authentication: SEPAY_SECRET_KEY is not configured");
+            }
+            log.warn("SEPAY_SECRET_KEY is empty — accepting sandbox IPN without authentication");
             return;
         }
 

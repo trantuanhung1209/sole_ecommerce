@@ -46,6 +46,12 @@ public class AuthServiceImpl implements AuthService {
     @Value("${google.client-id}")
     private String googleClientId;
 
+    @Value("${cookie.secure:false}")
+    private boolean cookieSecure;
+
+    @Value("${cookie.same-site:Lax}")
+    private String cookieSameSite = "Lax";
+
     @Override
     @Transactional
     public void register(RegisterRequest request) {
@@ -330,41 +336,30 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void setAccessTokenCookie(HttpServletResponse response, String accessToken) {
-        Cookie cookie = new Cookie("access_token", accessToken);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(false); // Set to true in production with HTTPS
-        cookie.setPath("/");
-        cookie.setMaxAge(15 * 60); // 15 minutes
-        cookie.setAttribute("SameSite", "Lax"); // For localhost development
-        response.addCookie(cookie);
+        response.addCookie(createAuthCookie("access_token", accessToken, 15 * 60));
     }
 
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
-        Cookie cookie = new Cookie("refresh_token", refreshToken);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(false); // Set to true in production with HTTPS
-        cookie.setPath("/");
-        cookie.setMaxAge(7 * 24 * 60 * 60); // 7 days
-        cookie.setAttribute("SameSite", "Lax"); // For localhost development
-        response.addCookie(cookie);
+        response.addCookie(createAuthCookie("refresh_token", refreshToken, 7 * 24 * 60 * 60));
     }
 
     private void clearAccessTokenCookie(HttpServletResponse response) {
-        Cookie cookie = new Cookie("access_token", null);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(false);
-        cookie.setPath("/");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
+        response.addCookie(createAuthCookie("access_token", null, 0));
     }
 
     private void clearRefreshTokenCookie(HttpServletResponse response) {
-        Cookie cookie = new Cookie("refresh_token", null);
+        response.addCookie(createAuthCookie("refresh_token", null, 0));
+    }
+
+    private Cookie createAuthCookie(String name, String value, int maxAge) {
+        Cookie cookie = new Cookie(name, value);
         cookie.setHttpOnly(true);
-        cookie.setSecure(false);
+        cookie.setSecure(cookieSecure);
         cookie.setPath("/");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
+        cookie.setMaxAge(maxAge);
+        String sameSite = (cookieSameSite != null && !cookieSameSite.isBlank()) ? cookieSameSite : "Lax";
+        cookie.setAttribute("SameSite", sameSite);
+        return cookie;
     }
 
     private String getRefreshTokenFromCookie(HttpServletRequest request) {

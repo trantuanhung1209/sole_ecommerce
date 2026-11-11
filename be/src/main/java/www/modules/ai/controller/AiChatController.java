@@ -102,9 +102,9 @@ public class AiChatController {
     }
 
     private String userId(Authentication authentication) {
-        if (authentication == null || authentication.getPrincipal() == null) {
-            return "guest";
+        if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal principal) {
+            return principal.getId();
         }
-        return ((UserPrincipal) authentication.getPrincipal()).getId();
+        return "guest";
     }
 }

@@ -8,6 +8,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import www.exception.BadRequestException;
+import www.exception.NotFoundException;
 import www.modules.addresses.model.Address;
 import www.modules.addresses.service.AddressService;
 import www.modules.catalog.model.ProductVariant;
@@ -107,6 +108,39 @@ class CheckoutServiceTest {
         request.setCouponCode("EXPIRED");
 
         assertThrows(BadRequestException.class, () -> checkoutService.checkout("u1", request));
+        verify(inventoryService).reserve(anyString(), eq("v1"), eq(1));
+        verify(inventoryService).releaseOrderReservations(anyString());
+    }
+
+    @Test
+    void checkout_invalidOrUnownedAddress_throwsWithoutReservingInventory() {
+        Cart cart = Cart.builder().userId("u1").items(new java.util.ArrayList<>()).build();
+        cart.getItems().add(www.modules.cart.model.CartItem.builder().variantId("v1").quantity(1).build());
+        when(cartService.activeCart("u1")).thenReturn(cart);
+        when(cartService.validate("u1")).thenReturn(new CartValidationResult() {{ setValid(true); }});
+        when(addressService.getOwned("u1", "unowned-addr")).thenThrow(new NotFoundException("Address not found"));
+
+        CheckoutRequest request = new CheckoutRequest();
+        request.setAddressId("unowned-addr");
+
+        assertThrows(NotFoundException.class, () -> checkoutService.checkout("u1", request));
+        verify(inventoryService, never()).reserve(anyString(), anyString(), anyInt());
+        verify(inventoryService, never()).releaseOrderReservations(anyString());
+    }
+
+    @Test
+    void checkout_postReserveFailure_releasesReservation() {
+        Cart cart = Cart.builder().userId("u1").items(new java.util.ArrayList<>()).build();
+        cart.getItems().add(www.modules.cart.model.CartItem.builder().variantId("v1").quantity(1).build());
+        when(cartService.activeCart("u1")).thenReturn(cart);
+        when(cartService.validate("u1")).thenReturn(new CartValidationResult() {{ setValid(true); }});
+        when(addressService.getOwned("u1", "a1")).thenReturn(Address.builder().addressId("a1").build());
+        when(variantRepository.findById("v1")).thenReturn(java.util.Optional.empty());
+
+        CheckoutRequest request = new CheckoutRequest();
+        request.setAddressId("a1");
+
+        assertThrows(NotFoundException.class, () -> checkoutService.checkout("u1", request));
         verify(inventoryService).reserve(anyString(), eq("v1"), eq(1));
         verify(inventoryService).releaseOrderReservations(anyString());
     }

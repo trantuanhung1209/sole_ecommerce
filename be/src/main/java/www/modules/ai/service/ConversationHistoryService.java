@@ -39,12 +39,21 @@ public class ConversationHistoryService {
             return List.of();
         }
         return conversationRepository.findById(conversationId)
+                .filter(conv -> userId.equals(conv.getUserId()))
                 .map(conv -> toChatMessages(conv.getMessages()))
                 .orElse(List.of());
     }
 
     public String resolveConversationId(String conversationId, String userId) {
         if (conversationId != null && !conversationId.isBlank()) {
+            if (!isGuest(userId)) {
+                boolean ownedByOtherUser = conversationRepository.findById(conversationId)
+                        .filter(conv -> !userId.equals(conv.getUserId()))
+                        .isPresent();
+                if (ownedByOtherUser) {
+                    return UUID.randomUUID().toString();
+                }
+            }
             return conversationId;
         }
         return UUID.randomUUID().toString();

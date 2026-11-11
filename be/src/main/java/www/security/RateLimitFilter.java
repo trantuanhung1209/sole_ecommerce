@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
 
@@ -77,9 +79,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         int max = maxForPath(path);
         String key = buildKey(request, path);
-        Long count = redisTemplate.opsForValue().increment(key);
-        if (count != null && count == 1L) {
-            redisTemplate.expire(key, Duration.ofMinutes(windowMinutes));
+        Long count = null;
+        try {
+            count = redisTemplate.opsForValue().increment(key);
+            if (count != null && count == 1L) {
+                redisTemplate.expire(key, Duration.ofMinutes(windowMinutes));
+            }
+        } catch (Exception ex) {
+            log.warn("Rate limit Redis check failed for key {}, failing open: {}", key, ex.getMessage());
         }
         if (count != null && count > max) {
             writeTooManyRequests(response);
@@ -101,7 +108,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private String buildKey(HttpServletRequest request, String path) {
-        String ip = request.getRemoteAddr();
+        String ip = resolveClientIp(request);
         String email = request.getParameter("email");
         if (email == null || email.isBlank()) {
             email = request.getHeader("X-RateLimit-Email");
@@ -110,6 +117,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return "rate:" + path + ":" + ip + ":" + email.toLowerCase();
         }
         return "rate:" + path + ":" + ip;
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            String firstIp = forwardedFor.split(",")[0].trim();
+            if (!firstIp.isBlank()) {
+                return firstIp;
+            }
+        }
+        return request.getRemoteAddr();
     }
 
     private String normalizePath(String uri) {

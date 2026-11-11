@@ -64,8 +64,7 @@ public class SecurityConfig {
                 .ignoringRequestMatchers(
                     "/payments/sepay/callback",
                     "/auth/register", "/auth/verify-otp", "/auth/login", "/auth/refresh",
-                    "/auth/forgot-password", "/auth/reset-password", "/auth/google",
-                    "/ai/chat", "/ai/chat/voice", "/ai/chat/image"))
+                    "/auth/forgot-password", "/auth/reset-password", "/auth/google"))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint(jwtAuthenticationEntryPoint)
@@ -76,7 +75,8 @@ public class SecurityConfig {
                 authz.requestMatchers(HttpMethod.POST,
                     "/auth/register", "/auth/verify-otp", "/auth/login", "/auth/refresh",
                     "/auth/forgot-password", "/auth/reset-password", "/auth/google").permitAll();
-                authz.requestMatchers(HttpMethod.GET, "/actuator/**").permitAll();
+                authz.requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll();
+                authz.requestMatchers("/actuator", "/actuator/**").hasAnyRole("ADMIN", "SUPER_ADMIN");
                 if (swaggerPublic) {
                     authz.requestMatchers(HttpMethod.GET, "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
                 }
@@ -85,6 +85,7 @@ public class SecurityConfig {
                         "/products", "/products/**",
                         "/brands", "/brands/**",
                         "/categories", "/categories/**").permitAll();
+                authz.requestMatchers(HttpMethod.GET, "/reviews/me", "/reviews/me/**").authenticated();
                 authz.requestMatchers(HttpMethod.GET, "/reviews", "/reviews/**").permitAll();
                 authz.requestMatchers(HttpMethod.POST, "/ai/chat", "/ai/chat/voice", "/ai/chat/image").permitAll();
                 authz.requestMatchers("/cart", "/cart/**").permitAll();

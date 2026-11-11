@@ -18,6 +18,7 @@ import www.model.enums.AuthProviderType;
 import www.model.enums.UserRole;
 import www.repository.UserRepository;
 import www.service.interfaces.CloudinaryService;
+import www.service.interfaces.SessionService;
 import www.service.interfaces.UserService;
 
 import java.time.LocalDate;
@@ -34,6 +35,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final CloudinaryService cloudinaryService;
     private final MongoTemplate mongoTemplate;
+    private final SessionService sessionService;
 
     @Override
     public User createUser(String email, String fullName, String password) {
@@ -323,18 +325,21 @@ public class UserServiceImpl implements UserService {
     public User toggleUserStatus(String userId) {
         User user = getUserById(userId);
 
-        // Cannot disable ADMIN users
-        if (user.getRole() == UserRole.ADMIN) {
-            throw new RuntimeException("Không thể vô hiệu hóa tài khoản ADMIN");
+        // Cannot disable ADMIN or SUPER_ADMIN users
+        if (user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.SUPER_ADMIN) {
+            throw new RuntimeException("Không thể vô hiệu hóa tài khoản ADMIN hoặc SUPER_ADMIN");
         }
 
         // Toggle both isActive and enabled status
-        boolean newStatus = !user.getIsActive();
+        boolean newStatus = !Boolean.TRUE.equals(user.getIsActive());
         user.setIsActive(newStatus);
         user.setEnabled(newStatus);
         user.setUpdatedAt(LocalDateTime.now());
 
         User savedUser = userRepository.save(user);
+        if (!newStatus) {
+            sessionService.deleteAllUserSessions(userId);
+        }
         log.info("Toggled user {} active status to: {}", userId, savedUser.getIsActive());
         return savedUser;
     }

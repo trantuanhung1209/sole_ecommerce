@@ -3,6 +3,7 @@ package www.modules.payments;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.MockHttpServletRequest;
 import www.config.SePayProperties;
 import www.exception.ForbiddenException;
@@ -83,5 +84,83 @@ class SePayIpnVerifierTest {
 
         assertThrows(ForbiddenException.class,
                 () -> verifier.verify(request, "{\"notification_type\":\"ORDER_PAID\"}"));
+    }
+
+    @Test
+    void verify_rejectsProductionIpnWhenSecretKeyIsBlank() {
+        properties.setEnvironment("production");
+        properties.setSecretKey("   ");
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Secret-Key", "   ");
+
+        assertThrows(ForbiddenException.class,
+                () -> verifier.verify(request, "{\"notification_type\":\"ORDER_PAID\"}"));
+
+        properties.setSecretKey(null);
+        assertThrows(ForbiddenException.class,
+                () -> verifier.verify(new MockHttpServletRequest(), "{\"notification_type\":\"ORDER_PAID\"}"));
+    }
+
+    @Test
+    void validateProductionConfiguration_throwsWhenProdProfileHasIpnVerifyFalse() {
+        properties.setEnvironment("production");
+        properties.setSecretKey("prod-secret");
+        properties.setIpnVerify(false);
+        MockEnvironment env = new MockEnvironment();
+        env.setActiveProfiles("prod");
+        SePayIpnVerifier prodVerifier = new SePayIpnVerifier(properties, new ObjectMapper(), env);
+
+        assertThrows(IllegalStateException.class, prodVerifier::validateProductionConfiguration);
+    }
+
+    @Test
+    void validateProductionConfiguration_throwsWhenProdProfileHasSandboxEnvironment() {
+        properties.setEnvironment("sandbox");
+        properties.setSecretKey("prod-secret");
+        properties.setIpnVerify(true);
+        MockEnvironment env = new MockEnvironment();
+        env.setActiveProfiles("prod");
+        SePayIpnVerifier prodVerifier = new SePayIpnVerifier(properties, new ObjectMapper(), env);
+
+        assertThrows(IllegalStateException.class, prodVerifier::validateProductionConfiguration);
+    }
+
+    @Test
+    void validateProductionConfiguration_throwsWhenProdProfileHasBlankSecretKey() {
+        properties.setEnvironment("production");
+        properties.setSecretKey("   ");
+        properties.setIpnVerify(true);
+        MockEnvironment env = new MockEnvironment();
+        env.setActiveProfiles("prod");
+        SePayIpnVerifier prodVerifier = new SePayIpnVerifier(properties, new ObjectMapper(), env);
+
+        assertThrows(IllegalStateException.class, prodVerifier::validateProductionConfiguration);
+    }
+
+    @Test
+    void validateProductionConfiguration_succeedsWhenProdProfileIsValid() {
+        properties.setEnvironment("production");
+        properties.setSecretKey("prod-secret");
+        properties.setIpnVerify(true);
+        MockEnvironment env = new MockEnvironment();
+        env.setActiveProfiles("prod");
+        SePayIpnVerifier prodVerifier = new SePayIpnVerifier(properties, new ObjectMapper(), env);
+
+        assertDoesNotThrow(prodVerifier::validateProductionConfiguration);
+    }
+
+    @Test
+    void validateProductionConfiguration_skipsWhenNoEnvironmentOrNonProdProfile() {
+        properties.setEnvironment("sandbox");
+        properties.setSecretKey("");
+        properties.setIpnVerify(false);
+
+        assertDoesNotThrow(() -> verifier.validateProductionConfiguration());
+
+        MockEnvironment devEnv = new MockEnvironment();
+        devEnv.setActiveProfiles("dev");
+        SePayIpnVerifier devVerifier = new SePayIpnVerifier(properties, new ObjectMapper(), devEnv);
+
+        assertDoesNotThrow(devVerifier::validateProductionConfiguration);
     }
 }

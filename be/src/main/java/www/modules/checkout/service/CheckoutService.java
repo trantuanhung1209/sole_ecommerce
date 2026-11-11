@@ -92,6 +92,9 @@ public class CheckoutService {
                     .orElse("invalid items"));
         }
 
+        Address address = addressService.getOwned(userId, request.getAddressId());
+        String addressSnapshot = toAddressSnapshot(address);
+
         String orderId = UUID.randomUUID().toString();
         String orderCode = orderService.nextOrderCode();
 
@@ -99,21 +102,13 @@ public class CheckoutService {
             for (CartItem cartItem : cart.getItems()) {
                 inventoryService.reserve(orderId, cartItem.getVariantId(), cartItem.getQuantity());
             }
-        } catch (RuntimeException e) {
-            inventoryService.releaseOrderReservations(orderId);
-            throw e;
-        }
 
-        Address address = addressService.getOwned(userId, request.getAddressId());
-        String addressSnapshot = toAddressSnapshot(address);
-        double subtotal = computeSubtotal(cart);
-        Pricing pricing = computePricing(userId, subtotal, request.getCouponCode());
-        if (request.getCouponCode() != null && !request.getCouponCode().isBlank() && !pricing.couponValid()) {
-            inventoryService.releaseOrderReservations(orderId);
-            throw new BadRequestException(pricing.couponMessage());
-        }
+            double subtotal = computeSubtotal(cart);
+            Pricing pricing = computePricing(userId, subtotal, request.getCouponCode());
+            if (request.getCouponCode() != null && !request.getCouponCode().isBlank() && !pricing.couponValid()) {
+                throw new BadRequestException(pricing.couponMessage());
+            }
 
-        try {
             Order order = Order.builder()
                     .orderId(orderId)
                     .orderCode(orderCode)

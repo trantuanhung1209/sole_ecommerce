@@ -29,7 +29,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return PublicApiPaths.isPublic(request);
+        return PublicApiPaths.isPublic(request) && !PublicApiPaths.allowsOptionalAuth(request);
     }
 
     @Override
@@ -41,12 +41,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (jwt != null && sessionService.validateAccessToken(jwt)) {
                 String userId = jwtTokenProvider.getUserIdFromToken(jwt);
                 UserDetails userDetails = customUserDetailsService.loadUserById(userId);
-                UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                if (userDetails.isEnabled()) {
+                    UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                } else {
+                    log.debug("Ignoring access token for disabled user");
+                    SecurityContextHolder.clearContext();
+                }
             } else if (jwt != null) {
-                // Stale cookie after logout / token rotation — do not block public routes like /auth/login
+                // Stale cookie after logout / token rotation — do not block optional-auth routes like /cart and /ai/chat
                 log.debug("Ignoring invalid or expired access token cookie");
                 SecurityContextHolder.clearContext();
             }
