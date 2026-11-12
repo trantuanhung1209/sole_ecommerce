@@ -125,9 +125,9 @@ class CatalogSeedServiceTest {
         assertThat(sizes).contains("36", "37", "38", "39", "40", "41", "42", "43", "44", "45");
 
         assertThat(allSavedVariants).allSatisfy(v -> {
-            assertThat(v.getPrice()).isBetween(100.0, 900.0);
+            assertThat(v.getPrice()).isBetween(10_000.0, 50_000.0);
             if (v.getCompareAtPrice() != null) {
-                assertThat(v.getCompareAtPrice()).isGreaterThan(v.getPrice()).isLessThanOrEqualTo(900.0);
+                assertThat(v.getCompareAtPrice()).isGreaterThan(v.getPrice()).isLessThanOrEqualTo(50_000.0);
             }
         });
 
@@ -138,18 +138,18 @@ class CatalogSeedServiceTest {
     }
 
     @Test
-    void allCatalogProductsHavePricesBetween100And900Vnd() {
+    void allCatalogProductsHavePricesBetween10kAnd50kVnd() {
         List<CatalogSeedService.SeedProduct> seeds = CatalogSeedService.catalogProducts();
         assertThat(seeds).hasSize(28);
         assertThat(seeds).allSatisfy(seed -> {
             assertThat(seed.basePrice())
                     .as("basePrice for %s", seed.slug())
-                    .isBetween(100, 900);
+                    .isBetween(10_000, 50_000);
             if (seed.compareAtPrice() != null) {
                 assertThat(seed.compareAtPrice())
                         .as("compareAtPrice for %s", seed.slug())
                         .isGreaterThan((double) seed.basePrice())
-                        .isLessThanOrEqualTo(900.0);
+                        .isLessThanOrEqualTo(50_000.0);
             }
         });
     }
@@ -199,9 +199,9 @@ class CatalogSeedServiceTest {
 
         service.seedCatalogIfEmpty();
 
-        assertThat(existingCloudinaryVariant.getPrice()).isEqualTo(420.0);
-        assertThat(existingCloudinaryVariant.getCompareAtPrice()).isEqualTo(480.0);
-        assertThat(existingCloudinaryVariant.getCostPrice()).isEqualTo((double) Math.round(420 * 0.55));
+        assertThat(existingCloudinaryVariant.getPrice()).isEqualTo(35_000.0);
+        assertThat(existingCloudinaryVariant.getCompareAtPrice()).isEqualTo(40_000.0);
+        assertThat(existingCloudinaryVariant.getCostPrice()).isEqualTo((double) Math.round(35_000 * 0.55));
         assertThat(existingCloudinaryVariant.getImageUrls())
                 .containsExactly("https://res.cloudinary.com/demo/image/upload/preserved.webp");
         assertThat(existingCloudinaryVariant.getUpdatedAt()).isNotNull();

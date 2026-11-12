@@ -335,7 +335,7 @@ public class CatalogSeedService {
                         "nike", List.of("lifestyle"), GenderTarget.UNISEX,
                         "Da tổng hợp / Mesh / Đế Air",
                         unsplash("photo-1542291026-7eec264c27ff", 900),
-                        290, 340.0, List.of(
+                        24_000, 28_000.0, List.of(
                                 variant("WHT", "Trắng", "#F5F5F5", 40, 42),
                                 variant("BLK", "Đen", "#111111", 40, 43))),
                 product("Adidas Ultraboost 22", "adidas-ultraboost-22",
@@ -343,7 +343,7 @@ public class CatalogSeedService {
                         "adidas", List.of("running"), GenderTarget.MEN,
                         "Primeknit / Đế Boost / Continental Rubber",
                         "https://res.cloudinary.com/dav7n3cu7/image/upload/v1788073364/ecommerce/products/l6fjll9mmq2vb1ofljoa.webp",
-                        420, 480.0, List.of(
+                        35_000, 40_000.0, List.of(
                                 variant("BLK", "Core Black", "#1A1A1A", 40, 43),
                                 variant("WHT", "Cloud White", "#EFEFEF", 41, 44))),
                 product("New Balance 550", "new-balance-550",
@@ -351,7 +351,7 @@ public class CatalogSeedService {
                         "new-balance", List.of("lifestyle", "basketball"), GenderTarget.UNISEX,
                         "Da thật / Đế cao su cupsole",
                         "https://res.cloudinary.com/dav7n3cu7/image/upload/v1788073544/ecommerce/products/ylqdvyfhcwjpilfjvdmd.webp",
-                        270, 310.0, List.of(
+                        22_000, 25_000.0, List.of(
                                 variant("GRN", "Green", "#2F5D3A", 39, 42),
                                 variant("WHT", "White", "#F8F8F8", 40, 43))),
                 product("Air Jordan 1 Retro High", "air-jordan-1-retro-high",
@@ -359,7 +359,7 @@ public class CatalogSeedService {
                         "jordan", List.of("basketball", "limited-edition"), GenderTarget.MEN,
                         "Da full-grain / Đế Air-Sole",
                         "https://res.cloudinary.com/dav7n3cu7/image/upload/v1788073595/ecommerce/products/cxjaeaueajj4nnnlhz3m.webp",
-                        490, 560.0, List.of(
+                        40_000, 45_000.0, List.of(
                                 variant("RED", "Chicago", "#C62D42", 40, 43),
                                 variant("BLK", "Black Toe", "#111111", 41, 44))),
                 product("Converse Chuck 70 High", "converse-chuck-70-high",
@@ -367,7 +367,7 @@ public class CatalogSeedService {
                         "converse", List.of("lifestyle", "skate"), GenderTarget.UNISEX,
                         "Canvas 12oz / Đệm OrthoLite / Cao su lưu hóa",
                         "https://res.cloudinary.com/dav7n3cu7/image/upload/v1788073630/ecommerce/products/vuydcwilydktiiymnjyx.webp",
-                        190, 220.0, List.of(
+                        15_000, 18_000.0, List.of(
                                 variant("BLK", "Đen", "#111111", 38, 42),
                                 variant("WHT", "Trắng", "#FFFFFF", 39, 43))),
                 product("Vans Old Skool", "vans-old-skool",
@@ -375,7 +375,7 @@ public class CatalogSeedService {
                         "vans", List.of("skate", "lifestyle"), GenderTarget.UNISEX,
                         "Da lộn / Canvas / Đế Waffle",
                         unsplash("photo-1549298916-b41d501d3772", 900),
-                        180, 210.0, List.of(
+                        14_000, 17_000.0, List.of(
                                 variant("BLK", "Black/White", "#111111", 38, 42),
                                 variant("NVY", "Navy", "#1E3A5F", 39, 43))),
                 product("Nike Dunk Low", "nike-dunk-low",
@@ -383,7 +383,7 @@ public class CatalogSeedService {
                         "nike", List.of("lifestyle"), GenderTarget.UNISEX,
                         "Da tổng hợp cao cấp / Đế cao su",
                         unsplash("photo-1595950653106-6c9ebd614d3a", 900),
-                        330, 380.0, List.of(
+                        27_000, 31_000.0, List.of(
                                 variant("PND", "Panda", "#F5F5F5", 40, 43),
                                 variant("GRY", "Grey Fog", "#B0B0B0", 41, 44))),
                 product("Adidas Samba OG", "adidas-samba-og",
@@ -391,7 +391,7 @@ public class CatalogSeedService {
                         "adidas", List.of("lifestyle"), GenderTarget.UNISEX,
                         "Da thật / Mũi da lộn / Gum sole",
                         "https://res.cloudinary.com/dav7n3cu7/image/upload/v1788073666/ecommerce/products/hwm8yd0t6kr3535oprhd.webp",
-                        250, 290.0, List.of(
+                        20_000, 23_000.0, List.of(
                                 variant("WHT", "White/Black", "#F8F8F8", 39, 42),
                                 variant("GRN", "Collegiate Green", "#1F4D3A", 40, 43))),
                 product("ASICS Gel-Kayano 14", "asics-gel-kayano-14",
@@ -399,7 +399,7 @@ public class CatalogSeedService {
                         "asics", List.of("running", "lifestyle"), GenderTarget.UNISEX,
                         "Mesh thoáng khí / Công nghệ GEL",
                         "https://res.cloudinary.com/dav7n3cu7/image/upload/v1788073704/ecommerce/products/lgov2lv9bdzlpfbr5ze7.webp",
-                        360, 410.0, List.of(
+                        30_000, 34_000.0, List.of(
                                 variant("SLV", "Silver", "#C0C0C0", 40, 43),
                                 variant("WHT", "Cream", "#F2E8D8", 41, 44))),
                 product("Puma Suede Classic", "puma-suede-classic",
@@ -407,7 +407,7 @@ public class CatalogSeedService {
                         "puma", List.of("lifestyle"), GenderTarget.UNISEX,
                         "Da lộn / Đế cao su",
                         unsplash("photo-1460353581641-37baddab0fa2", 900),
-                        160, 190.0, List.of(
+                        13_000, 16_000.0, List.of(
                                 variant("RED", "Team Regal Red", "#B91C1C", 39, 42),
                                 variant("BLK", "Black", "#111111", 40, 43))),
                 product("Nike Air Force 1 '07", "nike-air-force-1-07",
@@ -415,7 +415,7 @@ public class CatalogSeedService {
                         "nike", List.of("lifestyle", "basketball"), GenderTarget.UNISEX,
                         "Da full-grain / Đế Air",
                         "https://res.cloudinary.com/dav7n3cu7/image/upload/v1788073841/ecommerce/products/eimqyyf2dgryeiol7dlh.webp",
-                        280, 320.0, List.of(
+                        23_000, 26_000.0, List.of(
                                 variant("WHT", "Triple White", "#FFFFFF", 40, 43),
                                 variant("BLK", "Triple Black", "#111111", 41, 44))),
                 product("New Balance 2002R", "new-balance-2002r",
@@ -423,7 +423,7 @@ public class CatalogSeedService {
                         "new-balance", List.of("running", "lifestyle"), GenderTarget.UNISEX,
                         "Da lộn / Mesh / Đệm N-ERGY + ABZORB",
                         "https://res.cloudinary.com/dav7n3cu7/image/upload/v1788073890/ecommerce/products/hhs9banvlpeieujyynqs.png",
-                        320, 360.0, List.of(
+                        26_000, 29_000.0, List.of(
                                 variant("GRY", "Rain Cloud", "#A8A8A8", 40, 43),
                                 variant("NVY", "Protection Pack Navy", "#1E2A44", 41, 44))),
 
@@ -433,7 +433,7 @@ public class CatalogSeedService {
                         "salomon", List.of("trail", "limited-edition"), GenderTarget.UNISEX,
                         "TPU Mesh / GORE-TEX / Đế Contagrip",
                         unsplash("photo-1606107557195-0e29a4b5b4aa", 900),
-                        550, 620.0, List.of(
+                        42_000, 47_000.0, List.of(
                                 variant("XT6B", "Black/Ebony", "#141414", 39, 44, Map.of(44, 2)),
                                 variant("XT6S", "Lunar Rock", "#C4C2BA", 40, 43))),
                 product("Salomon Speedcross 6", "salomon-speedcross-6",
@@ -441,7 +441,7 @@ public class CatalogSeedService {
                         "salomon", List.of("trail", "running"), GenderTarget.MEN,
                         "Ripstop Mesh / Mud Contagrip",
                         unsplash("photo-1551107696-a4b0c5a0d9a2", 900),
-                        390, 440.0, List.of(
+                        32_000, 36_000.0, List.of(
                                 variant("SC6G", "Olive Moss", "#4A5D3F", 40, 45),
                                 variant("SC6O", "Blazing Orange", "#E05A2B", 41, 44))),
                 product("HOKA Clifton 9 Women", "hoka-clifton-9",
@@ -449,7 +449,7 @@ public class CatalogSeedService {
                         "hoka", List.of("running"), GenderTarget.WOMEN,
                         "Engineered Knit / Đế CMEVA",
                         unsplash("photo-1579338559199-fd52370f5f0b", 900),
-                        370, 420.0, List.of(
+                        31_000, 35_000.0, List.of(
                                 variant("CL9P", "Rose Quartz", "#E6B8B8", 36, 40),
                                 variant("CL9W", "Cloud White", "#F4F4F2", 37, 40))),
                 product("HOKA Bondi 8", "hoka-bondi-8",
@@ -457,7 +457,7 @@ public class CatalogSeedService {
                         "hoka", List.of("running", "training"), GenderTarget.MEN,
                         "Mesh kỹ thuật / Đế EVA siêu dày",
                         unsplash("photo-1605348532760-6753d2c43329", 900),
-                        430, null, List.of(
+                        36_000, null, List.of(
                                 variant("BN8B", "Sharkskin", "#495057", 40, 45),
                                 variant("BN8N", "Coastal Sky", "#3B6E8C", 40, 44))),
                 product("Reebok Club C 85 Vintage", "reebok-club-c-85-vintage",
@@ -465,7 +465,7 @@ public class CatalogSeedService {
                         "reebok", List.of("lifestyle"), GenderTarget.UNISEX,
                         "Da bò mềm / Đệm EVA cổ điển",
                         unsplash("photo-1608231387042-66d1773070a5", 900),
-                        220, 260.0, List.of(
+                        17_000, 20_000.0, List.of(
                                 variant("CC85C", "Chalk/Green", "#EDEAE0", 37, 43),
                                 variant("CC85N", "Chalk/Navy", "#23395D", 38, 42))),
                 product("Reebok Nano X4", "reebok-nano-x4",
@@ -473,7 +473,7 @@ public class CatalogSeedService {
                         "reebok", List.of("training"), GenderTarget.MEN,
                         "Flexweave Knit / Đế Lift & Run",
                         unsplash("photo-1584735935682-2f2b69dff9d2", 900),
-                        330, 370.0, List.of(
+                        27_000, 31_000.0, List.of(
                                 variant("NX4B", "Core Black", "#18181B", 40, 44),
                                 variant("NX4R", "Crimson", "#B91C1C", 41, 44))),
                 product("Nike Metcon 9 Women", "nike-metcon-9",
@@ -481,7 +481,7 @@ public class CatalogSeedService {
                         "nike", List.of("training"), GenderTarget.WOMEN,
                         "Mesh gia cường / Hyperlift Heel Plate",
                         unsplash("photo-1515955656352-a1fa3ffcd111", 900),
-                        350, 400.0, List.of(
+                        29_000, 33_000.0, List.of(
                                 variant("MC9L", "Lilac Ice", "#C8B6E2", 36, 40),
                                 variant("MC9B", "Anthracite", "#262626", 36, 39))),
                 product("Nike Pegasus 41", "nike-pegasus-41",
@@ -489,7 +489,7 @@ public class CatalogSeedService {
                         "nike", List.of("running"), GenderTarget.MEN,
                         "Engineered Mesh / ReactX + Dual Air Zoom",
                         unsplash("photo-1600185365926-3a2ce3cdb9eb", 900),
-                        340, 380.0, List.of(
+                        28_000, 32_000.0, List.of(
                                 variant("PG41V", "Volt Green", "#84CC16", 40, 45),
                                 variant("PG41B", "Obsidian", "#1E293B", 40, 44))),
                 product("Air Jordan 4 Retro Bred Reimagined", "air-jordan-4-retro-bred",
@@ -497,7 +497,7 @@ public class CatalogSeedService {
                         "jordan", List.of("basketball", "limited-edition"), GenderTarget.MEN,
                         "Da full-grain / Đế Air-Sole",
                         unsplash("photo-1587563871167-1ee9c731aefb", 900),
-                        790, 890.0, List.of(
+                        46_000, 50_000.0, List.of(
                                 variant("AJ4BR", "Bred", "#991B1B", 40, 45, Map.of(45, 2)),
                                 variant("AJ4MB", "Military Blue", "#1D4ED8", 41, 44))),
                 product("Jordan 1 Low GS Kids", "jordan-1-low-gs-kids",
@@ -505,7 +505,7 @@ public class CatalogSeedService {
                         "jordan", List.of("kids", "basketball"), GenderTarget.KIDS,
                         "Da tổng hợp / Đế cao su mềm",
                         unsplash("photo-1560769629-975ec94e6a86", 900),
-                        230, 260.0, List.of(
+                        18_000, 21_000.0, List.of(
                                 variant("AJ1KR", "Gym Red", "#DC2626", 36, 39),
                                 variant("AJ1KB", "Royal Blue", "#2563EB", 36, 38))),
                 product("Adidas Gazelle Indoor Women", "adidas-gazelle-indoor",
@@ -513,7 +513,7 @@ public class CatalogSeedService {
                         "adidas", List.of("lifestyle"), GenderTarget.WOMEN,
                         "Da lộn cao cấp / Gum rubber translucent",
                         unsplash("photo-1525966222134-fcfa99b8ae77", 900),
-                        260, 300.0, List.of(
+                        21_000, 24_000.0, List.of(
                                 variant("GZIB", "Bliss Pink", "#F4A5AE", 36, 40),
                                 variant("GZIG", "Collegiate Green", "#15803D", 37, 40))),
                 product("Adidas Adilette 22 Slip-On", "adidas-adilette-22-slip-on",
@@ -521,7 +521,7 @@ public class CatalogSeedService {
                         "adidas", List.of("slip-on", "lifestyle"), GenderTarget.UNISEX,
                         "Bio-EVA đúc nguyên khối",
                         unsplash("photo-1539185441755-769473a23570", 900),
-                        120, 150.0, List.of(
+                        10_000, 12_000.0, List.of(
                                 variant("AD22S", "Desert Sand", "#D6C7B2", 37, 44),
                                 variant("AD22B", "Carbon", "#1F2937", 38, 43))),
                 product("Vans Classic Slip-On Checkerboard", "vans-classic-slip-on-checkerboard",
@@ -529,7 +529,7 @@ public class CatalogSeedService {
                         "vans", List.of("slip-on", "skate"), GenderTarget.UNISEX,
                         "Canvas dày / Đế Waffle cao su",
                         unsplash("photo-1549298916-b41d501d3772", 900),
-                        150, 180.0, List.of(
+                        12_000, 15_000.0, List.of(
                                 variant("VSOC", "Checkerboard", "#111111", 36, 43),
                                 variant("VSOW", "True White", "#F9FAFB", 37, 42))),
                 product("New Balance 990v6 Made in USA", "new-balance-990v6",
@@ -537,7 +537,7 @@ public class CatalogSeedService {
                         "new-balance", List.of("running", "limited-edition"), GenderTarget.UNISEX,
                         "Pigskin Suede / Mesh / FuelCell + ENCAP",
                         unsplash("photo-1539185441755-769473a23570", 900),
-                        650, 720.0, List.of(
+                        45_000, 49_000.0, List.of(
                                 variant("990G", "Castlerock Grey", "#8D9196", 39, 44, Map.of(39, 3)),
                                 variant("990N", "Navy", "#1E3A5F", 40, 44))),
                 product("Puma RS-X Kids", "puma-rs-x-kids",
@@ -545,7 +545,7 @@ public class CatalogSeedService {
                         "puma", List.of("kids", "lifestyle"), GenderTarget.KIDS,
                         "Mesh / Da tổng hợp / Đệm RS",
                         unsplash("photo-1560769629-975ec94e6a86", 900),
-                        140, 170.0, List.of(
+                        11_000, 13_000.0, List.of(
                                 variant("RSXK", "Sky/Lime", "#38BDF8", 36, 39),
                                 variant("RSXP", "Coral/White", "#FB7185", 36, 38))),
                 product("Converse Run Star Hike", "converse-run-star-hike",
@@ -553,7 +553,7 @@ public class CatalogSeedService {
                         "converse", List.of("lifestyle", "limited-edition"), GenderTarget.WOMEN,
                         "Canvas hữu cơ / Đệm OrthoLite / Đế răng cưa",
                         unsplash("photo-1584735935682-2f2b69dff9d2", 900),
-                        240, 280.0, List.of(
+                        19_000, 22_000.0, List.of(
                                 variant("RSHB", "Black/Gum", "#18181B", 36, 40),
                                 variant("RSHW", "Parchment", "#F5F0E6", 36, 39)))
         );
