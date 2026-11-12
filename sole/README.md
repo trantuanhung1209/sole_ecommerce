@@ -51,18 +51,18 @@ docker compose logs -f backend
 
 Sau khi chạy xong lần đầu trên production, nên đặt `USER_SEED_ENABLED=false` và `DEMO_OPS_SEED_ENABLED=false` trong `.env`, rồi chạy `docker compose up -d` để áp dụng lại.
 
-## 5. Re-seed giá sản phẩm 100–900 VNĐ trên VPS đang chạy (Test thanh toán thực tế)
+## 5. Re-seed giá sản phẩm 10.000–50.000 VNĐ trên VPS đang chạy (Test thanh toán thực tế)
 
-Nếu VPS đã chạy từ trước với giá bán lẻ cũ, làm theo các bước sau trong thư mục `~/sole` để cập nhật toàn bộ biến thể sản phẩm về mức **100–900 VNĐ** và tắt phí ship `30.000 VNĐ` (giúp tổng đơn hàng test dưới `1.000 VNĐ`):
+Nếu VPS đã chạy từ trước với giá bán lẻ cũ, làm theo các bước sau trong thư mục `~/sole` để cập nhật toàn bộ biến thể sản phẩm về mức **10.000–50.000 VNĐ** và tắt phí ship `30.000 VNĐ`:
 
 1. Mở `.env` và cập nhật:
    ```dotenv
    CATALOG_SEED_FORCE=true
    SHIPPING_FLAT_FEE=0
-   SHIPPING_FREE_THRESHOLD=500
+   SHIPPING_FREE_THRESHOLD=10000
    ```
 2. Kéo image backend mới nhất và khởi động lại container `backend`:
    ```bash
    docker compose pull backend && docker compose up -d backend
    ```
-3. Sau khi kiểm tra giá sản phẩm trên web đã về mức 100–900 VNĐ, đổi lại `CATALOG_SEED_FORCE=false` trong `.env` rồi chạy `docker compose up -d backend` để các lần khởi động sau không ghi đè dữ liệu.
+3. Sau khi kiểm tra giá sản phẩm trên web đã về mức 10.000–50.000 VNĐ, đổi lại `CATALOG_SEED_FORCE=false` trong `.env` rồi chạy `docker compose up -d backend` để các lần khởi động sau không ghi đè dữ liệu.
