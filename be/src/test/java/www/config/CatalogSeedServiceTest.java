@@ -124,10 +124,88 @@ class CatalogSeedServiceTest {
         Set<String> sizes = allSavedVariants.stream().map(ProductVariant::getSize).collect(Collectors.toSet());
         assertThat(sizes).contains("36", "37", "38", "39", "40", "41", "42", "43", "44", "45");
 
+        assertThat(allSavedVariants).allSatisfy(v -> {
+            assertThat(v.getPrice()).isBetween(100.0, 900.0);
+            if (v.getCompareAtPrice() != null) {
+                assertThat(v.getCompareAtPrice()).isGreaterThan(v.getPrice()).isLessThanOrEqualTo(900.0);
+            }
+        });
+
         ArgumentCaptor<Integer> stockCaptor = ArgumentCaptor.forClass(Integer.class);
         verify(inventoryService, atLeastOnce()).ensureInventory(anyString(), stockCaptor.capture());
         assertThat(stockCaptor.getAllValues().stream().filter(stock -> stock <= 3).count())
                 .isGreaterThanOrEqualTo(2);
+    }
+
+    @Test
+    void allCatalogProductsHavePricesBetween100And900Vnd() {
+        List<CatalogSeedService.SeedProduct> seeds = CatalogSeedService.catalogProducts();
+        assertThat(seeds).hasSize(28);
+        assertThat(seeds).allSatisfy(seed -> {
+            assertThat(seed.basePrice())
+                    .as("basePrice for %s", seed.slug())
+                    .isBetween(100, 900);
+            if (seed.compareAtPrice() != null) {
+                assertThat(seed.compareAtPrice())
+                        .as("compareAtPrice for %s", seed.slug())
+                        .isGreaterThan((double) seed.basePrice())
+                        .isLessThanOrEqualTo(900.0);
+            }
+        });
+    }
+
+    @Test
+    void updatesExistingVariantPricesWhenSeedForceEnabledEvenIfImagePreserved() {
+        ReflectionTestUtils.setField(service, "seedForce", true);
+
+        when(brandRepository.findBySlug(anyString())).thenAnswer(inv ->
+                Optional.of(Brand.builder().brandId("b-" + inv.getArgument(0)).slug(inv.getArgument(0)).build()));
+        when(categoryRepository.findBySlug(anyString())).thenAnswer(inv ->
+                Optional.of(Category.builder()
+                        .categoryId("c-" + inv.getArgument(0))
+                        .slug(inv.getArgument(0))
+                        .imageUrl("https://res.cloudinary.com/demo/image/upload/cat.webp")
+                        .build()));
+
+        when(productRepository.findBySlug(anyString())).thenAnswer(inv -> {
+            String slug = inv.getArgument(0);
+            return Optional.of(Product.builder()
+                    .productId("p-" + slug)
+                    .slug(slug)
+                    .imageUrls(List.of("https://res.cloudinary.com/demo/image/upload/p.webp"))
+                    .build());
+        });
+
+        ProductVariant existingCloudinaryVariant = ProductVariant.builder()
+                .variantId("v-existing-adidas-ub22-blk-40")
+                .productId("p-adidas-ultraboost-22")
+                .sku("ADIDAS-BLK-40")
+                .size("40")
+                .colorName("Core Black")
+                .colorHex("#1A1A1A")
+                .price(3990000.0)
+                .compareAtPrice(4490000.0)
+                .costPrice(2194500.0)
+                .imageUrls(List.of("https://res.cloudinary.com/demo/image/upload/preserved.webp"))
+                .build();
+
+        when(variantRepository.findByProductId(anyString())).thenAnswer(inv -> {
+            if ("p-adidas-ultraboost-22".equals(inv.getArgument(0))) {
+                return List.of(existingCloudinaryVariant);
+            }
+            return List.of();
+        });
+        when(variantRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.seedCatalogIfEmpty();
+
+        assertThat(existingCloudinaryVariant.getPrice()).isEqualTo(420.0);
+        assertThat(existingCloudinaryVariant.getCompareAtPrice()).isEqualTo(480.0);
+        assertThat(existingCloudinaryVariant.getCostPrice()).isEqualTo((double) Math.round(420 * 0.55));
+        assertThat(existingCloudinaryVariant.getImageUrls())
+                .containsExactly("https://res.cloudinary.com/demo/image/upload/preserved.webp");
+        assertThat(existingCloudinaryVariant.getUpdatedAt()).isNotNull();
+        verify(variantRepository, atLeastOnce()).save(existingCloudinaryVariant);
     }
 
     @Test
