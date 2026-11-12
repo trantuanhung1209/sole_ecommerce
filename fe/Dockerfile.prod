@@ -9,8 +9,8 @@ COPY package.json pnpm-lock.yaml ./
 # Enable corepack and install dependencies from lockfile
 RUN corepack enable && pnpm install --frozen-lockfile
 
-# Build-time Vite configuration (inlined into static bundle)
-ARG VITE_API_URL=http://localhost:3001
+# Build-time Vite configuration (inlined into static bundle; empty defaults to same-origin /api)
+ARG VITE_API_URL=""
 ARG VITE_GOOGLE_CLIENT_ID=""
 ARG VITE_CLOUDINARY_CLOUD_NAME=""
 ARG VITE_CLOUDINARY_UPLOAD_PRESET=""

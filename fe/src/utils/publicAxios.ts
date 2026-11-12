@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 /** Default for catalog/auth; AI calls override per-request. */
 export const PUBLIC_API_TIMEOUT_MS = 30_000;

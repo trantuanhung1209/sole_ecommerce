@@ -18,7 +18,7 @@ export const setAppStore = (store: AppStore) => {
 
 // Tạo Axios instance
 const authorizedAxios = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api`, // Add /api prefix
+  baseURL: `${import.meta.env.VITE_API_URL ?? "http://localhost:3001"}/api`, // Add /api prefix
   timeout: 1000 * 60 * 10, // 10 phút
   withCredentials: true,
 });
