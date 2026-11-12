@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Bot, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import AiSuggestedProducts from "@/components/AiSuggestedProducts/AiSuggestedProducts";
@@ -24,14 +24,6 @@ export default function AiChatPage() {
   const chunksRef = useRef<Blob[]>([]);
   const recordingStartedAtRef = useRef<number | null>(null);
   const scrollAnchorRef = useChatAutoScroll(messages.length, loading);
-
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, []);
 
   const appendUserMessage = (content: string, extras?: Partial<AiChatMessage>) => {
     setMessages((prev) => [...prev, { role: "user", content, ...extras }]);
@@ -156,11 +148,13 @@ export default function AiChatPage() {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 top-16 z-0 mx-auto flex max-w-6xl flex-col overflow-hidden bg-background px-4 py-4 md:px-6 lg:top-[4.5rem]">
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="mx-auto flex h-[calc(100dvh-4rem)] max-w-6xl flex-col overflow-hidden px-4 py-4 md:px-6 lg:h-[calc(100dvh-4.5rem)]">
+      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-[#E5E7EB]">
         <CardHeader className="shrink-0 pb-3">
-          <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-            <Bot className="h-6 w-6" />
+          <CardTitle className="flex items-center gap-2.5 text-xl text-[#111111] md:text-2xl">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#111111] text-white ring-2 ring-[#E53935]/20">
+              <Bot className="h-5 w-5 text-[#E53935]" />
+            </span>
             Trợ lý AI SOLE
           </CardTitle>
           <CardDescription className="text-base">
@@ -168,14 +162,17 @@ export default function AiChatPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden pb-4">
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto rounded-lg border bg-muted/30 p-5 md:p-6">
+          <div
+            data-lenis-prevent
+            className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain rounded-lg border border-[#E5E7EB] bg-muted/30 p-5 md:p-6"
+          >
             {messages.map((msg, i) => (
               <div
                 key={i}
                 className={`max-w-[80%] rounded-lg px-4 py-3 text-base ${
                   msg.role === "user"
                     ? "ml-auto bg-primary text-primary-foreground"
-                    : "bg-background border"
+                    : "border border-[#E5E7EB] bg-background"
                 }`}
               >
                 {msg.sourceImageUrl && msg.role === "user" ? (

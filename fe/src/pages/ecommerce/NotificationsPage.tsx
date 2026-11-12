@@ -6,6 +6,7 @@ import { useSmoothScroll } from "@/providers/SmoothScrollProvider";
 import { notificationApi } from "@/services/notificationServices";
 import { isNetworkError } from "@/utils/networkError";
 import type { AppNotification } from "@/types/notification.type";
+import { SolePageLoader } from "@/components/shared/SolePageLoader";
 import { clampPage, TablePagination } from "@/components/shared/TablePagination";
 
 export const NOTIFICATIONS_PAGE_SIZE = 8;
@@ -84,7 +85,7 @@ export default function NotificationsPage() {
       </div>
 
       {loading ? (
-        <p>Đang tải...</p>
+        <SolePageLoader compact label="Đang tải thông báo..." />
       ) : items.length === 0 ? (
         <p className="text-center text-muted-foreground py-12">Không có thông báo.</p>
       ) : (

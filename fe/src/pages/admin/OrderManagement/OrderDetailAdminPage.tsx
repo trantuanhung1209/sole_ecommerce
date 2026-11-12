@@ -5,6 +5,7 @@ import { MapPin, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OrderItemRow } from "@/components/orders/OrderItemRow";
 import { OrderTotals } from "@/components/orders/OrderTotals";
+import { SolePageLoader } from "@/components/shared/SolePageLoader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { orderApi, paymentApi } from "@/services/ecommerceServices";
 import { getOrderStatusLabel } from "@/utils/displayLabels";
@@ -83,7 +84,7 @@ export default function OrderDetailAdminPage() {
     }
   };
 
-  if (!order) return <div className="p-6">Đang tải...</div>;
+  if (!order) return <SolePageLoader label="Đang tải chi tiết đơn hàng..." />;
 
   const basePath = location.pathname.startsWith("/staff") ? "/staff" : "/admin";
   const shipping = parseShippingAddress(order.shippingAddressSnapshot);

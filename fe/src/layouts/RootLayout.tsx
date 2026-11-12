@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { FloatingChatbot } from "@/components/FloatingChatbot";
 import { BackToTopButton, ScrollProgressBar } from "@/components/motion/ScrollReveal";
+import { RouteTransitionBar } from "@/components/shared/SolePageLoader";
 import { SmoothScrollProvider } from "@/providers/SmoothScrollProvider";
 
 const HIDE_SCROLL_CHROME_PATHS = [
@@ -23,6 +24,7 @@ export default function RootLayout() {
 
   return (
     <SmoothScrollProvider>
+      <RouteTransitionBar />
       {!shouldHideScrollChrome && <ScrollProgressBar />}
       <Outlet />
       {!shouldHideBackToTop && <BackToTopButton />}

@@ -4,6 +4,7 @@ import type { UserRole } from "@/types/user.type";
 import { useAppSelector, useAppDispatch } from "@/hooks/useRedux";
 import { fetchProfile } from "@/store/slices";
 import { useEffect } from "react";
+import { SolePageLoader } from "@/components/shared/SolePageLoader";
 
 interface Props {
   children?: JSX.Element;
@@ -29,14 +30,7 @@ const ProtectedRoute = ({ children, role, roles }: Props) => {
   }
 
   if (hasLoginFlag && !user && loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-accent/5">
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-muted-foreground">Verifying authentication...</p>
-        </div>
-      </div>
-    );
+    return <SolePageLoader fullScreen label="Đang xác thực phiên đăng nhập..." />;
   }
 
   if (hasLoginFlag && !user && !loading) {

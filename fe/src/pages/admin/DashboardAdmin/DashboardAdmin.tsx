@@ -11,6 +11,7 @@ import {
 } from "./components";
 import { useDashboardData, useDashboardCharts, type TimeRange } from "./hooks";
 import { exportDashboardToExcel, formatCurrency } from "./utils";
+import { SolePageLoader } from "@/components/shared/SolePageLoader";
 
 function DashboardAdmin() {
   const [timeRange, setTimeRange] = useState<TimeRange>("30days");
@@ -23,11 +24,7 @@ function DashboardAdmin() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <SolePageLoader label="Đang tải bảng điều khiển..." />;
   }
 
   return (

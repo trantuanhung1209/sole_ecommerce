@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SolePageLoader } from "@/components/shared/SolePageLoader";
 import { rbacApi } from "@/services/ecommerceServices";
 import {
   getPermissionGroupLabel,
@@ -103,7 +104,7 @@ export default function RolePermissionsPage() {
     }
   };
 
-  if (!matrix) return <div className="p-6">Đang tải phân quyền...</div>;
+  if (!matrix) return <SolePageLoader label="Đang tải ma trận phân quyền..." />;
 
   return (
     <div className="p-6 space-y-6">

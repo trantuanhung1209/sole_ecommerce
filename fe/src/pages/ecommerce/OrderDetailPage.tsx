@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { OrderItemRow } from "@/components/orders/OrderItemRow";
 import { OrderTotals } from "@/components/orders/OrderTotals";
+import { SolePageLoader } from "@/components/shared/SolePageLoader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { mediaApi, orderApi, returnApi, reviewApi } from "@/services/ecommerceServices";
 import type { Order, OrderItem, ReturnRequest } from "@/types/ecommerce.type";
@@ -96,7 +97,7 @@ export default function OrderDetailPage() {
     reload();
   }, [orderId]);
 
-  if (!order) return <div className="p-8">Đang tải...</div>;
+  if (!order) return <SolePageLoader label="Đang tải đơn hàng..." />;
 
   const returnsByItemId = Object.fromEntries(returns.map((item) => [item.orderItemId, item]));
   const returnableStatuses = ["DELIVERED", "COMPLETED", "RETURN_REQUESTED"];

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { ReturnRequestCustomerDetail } from "@/components/returns/ReturnRequestCustomerDetail";
+import { SolePageLoader } from "@/components/shared/SolePageLoader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { orderApi, returnApi } from "@/services/ecommerceServices";
 import { resolveOrderCode, resolveReturnProductName } from "@/utils/productDisplay";
@@ -37,11 +38,7 @@ export default function MyReturnDetailPage() {
   }, [reload]);
 
   if (loading) {
-    return (
-      <main className="mx-auto max-w-[900px] px-4 py-8">
-        <p className="text-[#6B7280]">Đang tải...</p>
-      </main>
-    );
+    return <SolePageLoader label="Đang tải yêu cầu đổi trả..." />;
   }
 
   if (!item) {

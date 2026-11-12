@@ -19,6 +19,7 @@ import {
 } from "@/services/ecommerceServices";
 import type { Brand, Category, Product, ProductSummary, ProductVariant } from "@/types/ecommerce.type";
 import { ProductCard } from "@/components/home/ProductCard";
+import { SolePageLoader } from "@/components/shared/SolePageLoader";
 
 const fallback = "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=1000&q=80";
 
@@ -138,7 +139,7 @@ export default function ProductDetailPage() {
   }, [available, quantity]);
 
   if (!product) {
-    return <main className="min-h-screen bg-[#F7F7F5] p-8">Đang tải sản phẩm...</main>;
+    return <SolePageLoader label="Đang tải sản phẩm..." />;
   }
 
   const addToWishlist = async () => {

@@ -9,6 +9,7 @@ import {
 import { MarkReceivedDialog, type MarkReceivedPayload } from "@/components/returns/MarkReceivedDialog";
 import { ReturnActionDialog } from "@/components/returns/ReturnActionDialog";
 import { ReturnRequestDetailPanel } from "@/components/returns/ReturnRequestDetailPanel";
+import { SolePageLoader } from "@/components/shared/SolePageLoader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { orderApi, returnApi } from "@/services/ecommerceServices";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
@@ -151,7 +152,7 @@ export default function ReturnDetailAdminPage() {
   };
 
   if (loading) {
-    return <div className="p-6">Đang tải...</div>;
+    return <SolePageLoader label="Đang tải chi tiết đổi trả..." />;
   }
 
   if (!item) {

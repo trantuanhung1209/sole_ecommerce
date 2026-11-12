@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ImageUploader } from "@/components/shared/ImageUploader";
+import { SolePageLoader } from "@/components/shared/SolePageLoader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { VariantFormDialog } from "./components/VariantFormDialog";
 import { brandApi, categoryApi, money, productApi } from "@/services/ecommerceServices";
@@ -180,7 +181,7 @@ export default function ProductDetailAdminPage() {
   };
 
   if (loading || !product) {
-    return <div className="p-6">Đang tải sản phẩm...</div>;
+    return <SolePageLoader label="Đang tải chi tiết sản phẩm..." />;
   }
 
   return (
